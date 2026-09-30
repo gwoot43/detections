@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1558.003]
 data_source: Windows Security event 4769 from domain controllers
+suppression:
+  fields: [acct]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Requesting many service tickets for distinct SPNs with RC4 (0x17) encryption from one account in a short window is the on-wire signature of Kerberoasting. Normal clients request a few tickets for the services they actually use, and modern clients prefer AES.
@@ -29,6 +33,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | WHERE distinct_spns >= 8
 ```
 Tune the threshold to your environment. If you have fully moved to AES, alert on any RC4 TGS for a user-account SPN and drop the threshold.
+
+## Suppression
+Suppress by `acct` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.
 
 ## Known false positives / exclusions
 - Legacy applications and vulnerability scanners that enumerate SPNs. Exclude the scanner account and known legacy service accounts.

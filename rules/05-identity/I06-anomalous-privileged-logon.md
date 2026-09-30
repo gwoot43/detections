@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1078.002, T1021]
 data_source: Windows Security event 4624
+suppression:
+  fields: [acct, dest]
+  duration: 8h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Tier-0 accounts should log on only to domain controllers and privileged access workstations. A Domain Admin logging on interactively (type 2, 10 RDP, or with credentials cached type 11) to an ordinary workstation is either a tiering violation or stolen credentials in use. Both need action.
@@ -27,6 +31,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | KEEP @timestamp, dest, acct, logon_type, source.ip, winlog.event_data.WorkstationName, winlog.event_data.IpAddress
 ```
 Replace the naming conventions with your own. If you maintain a Tier-0 account group, resolve membership into a lookup and match on that instead of name patterns.
+
+## Suppression
+Suppress by `acct`, `dest` for 8h. Alerts missing a key field are not suppressed. Interactive sessions reconnect through the day.
 
 ## Known false positives / exclusions
 - A break-glass account used during an incident, on the incident host. Expect it and document it.

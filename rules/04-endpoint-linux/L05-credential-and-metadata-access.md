@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1003.008, T1552.004, T1552.005, T1552.001]
 data_source: CrowdStrike FDR ProcessRollup2 and CriticalFileAccessed (Linux)
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 `/etc/shadow` is read by `passwd`, `sshd`, `sudo` and PAM, never by `cat`, `python` or `curl`. Bulk searches for private keys and shell access to the instance metadata service are attacker moves on a server.
@@ -26,6 +30,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*.aws/credentials*" OR cmd LIKE "*.kube/config*" OR cmd LIKE "*.docker/config.json*" OR cmd LIKE "*gcloud*credentials*")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, f
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Credential harvesting runs as a burst of reads and searches.
 
 ## Known false positives / exclusions
 - Backup and compliance scanners reading credential stores. Exclude by the scanner's service account.

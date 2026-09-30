@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1550.004, T1539, T1078.004]
 data_source: Entra ID interactive and non-interactive sign-in logs (session ID)
+suppression:
+  fields: [usr, sid]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 A stolen session cookie or refresh token produces a signature the password never can: the same Entra session identifier issuing tokens from two different countries or autonomous systems. Legitimate sessions move with one device on one network at a time (mobile roaming aside). This catches token theft even when the risk engine stays quiet.
@@ -26,6 +30,9 @@ FROM logs-azure.signinlogs-*
 | WHERE countries >= 2 OR asns >= 3
 ```
 Confirm the session identifier field name in your integration version (`session_id` under `properties`, or `correlation_id` as a weaker fallback). Without it, fall back to the two-country rule in I07.
+
+## Suppression
+Suppress by `usr`, `sid` for 24h. Alerts missing a key field are not suppressed. Aggregating rule on a daily bucket.
 
 ## Known false positives / exclusions
 - Mobile devices switching between Wi-Fi and cellular. The ASN threshold is set to 3 for that reason; country is the stronger signal. Exclude known carrier ASN pairs if they dominate.

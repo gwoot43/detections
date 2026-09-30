@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1556.006]
 data_source: Entra ID sign-in logs
+suppression:
+  fields: [usr, app]
+  duration: 8h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Every admin sign-in to the Azure portal, Entra admin centre, Graph, Exchange admin or Azure management should require MFA. A privileged account that satisfies the sign-in with a single factor means a Conditional Access gap or an exclusion an attacker is riding. The population is your admin accounts, which you know by name or by role membership.
@@ -27,6 +31,9 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | KEEP @timestamp, usr, app, res, req, source.ip, source.geo.country_iso_code, azure.signinlogs.properties.conditional_access_status, azure.signinlogs.properties.device_detail.trust_type
 ```
 Better than name patterns: export Global/Privileged Role Administrator, Security Administrator and Exchange Administrator members to a lookup index nightly and join on it.
+
+## Suppression
+Suppress by `usr`, `app` for 8h. Alerts missing a key field are not suppressed. Admin sessions refresh through the day.
 
 ## Known false positives / exclusions
 - Sign-ins from a compliant, hybrid-joined PAW where CA grants access on device compliance instead of MFA. Decide whether that is acceptable policy; if it is, exclude `trust_type == "Hybrid Azure AD joined" AND is_compliant == true`.

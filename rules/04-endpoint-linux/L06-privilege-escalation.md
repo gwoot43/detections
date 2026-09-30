@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1548.001, T1548.003, T1068]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 GTFOBins escalation shapes, `sudo` run with the CVE-2021-3156 or CVE-2023-22809 patterns, and new SUID binaries appearing in world-writable paths are narrow and rarely benign.
@@ -26,6 +30,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*capsh*" AND cmd LIKE "*--gid=0*" AND cmd LIKE "*--uid=0*")
 | KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Escalation attempts are retried.
 
 ## Known false positives / exclusions
 - Admins using `sudo vim` legitimately. The GTFOBins branch requires the escape sequence (`!sh`, `-c`, `exec`), which reduces this. Baseline the admin population.

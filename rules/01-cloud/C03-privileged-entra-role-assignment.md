@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1098.003, T1078.004]
 data_source: Entra ID audit logs
+suppression:
+  fields: [azure.auditlogs.properties.target_resources.0.user_principal_name, role]
+  duration: 8h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Global Administrator, Privileged Role Administrator, Privileged Authentication Administrator, Security Administrator and Exchange Administrator are the roles that let an attacker own the tenant. Assignments should be rare, and PIM activations should follow a shift pattern you can baseline.
@@ -35,7 +39,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
   )
 | KEEP @timestamp, azure.auditlogs.operation_name, role,
        azure.auditlogs.properties.initiated_by.user.userPrincipalName,
-       azure.auditlogs.properties.target_resources.0.user_principal_name, source.ip
+       `azure.auditlogs.properties.target_resources.0.user_principal_name`, source.ip
 ```
 
 KQL fallback while the pipeline field is not there:
@@ -43,6 +47,9 @@ KQL fallback while the pipeline field is not there:
 event.dataset:azure.auditlogs and azure.auditlogs.operation_name:("Add member to role" or "Add eligible member to role" or "Add member to role completed (PIM activation)")
 and azure.auditlogs.properties.target_resources.*.modified_properties.*.new_value:("\"Global Administrator\"" or "\"Privileged Role Administrator\"" or "\"Security Administrator\"" or "\"Exchange Administrator\"")
 ```
+
+## Suppression
+Suppress by `azure.auditlogs.properties.target_resources.0.user_principal_name`, `role` for 8h. Alerts missing a key field are not suppressed. PIM activations by on-call staff repeat through a shift. A different person or role still alerts.
 
 ## Known false positives / exclusions
 - PIM activations by the on-call identity team. Suppress by (actor, role) for 8 hours after the first alert, do not allowlist.

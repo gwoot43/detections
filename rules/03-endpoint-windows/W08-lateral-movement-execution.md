@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1021.002, T1047, T1021.006, T1021.003, T1053.005, T1569.002]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 The parent tells the story. `services.exe` spawning a shell is a service binary that is a shell (PsExec-class tools). `wmiprvse.exe` spawning a shell is remote WMI. `wsmprovhost.exe` is WinRM. `mmc.exe` or `dllhost.exe` spawning shells is DCOM. Admins use these too, from a small number of jump hosts you can exclude.
@@ -27,6 +31,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (child IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*invoke-command*-computername*" OR cmd LIKE "*enter-pssession*"))
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Remote execution tools spawn many processes per session on the destination.
 
 ## Known false positives / exclusions
 - Configuration management and monitoring agents using WMI. Exclude by the child's command line, not by parent.

@@ -8,6 +8,10 @@ language: esql
 index: logs-mimecast.ttp_ip_logs-*
 mitre: [T1656, T1534, T1566.003]
 data_source: Mimecast TTP Impersonation Protect logs
+suppression:
+  fields: [mimecast.senderAddress, rcpt]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Impersonation hits in general are noisy. Restricting to your payment-capable recipients and to the strong identifiers (internal user display name, similar internal domain, reply-to mismatch) turns it into a BEC early-warning with a small daily volume.
@@ -25,6 +29,9 @@ FROM logs-mimecast.ttp_ip_logs-* METADATA _id, _index, _version
 | KEEP @timestamp, rcpt, mimecast.senderAddress, mimecast.subject, ids, action, mimecast.definition, mimecast.taggedMalicious
 ```
 Move the VIP list to a lookup index or an Elastic value list once it is stable.
+
+## Suppression
+Suppress by `mimecast.senderAddress`, `rcpt` for 24h. Alerts missing a key field are not suppressed. A BEC sender writes repeatedly to the same target.
 
 ## Known false positives / exclusions
 - Newsletters using an executive's name as the friendly-from. Exclude by sender domain after review.

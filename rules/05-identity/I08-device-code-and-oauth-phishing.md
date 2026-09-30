@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1528, T1621, T1078.004]
 data_source: Entra ID sign-in logs (including non-interactive)
+suppression:
+  fields: [user.name, source.ip]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Device code phishing was the breakout identity attack of 2025 to 2026 (STORM-2372, then the EvilTokens / ConsentFix phishing-as-a-service kits). The device code grant is rarely used legitimately outside a few IoT and CLI scenarios, so a device-code sign-in to Office, Teams or Azure Management, especially from a hosting ASN or a country the user is not in, is a strong signal.
@@ -26,6 +30,9 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | KEEP @timestamp, user.name, app, source.ip, source.geo.country_iso_code, source.as.organization.name, proto, grant
 ```
 If the device-code fields are not populated in your integration version, detect the pattern instead: an authorization request (error 50199 / 70016 device-code pending) followed by a success for the same user from a different IP within 15 minutes.
+
+## Suppression
+Suppress by `user.name`, `source.ip` for 24h. Alerts missing a key field are not suppressed. A phished token keeps refreshing from the same IP. A new IP still alerts.
 
 ## Known false positives / exclusions
 - Legitimate device-code use: Azure CLI on servers, conference-room devices, PowerShell with `-UseDeviceAuthentication`. Inventory these users and hosts and exclude them.

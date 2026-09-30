@@ -8,6 +8,10 @@ language: esql
 index: logs-zscaler.zia_web-*
 mitre: [T1567, T1048, T1041]
 data_source: Zscaler Internet Access web logs
+suppression:
+  fields: [user.name, destination.domain]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Data theft over web shows up as an unusually large upload to a destination the user does not normally send to, especially personal file-sharing, paste sites and newly seen domains. Volume plus destination novelty keeps this from firing on normal SaaS use.
@@ -25,6 +29,9 @@ FROM logs-zscaler.zia_web-*
         OR MV_CONCAT(cats, ",") LIKE "*paste*" OR MV_CONCAT(cats, ",") LIKE "*newly*registered*"
         OR MV_CONCAT(cats, ",") LIKE "*uncategor*")
 ```
+
+## Suppression
+Suppress by `user.name`, `destination.domain` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Uploads continue across buckets.
 
 ## Known false positives / exclusions
 - Sanctioned cloud storage and backup (your corporate OneDrive, approved SaaS). Exclude those domains. That is why the category filter targets personal storage, paste and uncategorized.

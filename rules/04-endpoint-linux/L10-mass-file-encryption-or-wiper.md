@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1486, T1485, T1490]
 data_source: CrowdStrike FDR (Linux) file-write telemetry
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Linux ransomware (ESXi and NAS variants especially) rewrites hundreds of files in seconds and drops a ransom note. A single process touching a large number of distinct files across many directories in a short window, or invoking bulk crypto tooling, is the encryption event itself.
@@ -36,6 +40,9 @@ FROM logs-crowdstrike.fdr-*
     BY process.entity_id, host.name, process.name, BUCKET(@timestamp, 5 minutes)
 | WHERE files >= 200 AND dirs >= 5
 ```
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Encryption produces thousands of events. One alert per host, and every new host still alerts.
 
 ## Known false positives / exclusions
 - Legitimate backup encryption and large `dd` disk clones. Exclude the backup service account and known imaging hosts.

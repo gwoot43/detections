@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*, logs-windows.security-*
 mitre: [T1003.003]
 data_source: CrowdStrike FDR ProcessRollup2 (DCs) and Windows Security 4656/4663 on NTDS
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 The AD database (`ntds.dit`) holds every password hash. Attackers copy it by making a volume shadow copy and reading the file, or with `ntdsutil ifm`, `vssadmin create shadow`, `esentutl`, or `diskshadow` on a DC. These commands on a domain controller are made by backup software (known) and attackers (everything else).
@@ -28,6 +32,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 Companion via the Security channel: 4656/4663 (object access) on the `ntds.dit` file by a process other than `lsass.exe` or the backup agent, if you audit that file's SACL.
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Copying the AD database takes several commands.
 
 ## Known false positives / exclusions
 - Backup software creating shadow copies on DCs on schedule. Exclude by the backup service parent and expected schedule. `reg save` of SAM/SYSTEM is never routine on a DC.

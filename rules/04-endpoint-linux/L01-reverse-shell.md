@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1059.004, T1071]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 The one-liner shapes are fixed by tooling (GTFOBins, webshell payloads) and there is no administrative reason to redirect a shell's stdio to a socket.
@@ -30,6 +34,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "openssl" AND cmd LIKE "*s_client*" AND (cmd LIKE "*| /bin/sh*" OR cmd LIKE "*| bash*"))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, process.parent.command_line
 ```
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Reverse shells reconnect repeatedly.
 
 ## Known false positives / exclusions
 - Health checks using `/dev/tcp` to test a port. Exclude the exact command line from the monitoring agent.

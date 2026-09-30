@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1090.003]
 data_source: Entra ID sign-in logs
+suppression:
+  fields: [user.name, source.ip]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Employees sign in from ISPs, mobile carriers and your corporate egress. Attackers sign in from cloud VMs, residential-proxy networks and commercial VPNs. Restricting to successful sign-ins to sensitive resources from a curated ASN list gives a signal that does not depend on Identity Protection licensing and complements S07.
@@ -24,6 +28,9 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | WHERE NOT CIDR_MATCH(source.ip, "203.0.113.0/24")     // corporate egress that happens to sit in a hosting ASN
 | KEEP @timestamp, user.name, source.ip, asn, source.geo.country_iso_code, res, azure.signinlogs.properties.app_display_name, azure.signinlogs.properties.device_detail.trust_type, user_agent.original
 ```
+
+## Suppression
+Suppress by `user.name`, `source.ip` for 24h. Alerts missing a key field are not suppressed. Sessions from the same exit keep refreshing.
 
 ## Known false positives / exclusions
 - Staff using a personal VPN. Frequency decides: if it is common in your workforce, keep the rule as enrichment for other alerts rather than a standalone page. Corporate services hosted in a listed cloud ASN (your own Azure egress) must be excluded by CIDR.

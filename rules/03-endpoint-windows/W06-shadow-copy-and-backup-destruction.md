@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1490, T1485]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 These commands appear in nearly every ransomware playbook and in almost no admin runbook. Volume is near zero outside an attack.
@@ -26,6 +30,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "fsutil.exe" AND cmd LIKE "*usn deletejournal*")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Ransomware runs several backup-destruction commands in a burst. Every other host still alerts.
 
 ## Known false positives / exclusions
 - Backup software resizing shadow storage under its own service parent. Exclude by parent executable path.

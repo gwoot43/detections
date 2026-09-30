@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1070.002, T1070.003, T1070.006, T1562.001, T1222.002]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Truncating `/var/log`, unsetting `HISTFILE`, deleting `.bash_history` and running `touch -r` to backdate files are things attackers do to cover tracks and admins almost never do interactively.
@@ -27,6 +31,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*chattr*" AND (cmd LIKE "*+i*" OR cmd LIKE "*-a*") AND (cmd LIKE "*/var/log*" OR cmd LIKE "*history*"))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Log wiping runs as a burst of commands.
 
 ## Known false positives / exclusions
 - Log rotation runs as `logrotate`, not `rm`. Exclude the `logrotate` parent if it appears.

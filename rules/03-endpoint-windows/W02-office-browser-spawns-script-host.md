@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1204.002, T1566.001, T1059]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, parent, child]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Word does not need PowerShell. Outlook does not need mshta. The parent list is small, the child list is small, and the intersection is malicious documents, HTML smuggling and archive-delivered loaders.
@@ -30,6 +34,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR cmd LIKE "*\\downloads\\*" OR cmd LIKE "*\\temp\\*" OR cmd LIKE "*\\appdata\\local\\*" OR cmd LIKE "*http*" OR cmd LIKE "*\\7z*" OR cmd LIKE "*\\rar$*"
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line
 ```
+
+## Suppression
+Suppress by `host.name`, `parent`, `child` for 1h. Alerts missing a key field are not suppressed. A macro often spawns the same child several times.
 
 ## Known false positives / exclusions
 - Excel spawning `cmd.exe` for approved macros in finance. Exclude by exact command line after review, never by host.

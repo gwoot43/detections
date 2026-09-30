@@ -8,6 +8,10 @@ language: esql
 index: logs-*
 mitre: [T1566, T1204, T1059]
 data_source: Mimecast/O365 (E01/E04/E05) + CrowdStrike (W/L/CS series) joined on user and host
+suppression:
+  fields: [usr, host.name]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 A malicious click on its own is a warning; an endpoint alert on its own has context missing. Together, a phishing interaction and an endpoint detection for the same user within an hour is a confirmed successful attack chain, and it is one of the highest-value detections you can run. This is the reason to ingest email and endpoint into the same platform.
@@ -17,7 +21,7 @@ Correlation across indices is easiest as an Elastic "indicator match" or a sched
 
 ## Query (pattern)
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id
+FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE @timestamp > NOW() - 1 hour
   AND (event.action == "ProcessRollup2" OR event.action LIKE "*Detect*")
   AND host.os.type IN ("windows", "linux")
@@ -28,6 +32,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id
 | KEEP @timestamp, usr, host.name, process.name, process.command_line, clicked_url, clicked_at
 ```
 Build `email_phish_clicks_last_2h` as an enrich index or transform from E01/E04/E05 (fields: `usr`, `clicked_at`, `clicked_url`). If LOOKUP JOIN is not available in your version, implement this as an Elastic indicator-match rule: indicator index = phishing clicks, event index = endpoint alerts, match on user, look-back 1 hour.
+
+## Suppression
+Suppress by `usr`, `host.name` for 24h. Alerts missing a key field are not suppressed. Correlation rule. It re-matches on every run while the lookback overlaps.
 
 ## Known false positives / exclusions
 - Very low. A click plus an unrelated benign endpoint event is possible; scope the endpoint side to the suspicious rules (W02, W03, W04, CS04, CS06), not all process events, to keep it clean.

@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1547.006, T1014, T1205.002]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
+suppression:
+  fields: [host.name]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Loading a kernel module from a user-writable path, or the shape of an eBPF-based rootkit loader, is rare and high impact. On a managed fleet, module loads come from the package manager and DKMS, not from a shell in `/tmp`.
@@ -26,6 +30,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT (parent IN ("dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd", "cloud-init", "falcon-sensor"))
 | KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name` for 24h. Alerts missing a key field are not suppressed. Modules reload at every boot.
 
 ## Known false positives / exclusions
 - DKMS building GPU or VPN modules, excluded by parent. Hardware agents (`nvidia`, `vmware`) at boot. Exclude the boot-time udev parent.

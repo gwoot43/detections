@@ -8,6 +8,10 @@ language: esql
 index: logs-f5.apm-*
 mitre: [T1110, T1133]
 data_source: F5 APM access logs
+suppression:
+  fields: [source.ip]
+  duration: 4h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Internet-facing VPN portals are sprayed constantly. The alert is not the failures, it is a source or a targeted account that fails repeatedly and then succeeds, or one source failing against many accounts (spray) with any success in the window.
@@ -26,6 +30,9 @@ FROM logs-f5.apm-*
     BY source.ip, BUCKET(@timestamp, 30 minutes)
 | WHERE (fails >= 10 AND successes >= 1) OR (failed_users >= 8 AND successes >= 1)
 ```
+
+## Suppression
+Suppress by `source.ip` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. Spray campaigns run for hours.
 
 ## Known false positives / exclusions
 - A user with a stale saved password retrying then fixing it. The multi-user (spray) branch avoids this. For the single-source branch, require the success account to be one of the failed accounts.

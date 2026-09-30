@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1528, T1110]
 data_source: Entra ID service principal sign-in logs
+suppression:
+  fields: [sp]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Service principals authenticate from fixed infrastructure (your pipelines, your Azure subscriptions). One appearing from a second ASN or country in the same day means its secret or certificate is in use elsewhere, which is exactly what a leaked credential looks like (and the natural follow-on to C04). A burst of invalid-secret failures (7000215) is someone testing stolen or guessed secrets.
@@ -27,6 +31,9 @@ FROM logs-azure.signinlogs-*
     BY sp, BUCKET(@timestamp, 24 hours)
 | WHERE (successes > 0 AND (asns >= 2 OR countries >= 2)) OR bad_secrets >= 10
 ```
+
+## Suppression
+Suppress by `sp` for 24h. Alerts missing a key field are not suppressed. Aggregating rule on a daily bucket.
 
 ## Known false positives / exclusions
 - Service principals used from both a cloud subscription and an on-prem build agent by design. Baseline each SP's expected ASN set in a lookup and alert on deviation instead of on the raw count.

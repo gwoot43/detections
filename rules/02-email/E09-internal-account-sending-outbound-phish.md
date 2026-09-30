@@ -8,6 +8,10 @@ language: esql
 index: logs-mimecast.siem_logs-*
 mitre: [T1534, T1114, T1078.004]
 data_source: Mimecast SIEM receipt/process logs (outbound route)
+suppression:
+  fields: [sender]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 A compromised mailbox is usually first noticed when it starts sending the phish onward. Ten or more outbound messages from one internal sender that Mimecast holds, rejects or tags as spam within 15 minutes has no benign explanation outside marketing tools, which you exclude.
@@ -24,6 +28,9 @@ FROM logs-mimecast.siem_logs-*
 | WHERE n >= 10 AND rcpts >= 5
 ```
 Field names here are the Mimecast SIEM receipt-log names (`Dir`, `Act`, `Sender`, `Rcpt`, `SpamScore`). Check the exact casing your integration produces.
+
+## Suppression
+Suppress by `sender` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. A compromised mailbox keeps sending for hours.
 
 ## Known false positives / exclusions
 - Marketing and transactional senders. Exclude by address.

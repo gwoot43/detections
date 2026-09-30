@@ -8,6 +8,10 @@ language: esql
 index: logs-*
 mitre: [T1110.003]
 data_source: Windows Security event 4625 (on-prem) and Entra sign-in logs (cloud)
+suppression:
+  fields: [source.ip, landed]
+  duration: 4h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Spray is defined by breadth, not depth: one source failing against many distinct accounts with few attempts each, so it stays under per-account lockout. Alerting on the breadth, and especially on a spray that is followed by a success, is far higher fidelity than per-account failure counting.
@@ -24,6 +28,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
         total_fail = SUM(failed), total_success = SUM(success)
     BY source.ip, BUCKET(@timestamp, 30 minutes)
 | WHERE failed_users >= 10
+| EVAL landed = total_success > 0     // part of the suppression key, so a spray that later succeeds re-alerts
 ```
 Escalate to critical when `succeeded_users` is non-empty in the same bucket: that is a spray that landed.
 
@@ -35,6 +40,9 @@ FROM logs-windows.security-*
     BY source.ip, BUCKET(@timestamp, 30 minutes)
 | WHERE failed_users >= 10
 ```
+
+## Suppression
+Suppress by `source.ip`, `landed` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. The landed flag is in the key so a spray that later succeeds raises a new alert.
 
 ## Known false positives / exclusions
 - A misconfigured application or a shared kiosk retrying stale credentials against many accounts. Exclude by source IP after confirming.

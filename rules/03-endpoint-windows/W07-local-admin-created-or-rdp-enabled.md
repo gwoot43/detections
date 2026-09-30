@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1136.001, T1098, T1021.001, T1562.004]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Hands-on-keyboard intruders create a local backdoor admin and turn on RDP on the hosts they land on. On a managed estate these actions come from Intune, LAPS or the imaging pipeline, all of which have a recognisable parent.
@@ -26,6 +30,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT (parent IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe"))
 | KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Account creation, group add and RDP enable usually come together.
 
 ## Known false positives / exclusions
 - Imaging and onboarding scripts. Exclude by parent (deployment agent) plus SYSTEM.

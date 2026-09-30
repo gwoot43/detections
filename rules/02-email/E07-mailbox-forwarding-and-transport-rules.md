@@ -8,6 +8,10 @@ language: esql
 index: logs-o365.audit-*
 mitre: [T1114.003]
 data_source: Microsoft 365 Unified Audit Log (Exchange admin audit)
+suppression:
+  fields: [o365.audit.UserId, o365.audit.ObjectId]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 `Set-Mailbox -ForwardingSmtpAddress` and transport rules with `RedirectMessageTo` or `BlindCopyTo` are organisation-level exfiltration channels that survive the user's password reset. They are admin actions with a very small legitimate population.
@@ -24,6 +28,9 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
    OR (event.action LIKE "*RemoteDomain" AND p LIKE "*autoforwardenabled\", \"value\": \"true*")
 | KEEP @timestamp, o365.audit.UserId, o365.audit.ClientIP, event.action, o365.audit.ObjectId, p
 ```
+
+## Suppression
+Suppress by `o365.audit.UserId`, `o365.audit.ObjectId` for 1h. Alerts missing a key field are not suppressed. Admin scripts re-apply the same setting.
 
 ## Known false positives / exclusions
 - Leaver process forwarding to a manager (internal address). Split severity on whether the target is internal.

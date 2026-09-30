@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1562.001, T1685, T1068]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Ransomware operators in 2026 disable EDR before encryption, usually through BYOVD EDR killers. The process-level precursors (stopping the service, adding exclusions, setting safe boot, running a known killer) are unambiguous. Pair with F02 (driver loads) for the kernel side.
@@ -31,6 +35,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256
 ```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Tamper scripts issue many commands in seconds. One alert per host is the triage unit, and other hosts still alert.
 
 ## Known false positives / exclusions
 - Configuration management adding Defender exclusions under the CM agent parent. Exclude by parent and exact exclusion path.

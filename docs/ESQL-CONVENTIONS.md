@@ -62,7 +62,7 @@ FROM logs-crowdstrike.fdr-*
 Write the output to `recent_sysprep` (lookup mode), then in the rule:
 ```esql
 | LOOKUP JOIN recent_sysprep ON host.name
-| EVAL sysprep_context = CASE(last_sysprep IS NOT NULL AND @timestamp - last_sysprep < 1 hour, "likely imaging", "no recent sysprep")
+| EVAL sysprep_context = CASE(last_sysprep IS NOT NULL AND DATE_DIFF("minute", last_sysprep, @timestamp) >= 0 AND DATE_DIFF("minute", last_sysprep, @timestamp) <= 60, "likely imaging", "no recent sysprep")
 ```
 The same pattern works from Windows process creation (event 4688) if you audit process creation. It is also the pattern behind the correlation rules X01-X05.
 
@@ -74,3 +74,31 @@ When a join is used to handle a false positive, prefer adding a context field ov
 - For low-volume critical rules, a tag like `"likely imaging"` lets the analyst close the alert in seconds without the rule going blind.
 
 Reserve hard filters for sources you fully control, such as a sealed build network.
+
+## Alert suppression
+
+Every rule file records its suppression in front-matter and in a Suppression section:
+
+```yaml
+suppression:
+  fields: [host.name, user.name]   # up to 3 fields; must be columns in the query output
+  duration: 1h                      # suppress per time period
+  missing_fields: do_not_suppress   # alerts missing a key field are raised individually
+```
+
+`suppression: none` means the rule should page on every match.
+
+### Suppression is not tuning
+- **Exceptions** drop events you know are benign. They are how a rule becomes high fidelity.
+- **Suppression** groups repeat alerts for the same entity into one alert with a count. It controls volume after the exceptions are right, never instead of them.
+
+### Rules this library follows
+1. **Suppress bursts, not distinct actions.** One attack that writes many identical events (shares, beacons, token refreshes, retries) is suppressed. One-shot, high-impact changes (federation, privileged groups, trusts, SID History) are not, because each event is a separate attacker action.
+2. **Key on the triage entity.** Host, user, source IP or target object. A key that changes per event suppresses nothing; a key that is too broad merges separate incidents.
+3. **Key fields must be output columns.** ES|QL suppression can only use fields the query returns, so the key must appear in `KEEP` or in the `STATS ... BY` list. Renamed columns (`acct`, `usr`, `h`) are used as-is.
+4. **Aggregating and correlation rules always need it.** `METADATA _id` deduplication only works for rules that return source events. A `STATS` or `LOOKUP JOIN` rule re-alerts on every run whose lookback overlaps the previous one, so suppress on its grouping key.
+5. **Put severity in the key when a rule can escalate.** A suppressed alert does not change severity when later events arrive. C11 keys on `severity` and I05 on a `landed` flag, so an escalation raises a new alert instead of folding into the old one.
+6. **Do not suppress alerts with missing fields.** Otherwise an event missing the key folds into another alert, and attackers can influence which fields are present.
+7. **Read the suppressed count.** A second action by the same attacker on the same entity inside the window folds into the open alert. A count that keeps climbing is a signal in its own right.
+
+Alert suppression for ES|QL rules is available in current Elastic releases. Confirm your version supports it before relying on it.

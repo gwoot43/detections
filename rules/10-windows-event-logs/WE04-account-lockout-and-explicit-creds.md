@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1110, T1078, T1550.002]
 data_source: Windows Security events 4740 (lockout) and 4648 (explicit credentials)
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Two signals. A burst of 4740 lockouts across many accounts is a spray hitting the lockout threshold. Event 4648 (a logon using explicitly supplied credentials, the RunAs pattern) at volume from one host, especially to many targets, is credential testing or pass-the-hash tooling that supplies creds per connection.
@@ -28,6 +32,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
     BY host.name, BUCKET(@timestamp, 15 minutes)
 | WHERE locked_accounts >= 5 OR (explicit_cred_events >= 20 AND explicit_targets >= 5)
 ```
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.
 
 ## Known false positives / exclusions
 - A service account with a stale password causing repeated lockouts of itself. Single-account lockouts are excluded by the distinct-account threshold. Scheduled tasks and scripts that legitimately use 4648 (RunAs) from an admin jump host; exclude that host.

@@ -8,6 +8,7 @@ language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1098.003]
 data_source: Azure Activity log
+suppression: none
 ---
 ## Why this is high fidelity
 Broad-scope role assignments are how an attacker turns one compromised identity into control of all resources. They should only come from your landing-zone pipeline or a named platform team.
@@ -28,6 +29,9 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
     OR body LIKE "*b24988ac-6180-42a0-ab88-20f7382dd24c*"
 | KEEP @timestamp, azure.activitylogs.identity.claims_initiated_by_user.name, scope, body, source.ip, azure.subscription_id
 ```
+
+## Suppression
+None. Each broad role assignment is a separate privilege grant. The success filter already drops the start and success duplicate.
 
 ## Known false positives / exclusions
 - Landing-zone IaC service principal. Exclude by `azure.activitylogs.identity.claims.appid`.

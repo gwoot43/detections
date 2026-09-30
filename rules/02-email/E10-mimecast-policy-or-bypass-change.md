@@ -8,6 +8,10 @@ language: esql
 index: logs-mimecast.audit_events-*
 mitre: [T1562.001, T1685, T1078]
 data_source: Mimecast administration audit events
+suppression:
+  fields: [mimecast.user, atype]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Adding a permitted sender, creating a bypass policy for URL Protect or Attachment Protect, or disabling Impersonation Protect are the mail-gateway equivalent of turning off the EDR. Mimecast admin changes are low volume and made by a handful of named admins.
@@ -26,6 +30,9 @@ FROM logs-mimecast.audit_events-* METADATA _id, _index, _version
   )
 | KEEP @timestamp, atype, cat, mimecast.user, info, source.ip
 ```
+
+## Suppression
+Suppress by `mimecast.user`, `atype` for 1h. Alerts missing a key field are not suppressed. One admin session writes many audit lines for the same change.
 
 ## Known false positives / exclusions
 - Routine permitted-sender additions by the service desk. Route those to a lower-severity queue but keep them visible: repeated permits for the same external domain is a pattern.

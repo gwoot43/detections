@@ -8,6 +8,10 @@ language: esql
 index: logs-o365.audit-*
 mitre: [T1566.001, T1566.002]
 data_source: Microsoft 365 Unified Audit Log via Elastic O365 integration (Defender for Office 365 threat intelligence records)
+suppression:
+  fields: [msg, usr]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 ZAP means Microsoft changed its mind after delivery. The message sat in the inbox. Combining the post-delivery verdict with a Safe Links click or a MailItemsAccessed read for the same message gives you only the cases where a person interacted.
@@ -28,6 +32,9 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
 | WHERE zaps > 0 AND touches > 0
 ```
 If `MailItemsAccessed` is not licensed (needs E5 / Purview Audit Premium), drop it and keep the Safe Links click branch only.
+
+## Suppression
+Suppress by `msg`, `usr` for 24h. Alerts missing a key field are not suppressed. Aggregating rule keyed on message and user.
 
 ## Known false positives / exclusions
 - Bulk/spam ZAP is excluded by design because the query requires interaction.

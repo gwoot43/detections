@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.defender-*
 mitre: [T1562.001, T1059, T1204]
 data_source: Windows Defender operational log events 1116/1117 (detection), 5001/5010/5012 (protection off), 1006/1015 (tamper)
+suppression:
+  fields: [host.name, threat]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Where CrowdStrike is the primary EDR, Defender still runs and its operational log is a useful second opinion. A malware detection (1116/1117) is inherently high fidelity. Real-time protection or the antivirus being turned off (5001/5010/5012) and tamper-protection alerts (1006/1015) are defense impairment that should never happen silently on a managed host.
@@ -21,6 +25,9 @@ FROM logs-windows.defender-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, event.code, threat, action, winlog.event_data.Path, winlog.event_data.ProcessName, message
 ```
 This needs the Defender operational channel shipped by the Elastic Windows integration. If Defender is in passive mode behind Falcon, 1116/1117 still fire for its scans and are worth ingesting.
+
+## Suppression
+Suppress by `host.name`, `threat` for 24h. Alerts missing a key field are not suppressed. Defender re-detects the same file on each scan.
 
 ## Known false positives / exclusions
 - Detections on quarantined test files (EICAR) during validation. The protection-off events during a controlled Defender uninstall on decommissioned hosts; exclude by the decommission list.

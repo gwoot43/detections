@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1105, T1059.004, T1140]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 `curl … | sh` is the Linux download cradle used by cryptominers, botnets and post-exploitation kits. Developers run it too, so the rule filters on paths and decoders that installers do not use, and on servers rather than developer laptops.
@@ -25,6 +29,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT (host.name LIKE "dev-*" OR host.name LIKE "*-laptop*")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Install scripts and loaders retry.
 
 ## Known false positives / exclusions
 - CI runners and package bootstrap (Docker, rustup, Homebrew). Exclude by the URL, and note that an allowlisted URL is still a supply-chain risk.

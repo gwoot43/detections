@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1003.001]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, process.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Falcon blocks most LSASS reads, but the attempt still shows up as a process launch. `comsvcs.dll MiniDump`, `procdump -ma lsass` and `rundll32` naming the LSASS process have no admin use case outside a debugging session you would know about.
@@ -23,6 +27,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR cmd LIKE "*sekurlsa*" OR cmd LIKE "*lsadump*"
 | KEEP @timestamp, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256
 ```
+
+## Suppression
+Suppress by `host.name`, `process.name` for 1h. Alerts missing a key field are not suppressed. Attackers retry dumping after Falcon blocks them. Each different tool still alerts.
 
 ## Known false positives / exclusions
 - Microsoft support engineers running `procdump` on LSASS during a case. Ticket-gated, not excluded.

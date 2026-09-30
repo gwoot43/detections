@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*, logs-system.system-*
 mitre: [T1070.001]
 data_source: Windows Security event 1102, System event 104
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Event 1102 is written only when someone clears the Security log; 104 is the same for other logs. There is no automated process that does this on a healthy domain. The event records who did it, and Elastic already holds the copy they were trying to destroy.
@@ -53,6 +57,9 @@ FROM logs-windows.security-*, logs-system.system-* METADATA _id, _index, _versio
 ```
 
 For validating against actual sysprep.exe execution (CrowdStrike ProcessRollup2 or Windows 4688), materialise "recent sysprep by host" with an Elastic transform into a lookup index and join it the same way; ES|QL cannot do the time-windowed correlation inline. See docs/ESQL-CONVENTIONS.md.
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Clearing several logs at once writes one event per log.
 
 ## Known false positives / exclusions
 - Log-management scripts on build images that clear logs before sysprep. Handle with Option A or B above.

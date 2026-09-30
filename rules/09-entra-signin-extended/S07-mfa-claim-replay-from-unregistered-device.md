@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1550.001, T1557, T1078.004]
 data_source: Entra ID sign-in logs (authentication details)
+suppression:
+  fields: [user.name, source.ip]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 After an adversary-in-the-middle phish (Evilginx-class) the attacker replays the stolen session. The sign-in shows MFA as satisfied, but by a claim already in the token, not by a fresh challenge, from a browser on a device that is not registered or joined, from an IP that belongs to a hosting provider or VPN rather than a home or corporate network. Each of those on its own is common; all three together is session theft.
@@ -30,6 +34,9 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | KEEP @timestamp, user.name, source.ip, asn, source.geo.country_iso_code, azure.signinlogs.properties.app_display_name, user_agent.original, trust, details
 ```
 Keep the ASN list in a value list and grow it from your own alerts. If you licence Identity Protection, `risk_event_types` containing `anonymizedIPAddress` or `anomalousToken` is a cleaner third condition than the ASN list.
+
+## Suppression
+Suppress by `user.name`, `source.ip` for 24h. Alerts missing a key field are not suppressed. A replayed session keeps refreshing. A new IP still alerts.
 
 ## Known false positives / exclusions
 - Staff on a personal VPN from an unmanaged laptop. Your BYOD policy decides whether that is acceptable; if it is, require `is_compliant == false` plus the ASN list and raise the bar to sensitive apps only.

@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1134, T1078.002, T1068]
 data_source: Windows Security events 4672 (special privileges) and 4673/4674 (privileged service)
+suppression:
+  fields: [acct, host.name]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Event 4672 fires when an account logs on with admin-equivalent privileges (SeDebugPrivilege, SeTcbPrivilege, SeBackupPrivilege and similar). It is normal for admins and services; it is a strong signal when it happens for an account that should never hold those rights. Scope to accounts outside your admin and service population and this becomes a clean privilege-abuse indicator.
@@ -26,6 +30,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, acct, privs
 ```
 The most reliable version replaces the name patterns with a lookup of accounts that are expected to hold these privileges, and alerts on everyone else.
+
+## Suppression
+Suppress by `acct`, `host.name` for 24h. Alerts missing a key field are not suppressed. Event 4672 fires on every logon of the account. This suppression is essential.
 
 ## Known false positives / exclusions
 - Backup agents, monitoring and EDR service accounts hold these privileges legitimately. Exclude by service account, ideally via the lookup.

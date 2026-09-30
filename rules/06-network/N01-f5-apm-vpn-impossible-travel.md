@@ -8,6 +8,10 @@ language: esql
 index: logs-f5.apm-*
 mitre: [T1133, T1078]
 data_source: F5 APM access logs (syslog; custom ingest pipeline)
+suppression:
+  fields: [usr]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 APM is your VPN, so a successful session is remote access to the corporate network. One user succeeding from two countries inside a few hours, or from a country the workforce is not in, is stolen credentials or a stolen session. Because APM is VPN-only, the legitimate population is your own staff and their known locations.
@@ -26,6 +30,9 @@ FROM logs-f5.apm-*
 | WHERE countries >= 2
 ```
 Field names depend on how you parse the APM syslog. Map the username, result and client IP in the ingest pipeline to `user.name`, `event.outcome` and `source.ip`, then GeoIP enriches `source.geo`.
+
+## Suppression
+Suppress by `usr` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. One trip produces the same finding all day.
 
 ## Known false positives / exclusions
 - Users behind carrier-grade NAT or mobile networks that geolocate inconsistently. Exclude specific ASNs after review.

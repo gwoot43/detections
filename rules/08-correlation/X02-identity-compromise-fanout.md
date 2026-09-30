@@ -8,15 +8,19 @@ language: esql
 index: logs-azure.*
 mitre: [T1078.004, T1098, T1528, T1114.003]
 data_source: Entra sign-in (I07/I08) + Entra audit (C03/C04/C05/E06/I10) joined on user
+suppression:
+  fields: [usr, persist_action]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 A single risky sign-in is a maybe. A risky or device-code sign-in followed within the hour by any of: a new MFA method, an inbox forwarding rule, an app consent, a credential added to an app, or a privileged role assignment, by the same user, is the textbook account-takeover-to-persistence chain. The sequence is what makes it certain.
 
 ## Query (pattern)
 ```esql
-FROM logs-azure.auditlogs-*
+FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 | WHERE @timestamp > NOW() - 1 hour
-| EVAL usr = TO_LOWER(COALESCE(azure.auditlogs.properties.initiated_by.user.userPrincipalName, azure.auditlogs.properties.target_resources.0.user_principal_name)),
+| EVAL usr = TO_LOWER(COALESCE(azure.auditlogs.properties.initiated_by.user.userPrincipalName, `azure.auditlogs.properties.target_resources.0.user_principal_name`)),
        persist_action = TO_LOWER(azure.auditlogs.operation_name)
 | WHERE persist_action LIKE "*security info*" OR persist_action LIKE "*inboxrule*" OR persist_action LIKE "*consent*"
      OR persist_action LIKE "*add member to role*" OR persist_action LIKE "*add service principal credentials*"
@@ -26,6 +30,9 @@ FROM logs-azure.auditlogs-*
 | KEEP @timestamp, usr, persist_action, risk_level, risk_detail, source.ip, risk_at
 ```
 Build `risky_signins_last_2h` from I07/I08 (fields: `usr`, `risk_at`, `risk_level`, `risk_detail`). Or implement as an Elastic indicator-match rule: indicator = risky sign-ins, events = the audit persistence actions, match on user, 1-hour look-back.
+
+## Suppression
+Suppress by `usr`, `persist_action` for 24h. Alerts missing a key field are not suppressed. Correlation rule. A different persistence action still alerts.
 
 ## Known false positives / exclusions
 - A user who genuinely triggers a risk flag (travel) and legitimately registers a new phone in the same window. Rare, and worth the phone call anyway.

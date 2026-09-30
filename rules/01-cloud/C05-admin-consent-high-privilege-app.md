@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1528, T1098.001]
 data_source: Entra ID audit logs
+suppression:
+  fields: [azure.auditlogs.properties.initiated_by.user.userPrincipalName, azure.auditlogs.properties.target_resources.0.display_name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 OAuth consent phishing and rogue app registrations (the technique behind the 2025 to 2026 Salesloft, ConsentFix and EvilTokens campaigns) end with a consent grant or an app role assignment for Mail.Read, Mail.ReadWrite, Files.ReadWrite.All, Directory.ReadWrite.All or RoleManagement.ReadWrite.Directory. Those grants are rare and reviewable.
@@ -31,8 +35,11 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
    OR scopes LIKE "*application.readwrite*" OR scopes LIKE "*user.readwrite.all*"
    OR scopes LIKE "*offline_access*"
 | KEEP @timestamp, azure.auditlogs.operation_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName,
-       azure.auditlogs.properties.target_resources.0.display_name, scopes, source.ip
+       `azure.auditlogs.properties.target_resources.0.display_name`, scopes, source.ip
 ```
+
+## Suppression
+Suppress by `azure.auditlogs.properties.initiated_by.user.userPrincipalName`, `azure.auditlogs.properties.target_resources.0.display_name` for 1h. Alerts missing a key field are not suppressed. One consent writes several records: consent, delegated grant and app role assignment.
 
 ## Known false positives / exclusions
 - Approved SaaS integrations. Maintain a list of approved app IDs and exclude on `target_resources.0.id`, not on display name (display names are attacker-controlled).

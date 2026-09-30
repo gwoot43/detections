@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1098.001, T1550.001]
 data_source: Entra ID audit logs
+suppression:
+  fields: [actor, azure.auditlogs.properties.target_resources.0.display_name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Adding a secret or certificate to an existing app is the quietest persistence in Entra. It survives password resets and MFA re-registration. Legitimate additions come from a small set of app owners and rotation pipelines.
@@ -27,8 +31,11 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 | EVAL actor = COALESCE(azure.auditlogs.properties.initiated_by.user.userPrincipalName,
                         azure.auditlogs.properties.initiated_by.app.displayName)
 | WHERE NOT (actor IN ("sp-secret-rotation@yourtenant.onmicrosoft.com"))
-| KEEP @timestamp, azure.auditlogs.operation_name, actor, azure.auditlogs.properties.target_resources.0.display_name, source.ip
+| KEEP @timestamp, azure.auditlogs.operation_name, actor, `azure.auditlogs.properties.target_resources.0.display_name`, source.ip
 ```
+
+## Suppression
+Suppress by `actor`, `azure.auditlogs.properties.target_resources.0.display_name` for 1h. Alerts missing a key field are not suppressed. One secret add writes both an application update and a credential add.
 
 ## Known false positives / exclusions
 - Automated secret rotation (Key Vault rotation, Terraform). Exclude by service principal.

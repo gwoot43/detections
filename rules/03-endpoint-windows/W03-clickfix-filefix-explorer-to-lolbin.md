@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1204.004, T1059.001, T1105]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 ClickFix was close to half of initial access in Microsoft's 2025 reporting and grew FileFix (Explorer address bar) and CrashFix (browser crash lure) variants in 2026. The artefact is constant: `explorer.exe` is the parent, the child is a script host or downloader, and the command line contains a URL, a download cradle or Base64. Users do not hand-type those.
@@ -30,6 +34,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line
 ```
 Add the registry side once F01 is live: `RunMRU` and `TypedPaths` values containing `powershell`, `mshta` or `http` are the same technique seen from the registry.
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. One pasted command produces a chain of child processes.
 
 ## Known false positives / exclusions
 - Developers pasting `iwr` one-liners. Rare enough to ask.

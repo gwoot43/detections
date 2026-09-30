@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1547.001, T1543.003, T1546]
 data_source: CrowdStrike FDR AsepValueUpdate / registry events
+suppression:
+  fields: [host.name, k]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Falcon's `AsepValueUpdate` fires specifically for auto-start extensibility points, so it is pre-filtered to the registry locations attackers use for persistence. The signal sharpens when the value data points at a user-writable path, a script host, or an encoded command.
@@ -27,6 +31,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, k, v, process.name, process.command_line
 ```
 `image file execution options` with a `debugger` value is the accessibility-tool backdoor (sethc/utilman); keep it high.
+
+## Suppression
+Suppress by `host.name`, `k` for 24h. Alerts missing a key field are not suppressed. Persistence entries are rewritten on each run.
 
 ## Known false positives / exclusions
 - Software installers writing Run keys pointing at `Program Files`. The value filter targets user-writable and script paths, which excludes most. Exclude specific known-good vendor values by hash of the writing process.

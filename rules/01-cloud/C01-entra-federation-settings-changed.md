@@ -8,6 +8,7 @@ language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1484.002]
 data_source: Entra ID audit logs (Elastic Azure integration)
+suppression: none
 ---
 ## Why this is high fidelity
 Changing a domain from managed to federated, or swapping the federation signing certificate, is the "Golden SAML" persistence path. It happens a handful of times a year in a healthy tenant and only by identity engineers during planned work. Every hit is worth a call.
@@ -26,9 +27,12 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
   )
   AND azure.auditlogs.properties.result == "success"
 | KEEP @timestamp, azure.auditlogs.operation_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName,
-       azure.auditlogs.properties.initiated_by.app.displayName, azure.auditlogs.properties.target_resources.0.display_name,
+       azure.auditlogs.properties.initiated_by.app.displayName, `azure.auditlogs.properties.target_resources.0.display_name`,
        source.ip, azure.tenant_id
 ```
+
+## Suppression
+None. Each federation change is a separate critical event, and Entra writes one audit record per change. Nothing to collapse.
 
 ## Known false positives / exclusions
 - Planned domain onboarding or Entra Connect rebuilds. Require a change ticket rather than an allowlist.

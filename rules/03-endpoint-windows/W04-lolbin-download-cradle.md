@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1105, T1218.005, T1218.010, T1197, T1059.001, T1218.007]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, pname]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 These binary-plus-argument combinations exist to fetch and run remote content and have almost no administrative use on user workstations. Each branch is a known LOLBAS entry.
@@ -30,6 +34,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname IN ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe") AND (cmd LIKE "*http*" OR cmd LIKE "*\\temp\\*" OR cmd LIKE "*\\appdata\\*"))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name`, `pname` for 1h. Alerts missing a key field are not suppressed. Download cradles often retry or loop.
 
 ## Known false positives / exclusions
 - Software deployment calling `msiexec /i https://…` from SYSTEM under the deployment agent parent. Exclude by parent process.

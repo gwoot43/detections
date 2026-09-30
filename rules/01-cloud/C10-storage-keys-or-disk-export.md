@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1530, T1552, T1005]
 data_source: Azure Activity log
+suppression:
+  fields: [actor, azure.subscription_id]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 `listKeys` hands out full storage account access. `beginGetAccess` on a managed disk creates a SAS to download the VM's disk, which is how attackers pull domain controller VHDs (ntds.dit) out of Azure. Both are rare outside automation.
@@ -33,6 +37,9 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
     BY actor, azure.subscription_id
 | WHERE (actor LIKE "*@*") OR (MV_CONCAT(ops, ",") LIKE "*BEGINGETACCESS*") OR (MV_CONCAT(ops, ",") LIKE "*SNAPSHOTS/WRITE*")
 ```
+
+## Suppression
+Suppress by `actor`, `azure.subscription_id` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Without suppression, overlapping lookbacks re-alert on the same activity.
 
 ## Known false positives / exclusions
 - Backup vault and Terraform state service principals for `listKeys`. Exclude by appid. Never exclude a human.

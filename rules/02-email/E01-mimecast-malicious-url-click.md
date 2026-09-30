@@ -8,6 +8,10 @@ language: esql
 index: logs-mimecast.ttp_url_logs-*
 mitre: [T1566.002, T1204.001]
 data_source: Mimecast TTP URL Protect logs (Elastic Mimecast integration, v1 field names)
+suppression:
+  fields: [mimecast.userEmailAddress, mimecast.url]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 A click is a human acting on the lure. Mimecast's own verdict at click time filters out the noise of delivered-but-ignored mail. This is the trigger for the correlation rule X01 (click then EDR alert).
@@ -23,6 +27,9 @@ FROM logs-mimecast.ttp_url_logs-* METADATA _id, _index, _version
 | KEEP @timestamp, mimecast.userEmailAddress, mimecast.fromUserEmailAddress, mimecast.subject, mimecast.url, result, action, override, mimecast.ttpDefinition, mimecast.route
 ```
 Field names on the Mimecast 2.0 integration (`logs-mimecast.siem_logs-*`) move to `mimecast.log_type == "url protect"` with `mimecast.scan_result` and `mimecast.user_email_address`. Adjust when you migrate.
+
+## Suppression
+Suppress by `mimecast.userEmailAddress`, `mimecast.url` for 24h. Alerts missing a key field are not suppressed. Users click the same link repeatedly. A different link still alerts.
 
 ## Known false positives / exclusions
 - Security team sandbox clicks. Exclude the analyst mailbox list.

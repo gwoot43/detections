@@ -8,6 +8,7 @@ language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1562.008, T1685.002]
 data_source: Azure Activity log
+suppression: none
 ---
 ## Why this is high fidelity
 Deleting diagnostic settings, activity-log exports, Log Analytics workspaces or downgrading a Defender for Cloud plan removes your visibility. This is a deliberate act with almost no legitimate ad-hoc use.
@@ -33,6 +34,9 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
 | WHERE NOT (op == "MICROSOFT.SECURITY/PRICINGS/WRITE") OR body LIKE "*\"pricingtier\":\"free\"*"
 | KEEP @timestamp, op, azure.activitylogs.identity.claims_initiated_by_user.name, azure.resource.name, azure.subscription_id, source.ip
 ```
+
+## Suppression
+None. Critical defence impairment. Every logging change should page.
 
 ## Known false positives / exclusions
 - Subscription decommissioning. Exclude the decommissioning service principal only during a ticketed window.

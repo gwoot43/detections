@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1550.001, T1621]
 data_source: Entra ID sign-in logs (Identity Protection risk fields)
+suppression:
+  fields: [usr, source.ip]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Microsoft's own risk engine, combined with a same-user two-country rule and a check for sign-ins that satisfied MFA without a fresh MFA event (token replay / AiTM), gives a strong post-phishing signal. This is the cloud side of the X01 correlation.
@@ -32,10 +36,13 @@ Companion same-user two-country query (works without Identity Protection licensi
 ```esql
 FROM logs-azure.signinlogs-*
 | WHERE event.dataset == "azure.signinlogs" AND TO_STRING(azure.signinlogs.properties.status.error_code) == "0"
-| STATS countries = COUNT_DISTINCT(source.geo.country_iso_code), where = VALUES(source.geo.country_iso_code), ips = VALUES(source.ip)
+| STATS countries = COUNT_DISTINCT(source.geo.country_iso_code), where_from = VALUES(source.geo.country_iso_code), ips = VALUES(source.ip)
     BY TO_LOWER(user.name), BUCKET(@timestamp, 2 hours)
 | WHERE countries >= 2
 ```
+
+## Suppression
+Suppress by `usr`, `source.ip` for 24h. Alerts missing a key field are not suppressed. Token refreshes repeat the same risky sign-in. A new IP still alerts.
 
 ## Known false positives / exclusions
 - VPN exits and mobile roaming create false impossible-travel. Exclude your corporate VPN egress ranges and known travel corridors.

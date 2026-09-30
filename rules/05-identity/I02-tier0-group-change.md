@@ -8,6 +8,7 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1098, T1078.002]
 data_source: Windows Security events 4728/4732/4756 (and removals 4729/4733/4757)
+suppression: none
 ---
 ## Why this is high fidelity
 Additions to Domain Admins, Enterprise Admins, Schema Admins, Administrators, and the other Tier-0 groups are rare and always planned. DnsAdmins and Backup Operators are included because they are privilege-escalation paths to Domain Admin.
@@ -28,6 +29,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, added, grp, member, actor, winlog.event_data.MemberSid
 ```
 Curate the final group list against your own Tier-0 definitions and remove the broad `*admin*` wildcard once the explicit list is complete, or it will match delegated app-admin groups.
+
+## Suppression
+None. Every privileged group change is a distinct action. Suppressing would hide a second account added.
 
 ## Known false positives / exclusions
 - Planned privileged access management (PAM) group shuffles. Suppress by (actor, group) during a ticketed window, do not permanently allowlist.

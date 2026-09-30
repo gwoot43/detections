@@ -8,13 +8,17 @@ language: esql
 index: logs-zscaler.zia_web-*
 mitre: [T1090.003, T1572, T1573]
 data_source: Zscaler Internet Access web logs
+suppression:
+  fields: [user.name, destination.domain]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Traffic to anonymizers, Tor gateways, unsanctioned VPNs and DNS-over-HTTPS providers is how users and malware escape inspection. Combined with attempts that hit SSL-inspection-bypass categories, this catches both evasion and covert channels. Legitimate use is rare on a managed fleet.
 
 ## Query
 ```esql
-FROM logs-zscaler.zia_web-*
+FROM logs-zscaler.zia_web-* METADATA _id, _index, _version
 | EVAL cat = TO_LOWER(TO_STRING(COALESCE(zscaler.zia.url_category, rule.category))),
        dom = TO_LOWER(TO_STRING(destination.domain))
 | WHERE cat LIKE "*anonymizer*" OR cat LIKE "*proxy*avoid*" OR cat LIKE "*tor*" OR cat LIKE "*vpn*"
@@ -22,6 +26,9 @@ FROM logs-zscaler.zia_web-*
      OR dom IN ("dns.google", "cloudflare-dns.com", "mozilla.cloudflare-dns.com", "dns.quad9.net", "doh.opendns.com")
 | KEEP @timestamp, user.name, source.ip, destination.domain, url.full, cat, event.action
 ```
+
+## Suppression
+Suppress by `user.name`, `destination.domain` for 24h. Alerts missing a key field are not suppressed. Tunnels and anonymisers stay connected.
 
 ## Known false positives / exclusions
 - `dns.google` and Cloudflare DoH are used by some browsers and apps by default. If you block DoH at policy, keep this; if not, scope to endpoints where DoH should be off.

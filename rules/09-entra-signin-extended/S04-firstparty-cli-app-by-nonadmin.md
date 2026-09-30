@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1087.004, T1526, T1078.004]
 data_source: Entra ID sign-in logs
+suppression:
+  fields: [usr]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Azure AD PowerShell, Microsoft Graph Command Line Tools, Azure CLI and Azure PowerShell are the client IDs that AzureHound, ROADtools, AADInternals and manual attacker recon authenticate as, because they carry broad delegated Graph scopes. Ordinary users have no reason to use them. A standard user authenticating through these app IDs is either a developer you can name or an attacker enumerating the tenant with a stolen token.
@@ -29,6 +33,9 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | STATS n = COUNT(*), apps = VALUES(azure.signinlogs.properties.app_display_name), ips = VALUES(source.ip), asns = VALUES(source.as.organization.name), where_from = VALUES(source.geo.country_iso_code)
     BY usr, BUCKET(@timestamp, 1 hour)
 ```
+
+## Suppression
+Suppress by `usr` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Recon tools run for hours.
 
 ## Known false positives / exclusions
 - Developers and cloud engineers using Azure CLI. Exclude the engineering group via lookup, not by wildcard. Keep the Azure AD PowerShell and Graph CLI branches even for developers; those are the ones the recon tooling prefers.

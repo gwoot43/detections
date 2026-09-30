@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004]
 data_source: Entra ID sign-in logs (interactive and non-interactive)
+suppression:
+  fields: [user.name, source.ip]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Emergency access accounts are excluded from Conditional Access by design and never used outside a declared emergency. Any sign-in, successful or failed, interactive or not, is either a declared incident you already know about or an attacker who found the one account that bypasses your controls. Zero legitimate background volume.
@@ -22,6 +26,9 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
        source.as.organization.name, azure.signinlogs.properties.app_display_name, azure.signinlogs.category, user_agent.original
 ```
 Replace the UPNs with the exact break-glass accounts. Do not rely on the name patterns alone.
+
+## Suppression
+Suppress by `user.name`, `source.ip` for 1h. Alerts missing a key field are not suppressed. One sign-in produces several token events. A new IP still alerts.
 
 ## Known false positives / exclusions
 - Quarterly break-glass validation tests. Schedule them and expect the alert; that is the test.

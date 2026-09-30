@@ -8,6 +8,10 @@ language: esql
 index: logs-mimecast.ttp_ap_logs-*
 mitre: [T1566.001, T1204.002]
 data_source: Mimecast TTP Attachment Protect logs
+suppression:
+  fields: [mimecast.recipientAddress, mimecast.fileHash]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Attachment Protect blocks most malware at the gateway. The signal you want is the residue: a malicious verdict where the message still reached the mailbox, usually because it was held then released, or the verdict arrived after delivery (sandbox timeout, safe-file conversion off).
@@ -20,6 +24,9 @@ FROM logs-mimecast.ttp_ap_logs-* METADATA _id, _index, _version
   AND (triggered IN ("none", "user release", "admin release") OR triggered LIKE "*release*")
 | KEEP @timestamp, mimecast.recipientAddress, mimecast.senderAddress, mimecast.subject, mimecast.fileName, mimecast.fileType, mimecast.fileHash, result, triggered, mimecast.definition, mimecast.route
 ```
+
+## Suppression
+Suppress by `mimecast.recipientAddress`, `mimecast.fileHash` for 24h. Alerts missing a key field are not suppressed. The same attachment is often re-delivered or re-released.
 
 ## Known false positives / exclusions
 - Very few. Releases by the security team on confirmed false positives should be logged with the ticket, not excluded.

@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1556.009, T1562.007]
 data_source: Entra ID audit logs
+suppression:
+  fields: [actor, azure.auditlogs.properties.target_resources.0.display_name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Attackers who land a Global Admin or Security Admin session weaken or delete Conditional Access first. Policy changes are low volume and always attributable to a person or an IaC pipeline.
@@ -29,8 +33,11 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
                         azure.auditlogs.properties.initiated_by.app.displayName)
 // exclude your IaC / policy-as-code service principal here
 | WHERE NOT (actor IN ("sp-entra-policy-pipeline@yourtenant.onmicrosoft.com"))
-| KEEP @timestamp, azure.auditlogs.operation_name, actor, azure.auditlogs.properties.target_resources.0.display_name, source.ip
+| KEEP @timestamp, azure.auditlogs.operation_name, actor, `azure.auditlogs.properties.target_resources.0.display_name`, source.ip
 ```
+
+## Suppression
+Suppress by `actor`, `azure.auditlogs.properties.target_resources.0.display_name` for 1h. Alerts missing a key field are not suppressed. An admin editing one policy often saves several times in a session. A different policy or admin still alerts.
 
 ## Known false positives / exclusions
 - Policy-as-code pipelines. Exclude by service principal, never by user.

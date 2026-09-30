@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1562.007, T1133]
 data_source: Azure Activity log
+suppression:
+  fields: [azure.activitylogs.identity.claims_initiated_by_user.name, azure.resource.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 An inbound allow from `*` or `0.0.0.0/0` on 22, 3389, 5985, 5986, 1433 or 3306 is either a mistake that becomes an incident or an attacker opening a door. Either way it needs to be closed within the hour.
@@ -32,6 +36,9 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
        OR body LIKE "*\"destinationportrange\":\"*\"*")
 | KEEP @timestamp, op, azure.activitylogs.identity.claims_initiated_by_user.name, azure.resource.name, azure.resource.group, body
 ```
+
+## Suppression
+Suppress by `azure.activitylogs.identity.claims_initiated_by_user.name`, `azure.resource.name` for 1h. Alerts missing a key field are not suppressed. Portal edits save the security group and the rule as separate writes.
 
 ## Known false positives / exclusions
 - Jump-host NSGs that are intentionally open with JIT. Prefer Defender for Cloud JIT and exclude that NSG by resource ID.

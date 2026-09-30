@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1003.006]
 data_source: Windows Security event 4662 from domain controllers
+suppression:
+  fields: [subject]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Replicating directory changes is something only domain controllers and a named sync account (Entra Connect / AAD Connect) do. Any other principal requesting the Get-Changes extended rights is stealing every password hash in the domain. Near-zero false positives once the DC and sync accounts are excluded.
@@ -24,11 +28,14 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | WHERE props LIKE "*1131f6aa-9c07-11d1-f79f-00c04fc2dcd2*"   // DS-Replication-Get-Changes
     OR props LIKE "*1131f6ad-9c07-11d1-f79f-00c04fc2dcd2*"   // DS-Replication-Get-Changes-All
     OR props LIKE "*89e95b76-444d-4c62-991a-0facbeda640c*"   // Get-Changes-In-Filtered-Set
-| WHERE NOT (subject LIKE "%$")                                // exclude computer accounts (DCs end in $)
-  AND NOT (subject IN ("msol_*", "aadconnect_svc", "svc-aadconnect"))  // exclude your Entra Connect sync account
+| WHERE NOT (subject LIKE "*$")                                // exclude computer accounts (DCs end in $)
+  AND NOT (subject LIKE "msol_*" OR subject IN ("aadconnect_svc", "svc-aadconnect"))  // exclude your Entra Connect sync account
 | KEEP @timestamp, host.name, subject, winlog.event_data.SubjectUserSid, winlog.event_data.ObjectName, props
 ```
 Replace the sync account with your real MSOL_ account name. Get it from Entra Connect.
+
+## Suppression
+Suppress by `subject` for 1h. Alerts missing a key field are not suppressed. One DCSync run writes event 4662 many times. One alert per account is enough, and the count shows scale.
 
 ## Known false positives / exclusions
 - The Entra Connect sync account, excluded above. Azure AD Connect Health.

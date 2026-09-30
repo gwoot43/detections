@@ -8,6 +8,10 @@ language: esql
 index: logs-o365.audit-*
 mitre: [T1114.003, T1564.008]
 data_source: Microsoft 365 Unified Audit Log (Exchange mailbox audit)
+suppression:
+  fields: [o365.audit.UserId, rule_name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 This is the most reliable post-compromise indicator in Microsoft 365. Attackers create rules to forward mail out, or to hide replies and security notifications so the victim never notices. Legitimate users rarely forward to external domains or delete based on keywords like "password" or "invoice".
@@ -29,6 +33,9 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
 | KEEP @timestamp, o365.audit.UserId, o365.audit.ClientIP, event.action, rule_name, forwards_out, hides, p
 ```
 `o365.audit.Parameters` is an array of `{Name, Value}` in the raw log. If your pipeline keeps it as an object you can test `o365.audit.Parameters.ForwardTo` directly. The `TO_STRING` approach works on either shape.
+
+## Suppression
+Suppress by `o365.audit.UserId`, `rule_name` for 1h. Alerts missing a key field are not suppressed. Creating a rule is often followed by edits to the same rule.
 
 ## Known false positives / exclusions
 - Users forwarding to a personal address is a policy problem, not a false positive. Keep it.

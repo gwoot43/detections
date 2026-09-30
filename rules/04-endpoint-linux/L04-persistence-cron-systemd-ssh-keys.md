@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1053.003, T1543.002, T1546.004, T1098.004]
 data_source: CrowdStrike FDR ProcessRollup2 and CriticalFileModified (Linux)
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Falcon's Linux sensor emits `CriticalFileModified` for a curated set of persistence files, which removes the guessing. The process branch catches the same intent when the write comes through an editor or shell redirect. Package managers and config management are the only legitimate writers, and they have a recognisable parent.
@@ -30,6 +34,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT (parent IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor"))
 | KEEP @timestamp, host.name, user.name, event.action, parent, pname, process.command_line, f
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Persistence is usually set up with several commands at once.
 
 ## Known false positives / exclusions
 - Config management and cloud-init, excluded by parent above. Add your deployment user if it writes cron over SSH, then exclude by user plus source host.

@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1112, T1003.001, T1562.001]
 data_source: CrowdStrike FDR registry events (AsepValueUpdate / RegGenericValueUpdate)
+suppression:
+  fields: [host.name, k]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Before dumping credentials, attackers turn `UseLogonCredential` back on so LSASS caches plaintext, or disable RunAsPPL (LSA protection) and Credential Guard so LSASS can be read. These specific registry writes are made by attackers and by almost nothing else. This is the registry precursor to W01.
@@ -28,6 +32,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, k, v, process.name, process.command_line
 ```
 This is a registry rule, so it runs on FDR, not the Windows Security channel. It belongs with the credential-access group but is grouped here because it is the registry twin of the event-log credential signals.
+
+## Suppression
+Suppress by `host.name`, `k` for 24h. Alerts missing a key field are not suppressed. Configuration tools re-apply registry values.
 
 ## Known false positives / exclusions
 - Legacy applications that require WDigest. Rare and should be eliminated; if one exists, exclude that host explicitly and track it as risk debt.

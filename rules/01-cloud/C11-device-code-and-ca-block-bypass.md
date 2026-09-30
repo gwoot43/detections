@@ -8,6 +8,10 @@ language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1621, T1528, T1078.004, T1556.009]
 data_source: Entra ID sign-in logs (interactive and non-interactive)
+suppression:
+  fields: [azure.signinlogs.properties.user_principal_name, severity]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Two related detections in one file.
@@ -35,8 +39,8 @@ FROM logs-azure.signinlogs-*
         countries  = COUNT_DISTINCT(source.geo.country_iso_code),
         where_from = VALUES(source.geo.country_iso_code),
         asns       = VALUES(source.as.organization.name),
-        first      = MIN(@timestamp),
-        last       = MAX(@timestamp)
+        first_seen      = MIN(@timestamp),
+        last_seen       = MAX(@timestamp)
     BY azure.signinlogs.properties.user_principal_name
 | EVAL severity = CASE(
       ca_blocks > 0 AND successes > 0 AND first_block <= first_success, "high",   // blocked, then got through: likely bypass
@@ -67,6 +71,9 @@ FROM logs-azure.signinlogs-*
 | WHERE blocks > 0 AND successes > 0 AND first_block <= first_success
 ```
 Run this hourly with a 1-hour bucket. It is deliberately flow-agnostic. Tighten it by requiring the success and the block to share an app, or by requiring the success IP to differ from the blocked IP, once you see the baseline volume.
+
+## Suppression
+Suppress by `azure.signinlogs.properties.user_principal_name`, `severity` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Severity is in the key so an escalation from low to high raises a new alert.
 
 ## Known false positives / exclusions
 - A user who legitimately fails a CA grant (forgot the compliant device, off VPN), fixes it, and signs in. Common. Reduce it by requiring the success from a different IP or ASN than the block, or by scoping Rule B to sensitive apps (Azure Management, Exchange Online) first.

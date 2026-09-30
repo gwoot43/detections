@@ -8,6 +8,10 @@ language: esql
 index: logs-imperva.waf-*
 mitre: [T1190, T1595.002]
 data_source: Imperva WAF security and access events
+suppression:
+  fields: [source.ip, url.domain]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 An attacker probes, gets blocked many times, then finds a request the WAF allows through and the app answers with success. That block-then-2xx transition from a single source is a strong sign of a bypass or a working exploit, and it filters out both the pure noise of blocked probes and the noise of normal traffic.
@@ -26,6 +30,9 @@ FROM logs-imperva.waf-*
     BY source.ip, url.domain, BUCKET(@timestamp, 15 minutes)
 | WHERE blocks >= 20 AND successes >= 1 AND first_block <= first_success
 ```
+
+## Suppression
+Suppress by `source.ip`, `url.domain` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.
 
 ## Known false positives / exclusions
 - Scanners that trip many rules then hit a benign page. Require the success path to be one that also appeared in a blocked event, or restrict to POST/PUT to reduce this.

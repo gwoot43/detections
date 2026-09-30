@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1087.002, T1482, T1558.003, T1003, T1069.002, T1018]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, user.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Two branches. The tooling branch matches argument signatures of the common AD attack frameworks even when the binary is renamed. The recon branch fires only when one user on one host runs five or more distinct domain-enumeration commands inside ten minutes, which is how operators behave and admins do not.
@@ -42,6 +46,9 @@ FROM logs-crowdstrike.fdr-*
     BY host.name, user.name, BUCKET(@timestamp, 10 minutes)
 | WHERE tool_hits > 0 OR distinct_recon >= 5
 ```
+
+## Suppression
+Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.
 
 ## Known false positives / exclusions
 - Credentialed vulnerability scanners running `net` and `nltest`. Exclude by service account name.

@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1219, T1572, T1090, T1105]
 data_source: CrowdStrike FDR ProcessRollup2
+suppression:
+  fields: [host.name, pname]
+  duration: 24h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Ransomware affiliates and help-desk social engineering crews drop a second RMM tool or a tunnel for persistence and C2. You have one approved RMM. Everything else on the list, especially from a user-writable path, is an intrusion or shadow IT that must go.
@@ -29,6 +33,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256
 ```
 `quickassist.exe` and `teamviewer.exe` will be noisy if IT uses them. Decide once, then either remove them or restrict to launches under user-writable paths.
+
+## Suppression
+Suppress by `host.name`, `pname` for 24h. Alerts missing a key field are not suppressed. Remote access agents restart constantly.
 
 ## Known false positives / exclusions
 - Your own RMM, VPN client and sanctioned developer tunnelling. Remove from the list rather than exclude.

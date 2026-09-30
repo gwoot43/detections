@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1611, T1610, T1613]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
+suppression:
+  fields: [host.name]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Mounting the host filesystem into a privileged container, writing to the Docker socket from inside a workload, or `nsenter` into the host namespaces are the standard container-escape moves. In a hardened cluster these do not come from application workloads.
@@ -26,6 +30,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*release_agent*" OR cmd LIKE "*cgroup*notify_on_release*")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
+
+## Suppression
+Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Escape attempts are retried.
 
 ## Known false positives / exclusions
 - CI/CD building images with `--privileged` DinD. Exclude by the build-runner host or user.

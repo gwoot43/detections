@@ -8,6 +8,10 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1484.001, T1078.002]
 data_source: Windows Security event 5136 (directory object modified) from domain controllers
+suppression:
+  fields: [actor, dn]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 GPO is a domain-wide code-execution and configuration channel. Attackers edit a GPO linked high in the tree to push a scheduled task or a script to every machine, or edit the Default Domain / Default Domain Controllers policy to weaken security. Event 5136 on a `groupPolicyContainer` object captures the change and the actor, and GPO edits are made by a small, named team.
@@ -24,6 +28,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, actor, dn, winlog.event_data.AttributeLDAPDisplayName, winlog.event_data.AttributeValue, message
 ```
 5136 needs directory-object auditing with the right SACL on the Policies container. Confirm these events are present before relying on this. The GPT side (SYSVOL file changes to `GptTmpl.inf`, `ScheduledTasks.xml`) is a useful companion via file-integrity monitoring on the DCs.
+
+## Suppression
+Suppress by `actor`, `dn` for 1h. Alerts missing a key field are not suppressed. One GPO edit writes many 5136 events.
 
 ## Known false positives / exclusions
 - The AD engineering team's routine GPO work. Exclude by actor via a lookup of authorised GPO admins, and confirm against change control.

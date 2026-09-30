@@ -8,6 +8,7 @@ language: esql
 index: logs-windows.security-*
 mitre: [T1558.004, T1098]
 data_source: Windows Security events 4768 and 4738 from domain controllers
+suppression: none
 ---
 ## Why this is high fidelity
 Two linked signals. A burst of AS-REQ (4768) responses with RC4 for accounts that have pre-auth disabled is AS-REP roasting. And an account being modified (4738) to set "do not require pre-authentication" is either the setup for that attack or a legacy misconfiguration you want to know about immediately.
@@ -31,6 +32,9 @@ FROM logs-windows.security-* METADATA _id, _index, _version
     BY source.ip, BUCKET(@timestamp, 10 minutes)
 | WHERE accts >= 8
 ```
+
+## Suppression
+None. Each pre-auth change weakens a separate account. The companion roasting query suppresses on source IP for 1h.
 
 ## Known false positives / exclusions
 - Genuine legacy accounts with pre-auth off. Inventory them once; any new one is the alert.

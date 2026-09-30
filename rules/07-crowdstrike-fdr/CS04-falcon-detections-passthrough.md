@@ -8,6 +8,10 @@ language: esql
 index: logs-crowdstrike.alert-*
 mitre: [various]
 data_source: CrowdStrike Falcon detections / EPP alerts (Elastic CrowdStrike integration)
+suppression:
+  fields: [host.name, technique]
+  duration: 1h
+  missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
 Falcon's own detections are already tuned by CrowdStrike and carry a confidence and a tactic. Routing high and critical Falcon detections into Elastic as alerts on day one gives you immediate, high-quality coverage of the endpoint domain with zero authoring. This is the single fastest coverage win. Do it first.
@@ -22,6 +26,9 @@ FROM logs-crowdstrike.alert-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, crowdstrike.alert.description, tactic, technique, crowdstrike.alert.pattern_disposition, process.name, process.command_line
 ```
 Also feed medium detections into a lower-priority queue rather than dropping them; they feed the correlation rules (X-series) even when not alertable on their own.
+
+## Suppression
+Suppress by `host.name`, `technique` for 1h. Alerts missing a key field are not suppressed. Falcon may raise several detections for one behaviour.
 
 ## Known false positives / exclusions
 - Falcon detections are already tuned; do not re-filter aggressively. Suppress specific known-benign pattern dispositions only after review with the Falcon console.
