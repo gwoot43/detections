@@ -100,6 +100,31 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS07** Suspicious scheduled task / service _(P1)_
 - [ ] **CS08** (Reference) promote stable rules to Falcon custom IOAs _(ongoing)_
 
+
+## Entra sign-in extended (high-fidelity sign-on signals)
+- [ ] **S01** Break-glass account sign-in _(P0, critical)_
+- [ ] **S02** Legacy auth / ROPC success / spray-tool user agent _(P1)_
+- [ ] **S03** Privileged account single-factor sign-in to admin surface _(P1)_
+- [ ] **S04** First-party CLI/PowerShell app used by non-admin (AzureHound/ROADtools) _(P1)_
+- [ ] **S05** Service principal sign-in from new network / secret-guessing _(P1)_
+- [ ] **S06** Directory sync account used outside Entra Connect server _(P0, critical)_
+- [ ] **S07** MFA claim replay from unregistered device on hosting/anonymizer _(P1)_
+- [ ] **S08** One session used from multiple countries/networks (token theft) _(P1)_
+- [ ] **S09** Sign-in attempts against disabled/leaver accounts _(P2)_
+- [ ] **S10** Workforce sign-in from hosting/VPN/anonymizer to sensitive app _(P2)_
+
+## Windows event logs (event-code based)
+- [ ] **WE01** Security/System event log cleared (1102/104) _(P0, critical)_
+- [ ] **WE02** Audit policy changed outside GPO (4719) _(P1)_
+- [ ] **WE03** Domain trust / SID History / DSRM change (4706/4765/4794) _(P1, critical)_
+- [ ] **WE04** Lockout storm / explicit-credential fan-out (4740/4648) _(P2)_
+- [ ] **WE05** Sensitive privilege / special logon to non-admin (4672) _(P2)_
+- [ ] **WE06** GPO modified in sensitive OU / default policy (5136) _(P1)_
+- [ ] **WE07** WDigest re-enabled / LSA protection disabled (registry) _(P1)_
+- [ ] **WE08** New service / kernel driver on DC or server (7045/4697) _(P1)_
+- [ ] **WE09** NTDS.dit / shadow copy / ntdsutil on a DC (4656/4663) _(P1, critical)_
+- [ ] **WE10** Defender detection / protection disabled (1116/5001) _(P1)_
+
 ## Correlation (build after the single-source rules feeding them are live)
 - [ ] **X01** Phish click -> endpoint alert (same user) _(P1, critical)_
 - [ ] **X02** Risky sign-in -> persistence/privilege action _(P1, critical)_

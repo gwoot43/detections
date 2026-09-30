@@ -13,6 +13,8 @@ rules/
   06-network/          N01-N10   F5 APM, Imperva WAF, Zscaler
   07-crowdstrike-fdr/  CS01-CS08 Falcon sensor-native telemetry (bonus)
   08-correlation/      X01-X05   cross-source chains (highest value)
+  09-entra-signin-extended/ S01-S10  additional high-fidelity Entra sign-on signals
+  10-windows-event-logs/    WE01-WE10 Windows Security/System event-code detections
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
@@ -111,5 +113,25 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | X03 | T1133, T1021, T1078 | Initial Access -> Lateral Movement |
 | X04 | T1190, T1505.003, T1059 | Initial Access -> Execution |
 | X05 | T1486, T1490, T1562.001, T1489 | Impact |
+| S01 | T1078.004 | Initial Access |
+| S02 | T1078.004, T1110.003, T1556.006 | Credential Access / Defense Impairment |
+| S03 | T1078.004, T1556.006 | Initial Access / Defense Impairment |
+| S04 | T1087.004, T1526, T1078.004 | Discovery |
+| S05 | T1078.004, T1528, T1110 | Credential Access |
+| S06 | T1078.004, T1003.006, T1098 | Credential Access / Persistence |
+| S07 | T1550.001, T1557, T1078.004 | Lateral Movement / Credential Access |
+| S08 | T1550.004, T1539, T1078.004 | Lateral Movement |
+| S09 | T1078.004, T1110 | Credential Access |
+| S10 | T1078.004, T1090.003 | Initial Access / Command and Control |
+| WE01 | T1070.001 | Stealth |
+| WE02 | T1562.002 | Defense Impairment |
+| WE03 | T1484.001, T1134.005, T1098 | Privilege Escalation / Persistence |
+| WE04 | T1110, T1078, T1550.002 | Credential Access |
+| WE05 | T1134, T1078.002, T1068 | Privilege Escalation |
+| WE06 | T1484.001, T1078.002 | Privilege Escalation |
+| WE07 | T1112, T1003.001, T1562.001 | Credential Access / Defense Impairment |
+| WE08 | T1543.003, T1569.002, T1068 | Persistence / Execution |
+| WE09 | T1003.003 | Credential Access |
+| WE10 | T1562.001, T1059, T1204 | Defense Impairment / Execution |
 
-Total: 74 detections across 8 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Total: 94 detections across 10 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
