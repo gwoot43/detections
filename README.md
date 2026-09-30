@@ -18,6 +18,7 @@ rules/
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
+  ESQL-CONVENTIONS.md            METADATA _id/_index/_version, LOOKUP JOIN vs ENRICH, transforms
 ```
 
 Each rule file is self-contained: front-matter (id, severity, MITRE, data source), a "why this is high fidelity" note, the ES|QL/EQL query, known false positives and exclusions, triage steps, and a test method.
