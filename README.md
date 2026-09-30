@@ -134,5 +134,25 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | WE08 | T1543.003, T1569.002, T1068 | Persistence / Execution |
 | WE09 | T1003.003 | Credential Access |
 | WE10 | T1562.001, T1059, T1204 | Defense Impairment / Execution |
+| I11 | T1098, T1078.002 | (see rule) |
+| I12 | T1556, T1098 | (see rule) |
+| I13 | T1558.003, T1098 | (see rule) |
+| I14 | T1134.001, T1098 | (see rule) |
+| WE11 | T1546.003 | (see rule) |
+| WE12 | T1550.002 | (see rule) |
+| WE13 | T1187, T1557.001 | (see rule) |
+| WE14 | T1021.002, T1569.002, T1053.005 | (see rule) |
+| WE15 | T1021.001 | (see rule) |
+| W11 | T1546.015, T1137.006 | (see rule) |
+| W12 | T1553.005, T1204.002 | (see rule) |
+| W13 | T1072 | (see rule) |
+| L11 | T1556.003, T1543 | (see rule) |
+| L12 | T1021.004 | (see rule) |
+| C12 | T1648, T1098.001, T1053 | (see rule) |
+| C13 | T1098.005, T1078.004 | (see rule) |
+| E11 | T1566, T1656 | (see rule) |
+| S11 | T1098.005, T1621, T1078.004 | (see rule) |
+| X06 | T1566, T1219, T1204 | (see rule) |
+| X07 | T1098, T1078.002 | (see rule) |
 
-Total: 94 detections across 10 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Total: 114 detections across 10 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).

@@ -136,6 +136,29 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 
 ---
 
+
+## New detections: persistence / lateral movement / initial access (batch 2)
+- [ ] **I11** AdminSDHolder modified _(critical)_ · `suppress: op_id / 1h`
+- [ ] **I12** Shadow credentials (msDS-KeyCredentialLink) _(high)_ · `suppress: op_id / 1h`
+- [ ] **I13** SPN added to a user account _(high)_ · `suppress: op_id / 1h`
+- [ ] **I14** Resource-based constrained delegation write _(high)_ · `suppress: op_id / 1h`
+- [ ] **WE11** WMI permanent event subscription _(high)_ · `suppress: host.name / 24h`
+- [ ] **WE12** Pass-the-hash logon (type 9 / seclogo) _(high)_ · `suppress: host.name, outbound / 1h`
+- [ ] **WE13** Coerced DC authentication (NTLM) _(high)_ · `suppress: acct, dest / 1h`
+- [ ] **WE14** Admin share / pipe from a workstation _(medium)_ · `suppress: source.ip, host.name / 1h`
+- [ ] **WE15** Workstation-to-workstation RDP _(medium)_ · `suppress: source.ip, dest / 4h`
+- [ ] **W11** COM hijack / Office add-in persistence _(high)_ · `suppress: host.name, user.name / 24h`
+- [ ] **W12** Disk image mounted then execution _(high)_ · `suppress: host.name, exe / 1h`
+- [ ] **W13** Intune/SCCM mass deployment _(high)_ · `suppress: actor, op / 1h`
+- [ ] **L11** PAM / NSS authentication backdoor _(high)_ · `suppress: host.name, f / 1h`
+- [ ] **L12** SSH lateral fan-out _(high)_ · `suppress: host.name, user.name / 1h`
+- [ ] **C12** Automation runbook / webhook _(high)_ · `suppress: actor, azure.resource.name / 1h`
+- [ ] **C13** Rogue device registration _(high)_ · `suppress: actor / 24h`
+- [ ] **E11** Email bombing _(medium)_ · `suppress: rcpt / 24h`
+- [ ] **S11** Help-desk MFA reset then new-location sign-in _(high)_ · `suppress: usr / 24h`
+- [ ] **X06** External Teams contact then remote tool _(high)_ · `suppress: usr, host.name / 24h`
+- [ ] **X07** Persistence after admin elevation _(critical)_ · `suppress: actor / 1h`
+
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
 2. Identity + Cloud P1 (I01, I02, I05, I07, I08, C01-C05, C11) — these catch the attacks you are most likely to face first.
