@@ -175,6 +175,28 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **S20** Broker refresh token to device registration to PRT chain _(P1, critical)_ · `suppress: uid / 24h`
 - [ ] **S21** ROADrecon enumeration through Azure AD Graph _(P2, high; needs AAD Graph activity logs)_ · `suppress: user.id / 1h`
 
+
+## Behaviour-based (rules/11-behaviour) — tune thresholds on 2 weeks of data
+- [ ] **B01** Horizontal network scan _(high)_ · `suppress: host.name, process.name / 1h`
+- [ ] **B02** Vertical port scan _(medium)_ · `suppress: host.name, destination.ip / 1h`
+- [ ] **B03** AD enumeration sweep (BloodHound) _(high)_ · `suppress: host.name, process.name / 2h`
+- [ ] **B04** Remote-admin protocol lateral sweep _(high)_ · `suppress: host.name, process.name / 2h`
+- [ ] **B05** Network logon sweep (one account, many hosts) _(high)_ · `suppress: acct / 2h`
+- [ ] **B06** C2 beaconing (regular cadence) _(high)_ · `suppress: host.name, process.name, destination.ip / 24h`
+- [ ] **B07** Mass file read / collection _(medium)_ · `suppress: host.name, process.name / 1h`
+- [ ] **B08** Credential store harvesting _(high)_ · `suppress: host.name, process.name / 2h`
+- [ ] **B09** Discovery command burst _(medium)_ · `suppress: host.name, user.name / 1h`
+
+## Insider risk (rules/12-insider) — strongest when joined to HR context
+- [ ] **IN01** Mass SharePoint/OneDrive download _(high)_ · `suppress: usr / 12h`
+- [ ] **IN02** External / anonymous sharing spike _(high)_ · `suppress: usr / 12h`
+- [ ] **IN03** Confluence bulk export _(medium)_ · `suppress: usr / 12h`
+- [ ] **IN04** eDiscovery / content search export abuse _(high)_ · `suppress: usr / 6h`
+- [ ] **IN05** Personal-webmail exfil with attachments _(medium)_ · `suppress: sender / 12h`
+- [ ] **IN06** Mass file/site deletion (sabotage) _(high)_ · `suppress: usr / 6h`
+- [ ] **IN07** Broad site snooping _(medium)_ · `suppress: usr / 12h`
+- [ ] **IN08** After-hours bulk download _(medium)_ · `suppress: usr / 12h`
+
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
 2. Identity + Cloud P1 (I01, I02, I05, I07, I08, C01-C05, C11) — these catch the attacks you are most likely to face first.

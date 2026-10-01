@@ -15,6 +15,8 @@ rules/
   08-correlation/      X01-X05   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S10  additional high-fidelity Entra sign-on signals
   10-windows-event-logs/    WE01-WE10 Windows Security/System event-code detections
+  11-behaviour/             B01-B09   behavioural (what a tool does, not its name)
+  12-insider/               IN01-IN08 insider risk (SharePoint/OneDrive/Confluence/mail)
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
@@ -164,5 +166,22 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | S11 | T1098.005, T1621, T1078.004 | (see rule) |
 | X06 | T1566, T1219, T1204 | (see rule) |
 | X07 | T1098, T1078.002 | (see rule) |
+| B01 | T1046, T1018 | Discovery |
+| B02 | T1046 | Discovery |
+| B03 | T1018, T1087.002, T1069.002, T1049 | Discovery |
+| B04 | T1021, T1570 | Lateral Movement |
+| B05 | T1021.002, T1550.002, T1078 | Lateral Movement |
+| B06 | T1071, T1573, T1095 | Command and Control |
+| B07 | T1119, T1005, T1552.001 | Collection / Credential Access |
+| B08 | T1555, T1552.001, T1539 | Credential Access |
+| B09 | T1033, T1016, T1057, T1082, T1087 | Discovery |
+| IN01 | T1213.002, T1530, T1119 | Collection |
+| IN02 | T1213.002, T1537, T1567 | Exfiltration |
+| IN03 | T1213.001, T1119 | Collection |
+| IN04 | T1114, T1213, T1530 | Collection |
+| IN05 | T1114, T1567, T1048.003 | Exfiltration |
+| IN06 | T1485, T1490 | Impact |
+| IN07 | T1213.002, T1087 | Collection / Discovery |
+| IN08 | T1213.002, T1530 | Collection |
 
-Total: 124 detections across 10 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Total: 157 detections across 12 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
