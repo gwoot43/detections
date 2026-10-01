@@ -159,6 +159,13 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **X06** External Teams contact then remote tool _(high)_ · `suppress: usr, host.name / 24h`
 - [ ] **X07** Persistence after admin elevation _(critical)_ · `suppress: actor / 1h`
 
+
+## Entra brute force and MFA fatigue
+- [ ] **S12** MFA fatigue, critical if then accepted _(P1, high)_ · `suppress: usr, severity / 4h`
+- [ ] **S13** Brute force against one account from a single IP _(P1, high)_ · `suppress: usr, source.ip, landed / 4h`
+- [ ] **S14** Distributed brute force against one account from many IPs _(P1, high)_ · `suppress: usr, landed / 4h`
+- [ ] **S15** Distributed password spray by client fingerprint _(P2, high)_ · `suppress: ua, app, landed / 4h`
+
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
 2. Identity + Cloud P1 (I01, I02, I05, I07, I08, C01-C05, C11) — these catch the attacks you are most likely to face first.

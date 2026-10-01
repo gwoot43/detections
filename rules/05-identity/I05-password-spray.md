@@ -30,6 +30,8 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | WHERE failed_users >= 10
 | EVAL landed = total_success > 0     // part of the suppression key, so a spray that later succeeds re-alerts
 ```
+Related Entra rules: S13 (one account from one IP), S14 (one account from many IPs), S15 (many accounts from many IPs) and S12 (MFA fatigue, which often follows a successful guess).
+
 Escalate to critical when `succeeded_users` is non-empty in the same bucket: that is a spray that landed.
 
 ## Query (on-prem 4625)
