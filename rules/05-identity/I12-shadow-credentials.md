@@ -33,6 +33,8 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 ```
 Excluding all computer-account writers is a slight over-exclusion (it also drops a computer writing another object's key). Tighten later by comparing the actor name to the object DN in an ingest field if that precision matters.
 
+Blind spot: in hybrid key-trust deployments, a Windows Hello key that an attacker enrolls in Entra ID is synced into `msDS-KeyCredentialLink` by the directory sync account, which this rule excludes. S16 and S17 catch that path on the cloud side.
+
 ## Suppression
 Suppress by `op_id` for 1h. Alerts missing a key field are not suppressed. Paired events share the operation ID; each separate target always alerts.
 

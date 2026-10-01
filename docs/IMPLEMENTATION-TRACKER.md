@@ -160,11 +160,13 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **X07** Persistence after admin elevation _(critical)_ · `suppress: actor / 1h`
 
 
-## Entra brute force and MFA fatigue
+## Entra brute force, MFA fatigue and Windows Hello abuse
 - [ ] **S12** MFA fatigue, critical if then accepted _(P1, high)_ · `suppress: usr, severity / 4h`
 - [ ] **S13** Brute force against one account from a single IP _(P1, high)_ · `suppress: usr, source.ip, landed / 4h`
 - [ ] **S14** Distributed brute force against one account from many IPs _(P1, high)_ · `suppress: usr, landed / 4h`
 - [ ] **S15** Distributed password spray by client fingerprint _(P2, high)_ · `suppress: ua, app, landed / 4h`
+- [ ] **S16** Windows Hello key enrolled after a device-code sign-in _(P1, high/critical)_ · `suppress: uid, severity / 24h`
+- [ ] **S17** Device-less Windows Hello sign-in then device registration _(P1, high)_ · `suppress: uid / 24h`
 
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.

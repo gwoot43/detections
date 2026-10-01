@@ -128,6 +128,8 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | S13 | T1110.001 | Credential Access |
 | S14 | T1110.001, T1090.002 | Credential Access / Command and Control |
 | S15 | T1110.003, T1090.002 | Credential Access / Command and Control |
+| S16 | T1098.005, T1556.006, T1528 | Persistence / Credential Access |
+| S17 | T1550, T1098.005 | Lateral Movement / Persistence |
 | WE01 | T1070.001 | Stealth |
 | WE02 | T1562.002 | Defense Impairment |
 | WE03 | T1484.001, T1134.005, T1098 | Privilege Escalation / Persistence |
@@ -159,4 +161,4 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | X06 | T1566, T1219, T1204 | (see rule) |
 | X07 | T1098, T1078.002 | (see rule) |
 
-Total: 118 detections across 10 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Total: 120 detections across 10 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
