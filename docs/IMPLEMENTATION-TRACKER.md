@@ -197,6 +197,17 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **IN07** Broad site snooping _(medium)_ · `suppress: usr / 12h`
 - [ ] **IN08** After-hours bulk download _(medium)_ · `suppress: usr / 12h`
 
+
+## Control plane (rules/13-controlplane) and ZAP (email)
+- [ ] **CP01** Defender for Office protection policy weakened/deleted _(high)_ · `suppress: usr, event.action / 6h`
+- [ ] **CP02** Quarantine release of malicious mail / release at volume _(high)_ · `suppress: usr / 6h`
+- [ ] **CP03** Tenant allow-list allow entry added _(high)_ · `suppress: usr / 6h`
+- [ ] **CP04** CrowdStrike RFM or sensor not reporting _(high; needs host-status ingest for RFM)_ · `suppress: host.name / 24h`
+- [ ] **CP05** Defender health degraded / MDE sensor not running _(high)_ · `suppress: host.name, event.code / 12h`
+- [ ] **E12** ZAP disabled in a protection policy _(high)_ · `suppress: usr, event.action / 6h`
+- [ ] **E13** ZAP remediation across many recipients (wave) _(medium)_ · `suppress: campaign / 12h`
+- [ ] **E14** Malicious after delivery but still in inbox (ZAP miss) _(high)_ · `suppress: usr / 6h`
+
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
 2. Identity + Cloud P1 (I01, I02, I05, I07, I08, C01-C05, C11) — these catch the attacks you are most likely to face first.
