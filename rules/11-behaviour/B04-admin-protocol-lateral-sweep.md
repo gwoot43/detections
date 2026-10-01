@@ -1,6 +1,6 @@
 ---
 id: B04
-name: Remote-admin protocol sweep (lateral movement fan-out)
+name: Remote-admin protocol lateral sweep - catches CrackMapExec, NetExec, Impacket, PsExec, Evil-WinRM by behaviour
 category: behaviour
 status: todo
 severity: high

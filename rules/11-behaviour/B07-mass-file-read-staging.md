@@ -1,6 +1,6 @@
 ---
 id: B07
-name: Mass file read or collection by a single process
+name: Mass file read or collection - catches TruffleHog, gitleaks and data-collection tools by behaviour
 category: behaviour
 status: todo
 severity: medium

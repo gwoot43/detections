@@ -1,6 +1,6 @@
 ---
 id: B01
-name: Horizontal network scan (one host reaching many hosts)
+name: Horizontal network scan - catches nmap, masscan, rustscan by behaviour
 category: behaviour
 status: todo
 severity: high

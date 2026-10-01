@@ -1,6 +1,6 @@
 ---
 id: B05
-name: Network logon sweep (one account authenticating to many hosts)
+name: Network logon sweep - catches CrackMapExec, NetExec and pass-the-hash lateral movement by behaviour
 category: behaviour
 status: todo
 severity: high

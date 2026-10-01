@@ -1,6 +1,6 @@
 ---
 id: B08
-name: Credential store harvesting (one process reading many secret locations)
+name: Credential store harvesting - catches LaZagne and infostealers by behaviour
 category: behaviour
 status: todo
 severity: high

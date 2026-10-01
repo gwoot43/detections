@@ -1,6 +1,6 @@
 ---
 id: B03
-name: Active Directory enumeration sweep (SMB/RPC/LDAP fan-out)
+name: Active Directory enumeration sweep - catches BloodHound, SharpHound, ADExplorer, PingCastle by behaviour
 category: behaviour
 status: todo
 severity: high

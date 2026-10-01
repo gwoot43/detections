@@ -1,6 +1,6 @@
 ---
 id: B09
-name: Host discovery command burst (many distinct recon utilities quickly)
+name: Host discovery command burst - catches post-exploitation recon and loaders by behaviour
 category: behaviour
 status: todo
 severity: medium

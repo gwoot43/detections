@@ -1,6 +1,6 @@
 ---
 id: B06
-name: C2 beaconing (regular outbound callbacks to one destination)
+name: C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour
 category: behaviour
 status: todo
 severity: high

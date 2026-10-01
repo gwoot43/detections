@@ -1,6 +1,6 @@
 ---
 id: B02
-name: Vertical port scan (one host sweeping many ports on one target)
+name: Vertical port scan - catches nmap and other port scanners by behaviour
 category: behaviour
 status: todo
 severity: medium
