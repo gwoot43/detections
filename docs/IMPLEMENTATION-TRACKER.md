@@ -168,6 +168,13 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **S16** Windows Hello key enrolled after a device-code sign-in _(P1, high/critical)_ · `suppress: uid, severity / 24h`
 - [ ] **S17** Device-less Windows Hello sign-in then device registration _(P1, high)_ · `suppress: uid / 24h`
 
+
+## ROADtools / roadtx
+- [ ] **S18** Device registered with roadtx default fingerprint or non-standard client _(P1, high/medium)_ · `suppress: uid, device / 24h`
+- [ ] **S19** Microsoft Authentication Broker sign-in from a non-standard client _(P1, high/medium)_ · `suppress: uid, ua / 24h`
+- [ ] **S20** Broker refresh token to device registration to PRT chain _(P1, critical)_ · `suppress: uid / 24h`
+- [ ] **S21** ROADrecon enumeration through Azure AD Graph _(P2, high; needs AAD Graph activity logs)_ · `suppress: user.id / 1h`
+
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
 2. Identity + Cloud P1 (I01, I02, I05, I07, I08, C01-C05, C11) — these catch the attacks you are most likely to face first.
