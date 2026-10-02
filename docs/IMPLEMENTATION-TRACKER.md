@@ -202,7 +202,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CP01** Defender for Office protection policy weakened/deleted _(high)_ · `suppress: usr, event.action / 6h`
 - [ ] **CP02** Quarantine release of malicious mail / release at volume _(high)_ · `suppress: usr / 6h`
 - [ ] **CP03** Tenant allow-list allow entry added _(high)_ · `suppress: usr / 6h`
-- [ ] **CP04** CrowdStrike RFM or sensor not reporting _(high; needs host-status ingest for RFM)_ · `suppress: host.name / 24h`
+- [ ] **CP04** CrowdStrike stuck in RFM, or in RFM and not reporting _(high)_ · `suppress: host.id / 24h`
 - [ ] **CP05** Defender health degraded / MDE sensor not running _(high)_ · `suppress: host.name, event.code / 12h`
 - [ ] **E12** ZAP disabled in a protection policy _(high)_ · `suppress: usr, event.action / 6h`
 - [ ] **E13** ZAP remediation across many recipients (wave) _(medium)_ · `suppress: campaign / 12h`

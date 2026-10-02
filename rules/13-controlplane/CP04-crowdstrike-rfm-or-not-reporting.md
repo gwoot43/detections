@@ -1,55 +1,71 @@
 ---
 id: CP04
-name: CrowdStrike sensor in Reduced Functionality Mode or no longer reporting
+name: CrowdStrike sensor stuck in Reduced Functionality Mode, or in RFM and no longer reporting
 category: controlplane
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.*
+index: logs-crowdstrike.fdr-*
 mitre: [T1562.001, T1562.008]
-data_source: CrowdStrike Falcon sensor health / host status (and FDR gap analysis)
+data_source: CrowdStrike FDR (OsVersionInfo, SensorMetadataUpdate, SensorHeartbeat)
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 24h
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Reduced Functionality Mode (RFM) is when the Falcon sensor loads but runs with protection and visibility cut back, usually after a kernel or OS update it does not yet support. A host in RFM looks online but is lightly defended, and attackers exploit that window. A sensor that stops reporting altogether is a blind spot. Both are control-plane failures worth an alert, not just a dashboard tile.
+Reduced Functionality Mode (RFM) is when the Falcon sensor loads but runs with protection and visibility cut back, usually after a kernel or OS update it does not yet support. A host in RFM looks online but is lightly defended. Most RFM is transient and clears once the update completes, so this rule only alerts on hosts that are still in RFM after a grace period.
 
-## Data source note
-RFM state is not reliably in the FDR event firehose. The dependable sources are the Falcon host-status data (the `reduced_functionality_mode` field on a device) and the sensor-health feed, pulled via the Falcon API or secondary Data Replicator feeds into Elastic. Confirm you ingest one of these before relying on branch A. Branch B needs only the FDR process stream you already have.
+The RFM state comes from the FDR stream. `OsVersionInfo` and `SensorMetadataUpdate` both carry `RFMState`, which the Elastic integration keeps as `crowdstrike.RFMState`. `SensorHeartbeat` does not carry it, so heartbeats are used only to tell whether the sensor is still alive after entering RFM.
 
-## Query A: RFM or degraded sensor state (needs host-status / sensor-health ingestion)
-```esql
-FROM logs-crowdstrike.* METADATA _id, _index, _version
-| EVAL rfm = TO_LOWER(TO_STRING(COALESCE(crowdstrike.host.reduced_functionality_mode,
-                                         crowdstrike.event.ReducedFunctionalityMode, ""))),
-       state = TO_LOWER(TO_STRING(COALESCE(crowdstrike.host.status, crowdstrike.event.SensorState, "")))
-| WHERE rfm IN ("yes", "true", "1") OR state RLIKE ".*(rfm|reduced|degraded|error).*"
-| KEEP @timestamp, host.name, rfm, state, crowdstrike.host.os_version, crowdstrike.host.sensor_version
-```
+Status is computed per sensor:
+- **recovered**: a later event reported `RFMState` 0. Dropped by the rule.
+- **rfm_sensor_alive**: still in RFM and heartbeating at least five minutes later. Online but lightly protected.
+- **rfm_no_heartbeat**: in RFM and no heartbeat since. The host is off or the sensor stopped.
 
-## Query B: host stopped reporting to Falcon while still alive elsewhere
-Run daily. This reuses only FDR. It flags a host that sent process telemetry recently, then went quiet for hours, which pairs with CS05 (sensor uninstalled or stopped).
+## Query
+Run hourly with a 24-hour lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.action == "ProcessRollup2"
-| STATS last_seen = MAX(@timestamp), events = COUNT(*) BY host.name
-| WHERE last_seen < NOW() - 12 hours
-| KEEP host.name, last_seen, events
+| WHERE event.action IN ("SensorMetadataUpdate", "OsVersionInfo", "SensorHeartbeat")
+| EVAL rfm_ts = CASE(crowdstrike.RFMState == "1", @timestamp, NULL),
+       ok_ts = CASE(crowdstrike.RFMState == "0", @timestamp, NULL),
+       hb_ts = CASE(event.action == "SensorHeartbeat", @timestamp, NULL)
+| STATS hostnames = VALUES(host.name),
+        rfm_events = COUNT(rfm_ts),
+        first_rfm = MIN(rfm_ts),
+        last_rfm = MAX(rfm_ts),
+        last_normal = MAX(ok_ts),
+        last_heartbeat = MAX(hb_ts)
+    BY host.id
+| WHERE rfm_events > 0
+// hostname exclusions go after STATS: SensorMetadataUpdate may lack a hostname,
+// and filtering on a missing field before STATS would silently drop those events
+| EVAL names = TO_LOWER(COALESCE(MV_CONCAT(hostnames, ","), ""))
+| WHERE NOT (names LIKE "*.ap-southeast-2.compute.internal*" OR names LIKE "*.ap-southeast-4.compute.internal*")
+| EVAL status = CASE(
+    last_normal IS NOT NULL AND last_normal > last_rfm, "recovered",
+    last_heartbeat IS NOT NULL AND DATE_DIFF("minute", last_rfm, last_heartbeat) >= 5, "rfm_sensor_alive",
+    "rfm_no_heartbeat"),
+       rfm_age_minutes = DATE_DIFF("minute", first_rfm, NOW()),
+       mins_since_heartbeat = DATE_DIFF("minute", last_heartbeat, NOW())
+// grace period: let OS and kernel updates finish before alerting
+| WHERE status != "recovered" AND rfm_age_minutes >= 120
+| KEEP host.id, hostnames, status, first_rfm, last_rfm, last_normal, last_heartbeat, rfm_age_minutes, mins_since_heartbeat
 ```
-Cross-check the quiet hosts against a live signal the attacker cannot mute, such as recent AD authentication (event 4624) or a DHCP lease, so you alert only on hosts that are up but dark. Without that cross-check this also lists powered-off laptops.
+`host.id` is the sensor ID (`aid`), which survives renames and hostname reuse. Adjust the grace period to your patch cycle. The age is measured from the first RFM report in the lookback.
 
 ## Suppression
-Suppress by `host.name` for 24h. Alerts missing a key field are not suppressed. RFM persists until the host is fixed, so one alert per host per day is enough.
+Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. RFM persists until the host is fixed, so one alert per sensor per day is enough.
 
 ## Known false positives / exclusions
-- RFM right after a mass OS or kernel rollout is expected but still a real protection gap; treat it as prioritise-the-patch, not dismiss.
-- Branch B lists legitimately offline machines unless you require a second live signal. Decommissioned hosts: cross-check the retirement list.
+- A host that left RFM without sending a new `OsVersionInfo` or `SensorMetadataUpdate` stays flagged. Confirm with one host's timeline that recovery produces a `SensorMetadataUpdate` with `RFMState` 0; if it does, the recovered status is reliable.
+- The EC2 exclusions hide real protection gaps. Consider routing cloud instances to the cloud team instead of dropping them.
+- Heartbeat volume makes this query heavy. Keep the lookback at 24 hours or less.
 
 ## Triage
-- RFM: identify the OS or kernel build that triggered it and update the sensor to a supporting version. Until fixed, treat the host as lightly protected and watch it with the non-endpoint rules.
-- Not reporting while alive: investigate as a possible sensor tamper (CS05, W05) and restore coverage.
+- **rfm_sensor_alive:** identify the OS or kernel build that triggered RFM and move the host to a sensor version that supports it. Until then, treat the host as lightly protected and lean on the non-endpoint rules.
+- **rfm_no_heartbeat:** check whether the machine is up elsewhere (recent AD logons, DHCP). If it is, investigate a possible sensor tamper (CS05, W05) and restore coverage.
 
 ## Test
-In a lab, move a host to an unsupported kernel to induce RFM, or confirm branch A fires against a host the Falcon console shows in RFM.
+Validate against a host the Falcon console shows in RFM, or move a lab host to an unsupported kernel.

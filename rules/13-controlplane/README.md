@@ -13,5 +13,5 @@ All rules use the Microsoft 365 Unified Audit Log, the Windows Defender operatio
 | CP05 | Microsoft Defender health degraded or the MDE sensor (Sense) not running |
 
 Data-source notes:
-- **CP04** needs Falcon host-status or sensor-health data ingested (via the Falcon API or secondary feeds) for the RFM branch; the not-reporting branch uses only the FDR process stream.
+- **CP04** reads RFM state straight from FDR: `OsVersionInfo` and `SensorMetadataUpdate` carry it as `crowdstrike.RFMState`, and heartbeats show whether the sensor is still alive. No API feed is needed.
 - **CP05** needs the Windows Defender operational channel and the System channel shipped by the Elastic Windows integration; confirm the event codes your Defender build emits.
