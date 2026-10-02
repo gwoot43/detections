@@ -42,7 +42,7 @@ FROM logs-crowdstrike.fdr-*
 // hostname exclusions go after STATS: SensorMetadataUpdate may lack a hostname,
 // and filtering on a missing field before STATS would silently drop those events
 | EVAL names = TO_LOWER(COALESCE(MV_CONCAT(hostnames, ","), ""))
-| WHERE NOT (names LIKE "*.ap-southeast-2.compute.internal*" OR names LIKE "*.ap-southeast-4.compute.internal*")
+| WHERE NOT (names LIKE "*.ap-southeast-*.compute.internal*")      // every ap-southeast region
 | EVAL status = CASE(
     last_normal IS NOT NULL AND last_normal > last_rfm, "recovered",
     last_heartbeat IS NOT NULL AND DATE_DIFF("minute", last_rfm, last_heartbeat) >= 5, "rfm_sensor_alive",
@@ -54,6 +54,41 @@ FROM logs-crowdstrike.fdr-*
 | KEEP host.id, hostnames, status, first_rfm, last_rfm, last_normal, last_heartbeat, rfm_age_minutes, mins_since_heartbeat
 ```
 `host.id` is the sensor ID (`aid`), which survives renames and hostname reuse. Adjust the grace period to your patch cycle. The age is measured from the first RFM report in the lookback.
+
+## Falcon LogScale version
+The same detection written for Falcon Event Search or Next-Gen SIEM, if you run it in Falcon instead of Elastic.
+```
+#event_simpleName=/^(SensorMetadataUpdate|OsVersionInfo|SensorHeartbeat)$/
+| case {
+    RFMState="1" | rfm_ts := @timestamp ;
+    RFMState="0" | ok_ts := @timestamp ;
+    #event_simpleName=SensorHeartbeat | hb_ts := @timestamp ;
+    * }
+| groupBy([aid], function=[
+    collect([ComputerName]),
+    count(rfm_ts, as=RFMEvents),
+    min(rfm_ts, as=FirstRFM),
+    max(rfm_ts, as=LastRFM),
+    max(ok_ts, as=LastNormal),
+    max(hb_ts, as=LastHeartbeat)
+  ], limit=max)
+| RFMEvents > 0
+| ComputerName!=/\.ap-southeast-\d+\.compute\.internal$/i
+| case {
+    test(LastNormal > LastRFM) | Status := "recovered" ;
+    test(LastHeartbeat > LastRFM + 300000) | Status := "rfm_sensor_alive" ;
+    * | Status := "rfm_no_heartbeat" }
+| Status != "recovered"
+| test(now() - FirstRFM > 7200000)
+| FirstRFM := formatTime(format="%F %T", field=FirstRFM, timezone="Australia/Sydney")
+| LastRFM := formatTime(format="%F %T", field=LastRFM, timezone="Australia/Sydney")
+| LastNormal := formatTime(format="%F %T", field=LastNormal, timezone="Australia/Sydney")
+| LastHeartbeat := formatTime(format="%F %T", field=LastHeartbeat, timezone="Australia/Sydney")
+```
+Notes for the LogScale version:
+- `ComputerName!=ap-southeast-2.compute.internal` is an exact match and excludes nothing; the regex above matches the EC2 hostname suffix.
+- `OsVersionInfo` alone is emitted rarely, so a first-seen equal to last-seen means one event, not a short RFM window. That is why the recovery and heartbeat checks are needed.
+- To confirm recovery is reported, check one host that left RFM: `aid=<aid> RFMState=* | table([@timestamp, #event_simpleName, RFMState])` should show a `SensorMetadataUpdate` with `RFMState` 0.
 
 ## Suppression
 Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. RFM persists until the host is fixed, so one alert per sensor per day is enough.

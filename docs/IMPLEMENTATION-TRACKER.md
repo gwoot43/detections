@@ -196,6 +196,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **IN06** Mass file/site deletion (sabotage) _(high)_ · `suppress: usr / 6h`
 - [ ] **IN07** Broad site snooping _(medium)_ · `suppress: usr / 12h`
 - [ ] **IN08** After-hours bulk download _(medium)_ · `suppress: usr / 12h`
+- [ ] **IN09** SharePoint secret search then sensitive access/download _(high; needs SearchQueryInitiatedSharePoint)_ · `suppress: usr / 12h`
 
 
 ## Control plane (rules/13-controlplane) and ZAP (email)

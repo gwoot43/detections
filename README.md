@@ -16,7 +16,7 @@ rules/
   09-entra-signin-extended/ S01-S10  additional high-fidelity Entra sign-on signals
   10-windows-event-logs/    WE01-WE10 Windows Security/System event-code detections
   11-behaviour/             B01-B09   behavioural (what a tool does, not its name)
-  12-insider/               IN01-IN08 insider risk (SharePoint/OneDrive/Confluence/mail)
+  12-insider/               IN01-IN09 insider risk (SharePoint/OneDrive/Confluence/mail)
   13-controlplane/          CP01-CP05 weakening/blinding of security controls (Defender, EDR)
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
@@ -184,6 +184,7 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | IN06 | T1485, T1490 | Impact |
 | IN07 | T1213.002, T1087 | Collection / Discovery |
 | IN08 | T1213.002, T1530 | Collection |
+| IN09 | T1213.002, T1552.001, T1083 | Collection / Credential Access |
 | CP01 | T1562.001, T1562.006 | Defense Impairment |
 | CP02 | T1562, T1566 | Defense Impairment |
 | CP03 | T1562.001, T1556 | Defense Impairment |
@@ -193,4 +194,4 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | E13 | T1566.001, T1566.002 | Initial Access |
 | E14 | T1566.001, T1566.002 | Initial Access |
 
-Total: 156 detections across 13 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Total: 157 detections across 13 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).

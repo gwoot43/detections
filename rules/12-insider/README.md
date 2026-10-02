@@ -17,3 +17,4 @@ Notes for this folder:
 | IN06 | Mass file or site deletion (sabotage) |
 | IN07 | Broad access across many sites the user does not own (snooping) |
 | IN08 | After-hours bulk download |
+| IN09 | SharePoint search for secrets followed by sensitive file access or bulk download |
