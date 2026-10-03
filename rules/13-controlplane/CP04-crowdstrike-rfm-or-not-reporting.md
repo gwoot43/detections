@@ -20,8 +20,10 @@ The RFM state comes from the FDR stream. `OsVersionInfo` and `SensorMetadataUpda
 
 Status is computed per sensor:
 - **recovered**: a later event reported `RFMState` 0. Dropped by the rule.
-- **rfm_sensor_alive**: still in RFM and heartbeating at least five minutes later. Online but lightly protected.
-- **rfm_no_heartbeat**: in RFM and no heartbeat since. The host is off or the sensor stopped.
+- **rfm_sensor_alive**: still in RFM and heartbeated within the last 60 minutes. Online but lightly protected.
+- **rfm_stale_or_offline**: in RFM and no heartbeat in the last 60 minutes. The host is off or the sensor stopped.
+
+Heartbeat freshness is measured against the current time, not against the last RFM report. If RFM reports repeat while a host stays in RFM, comparing to the last report would mislabel live hosts as offline. The 60-minute window allows for FDR delivery lag; keep it above the lag you normally see.
 
 ## Query
 Run hourly with a 24-hour lookback.
@@ -45,8 +47,8 @@ FROM logs-crowdstrike.fdr-*
 | WHERE NOT (names LIKE "*.ap-southeast-*.compute.internal*")      // every ap-southeast region
 | EVAL status = CASE(
     last_normal IS NOT NULL AND last_normal > last_rfm, "recovered",
-    last_heartbeat IS NOT NULL AND DATE_DIFF("minute", last_rfm, last_heartbeat) >= 5, "rfm_sensor_alive",
-    "rfm_no_heartbeat"),
+    last_heartbeat IS NOT NULL AND DATE_DIFF("minute", last_heartbeat, NOW()) <= 60, "rfm_sensor_alive",
+    "rfm_stale_or_offline"),
        rfm_age_minutes = DATE_DIFF("minute", first_rfm, NOW()),
        mins_since_heartbeat = DATE_DIFF("minute", last_heartbeat, NOW())
 // grace period: let OS and kernel updates finish before alerting
@@ -60,9 +62,9 @@ The same detection written for Falcon Event Search or Next-Gen SIEM, if you run 
 ```
 #event_simpleName=/^(SensorMetadataUpdate|OsVersionInfo|SensorHeartbeat)$/
 | case {
+    #event_simpleName=SensorHeartbeat | hb_ts := @timestamp ;
     RFMState="1" | rfm_ts := @timestamp ;
     RFMState="0" | ok_ts := @timestamp ;
-    #event_simpleName=SensorHeartbeat | hb_ts := @timestamp ;
     * }
 | groupBy([aid], function=[
     collect([ComputerName]),
@@ -76,8 +78,8 @@ The same detection written for Falcon Event Search or Next-Gen SIEM, if you run 
 | ComputerName!=/\.ap-southeast-\d+\.compute\.internal$/i
 | case {
     test(LastNormal > LastRFM) | Status := "recovered" ;
-    test(LastHeartbeat > LastRFM + 300000) | Status := "rfm_sensor_alive" ;
-    * | Status := "rfm_no_heartbeat" }
+    test(now() - LastHeartbeat <= 3600000) | Status := "rfm_sensor_alive" ;
+    * | Status := "rfm_stale_or_offline" }
 | Status != "recovered"
 | test(now() - FirstRFM > 7200000)
 | FirstRFM := formatTime(format="%F %T", field=FirstRFM, timezone="Australia/Sydney")
@@ -86,6 +88,7 @@ The same detection written for Falcon Event Search or Next-Gen SIEM, if you run 
 | LastHeartbeat := formatTime(format="%F %T", field=LastHeartbeat, timezone="Australia/Sydney")
 ```
 Notes for the LogScale version:
+- `case` takes the first matching branch, so the heartbeat branch comes first. Otherwise a heartbeat carrying `RFMState` would never be counted as a heartbeat.
 - `ComputerName!=ap-southeast-2.compute.internal` is an exact match and excludes nothing; the regex above matches the EC2 hostname suffix.
 - `OsVersionInfo` alone is emitted rarely, so a first-seen equal to last-seen means one event, not a short RFM window. That is why the recovery and heartbeat checks are needed.
 - To confirm recovery is reported, check one host that left RFM: `aid=<aid> RFMState=* | table([@timestamp, #event_simpleName, RFMState])` should show a `SensorMetadataUpdate` with `RFMState` 0.
@@ -100,7 +103,7 @@ Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. RF
 
 ## Triage
 - **rfm_sensor_alive:** identify the OS or kernel build that triggered RFM and move the host to a sensor version that supports it. Until then, treat the host as lightly protected and lean on the non-endpoint rules.
-- **rfm_no_heartbeat:** check whether the machine is up elsewhere (recent AD logons, DHCP). If it is, investigate a possible sensor tamper (CS05, W05) and restore coverage.
+- **rfm_stale_or_offline:** check whether the machine is up elsewhere (recent AD logons, DHCP). If it is, investigate a possible sensor tamper (CS05, W05) and restore coverage.
 
 ## Test
 Validate against a host the Falcon console shows in RFM, or move a lab host to an unsupported kernel.
