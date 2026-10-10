@@ -1,4 +1,6 @@
 # AD attack detections
+https://kypvas.github.io/ad_attack_architecture/
+<img width="1867" height="1211" alt="image" src="https://github.com/user-attachments/assets/943af858-f61e-4f52-84e7-feac050c161b" />
 
 Detections for Active Directory attack paths from the "Active Directory Attack Architecture Map v2.0" (kypvas/ad_attack_architecture) that the library did not already cover. Every technique on the map was checked against the existing 157 rules first. A technique already detected elsewhere gets no new rule here, and a variant of an existing rule was added to that rule instead of becoming a new one.
 
