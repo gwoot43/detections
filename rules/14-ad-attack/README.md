@@ -14,7 +14,7 @@ Rank reflects impact (how close the technique is to full domain compromise) and 
 | 2 | AD02 | Replication (DCSync) rights granted on the domain root | critical | Directory-object auditing (5136) |
 | 3 | AD03 | CA private key backed up or exported (golden certificate) | critical | CA backup auditing (4876/4877); list CA hosts |
 | 4 | AD04 | Domain DPAPI backup key retrieved | critical | 4662 for LSA secret objects on DCs |
-| 5 | AD05 | Computer account changed to impersonate a DC (sAMAccountName or dNSHostName spoofing, anonymous change), or created by a standard user | critical / medium | Account management auditing |
+| 5 | AD05 | Computer account changed to impersonate a DC (sAMAccountName or dNSHostName spoofing, anonymous DC password change), or created by a standard user | critical / medium | Account management auditing |
 | 6 | AD06 | AD CS template, CA configuration or certificate-mapping enforcement weakened (ESC4, 6, 7, 9, 10, 11, 16) | high | Template auditing (5136), CA config auditing |
 | 7 | AD07 | DNS server plugin DLL configured on a DC (DnsAdmins abuse) | high | FDR registry events |
 | 8 | AD08 | Service tickets used with no TGT issued (forged golden ticket) | high | 4768/4769/4770 from every DC; tune first |

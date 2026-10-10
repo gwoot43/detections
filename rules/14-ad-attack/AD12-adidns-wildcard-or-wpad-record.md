@@ -30,7 +30,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        op_id = TO_STRING(winlog.event_data.OpCorrelationID)
 | WHERE cls == "dnsnode" AND NOT ENDS_WITH(actor, "$")
   AND (STARTS_WITH(dn, "dc=*,") OR STARTS_WITH(dn, "dc=wpad,") OR STARTS_WITH(dn, "dc=isatap,"))
-| KEEP @timestamp, host.name, actor, dn, op_id
+| KEEP @timestamp, winlog.computer_name, actor, dn, op_id
 ```
 `STARTS_WITH` matches literally, so `dc=*,` means a record actually named `*`.
 

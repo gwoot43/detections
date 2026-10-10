@@ -23,6 +23,7 @@ Membership changes to DnsAdmins itself are already covered by I02.
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE host.os.type == "windows"
+  AND event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate", "ProcessRollup2")
 | EVAL regpath = TO_LOWER(COALESCE(TO_STRING(registry.path), "")),
        cl = TO_LOWER(COALESCE(process.command_line, "")),
        pname = TO_LOWER(COALESCE(process.name, ""))

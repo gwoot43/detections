@@ -10,7 +10,7 @@ index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
 mitre: [T1649, T1484]
 data_source: Windows Security 5136 (DCs) and AD CS audit events (CA), CrowdStrike FDR process and registry events
 suppression:
-  fields: [host.name, finding]
+  fields: [h, finding]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -24,7 +24,11 @@ I09 catches a certificate being issued for someone else. This catches the config
 ## Query
 ```esql
 FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| EVAL cls = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.ObjectClass), "")),
+| WHERE event.code IN ("5136", "4882", "4885", "4890", "4891", "4892")
+   OR event.action IN ("ProcessRollup2", "AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate")
+// Windows events: winlog.computer_name (with event forwarding, host.name is the collector); FDR: host.name
+| EVAL h = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
+       cls = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.ObjectClass), "")),
        attr = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.AttributeLDAPDisplayName), "")),
        cl = TO_LOWER(COALESCE(process.command_line, "")),
        pname = TO_LOWER(COALESCE(process.name, "")),
@@ -44,16 +48,17 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
                       ca_setting_change, "ca_setting_changed",
                       ca_flag_change, "ca_flags_changed",
                       "certificate_mapping_weakened")
-| KEEP @timestamp, host.name, actor, finding, event.code, winlog.event_data.ObjectDN, attr, process.command_line, registry.path
+| KEEP @timestamp, h, actor, finding, event.code, winlog.event_data.ObjectDN, attr, process.command_line, registry.path
 ```
 Template changes need directory-object auditing on the Certificate Templates container. The CA events need CA auditing for configuration and security changes.
 
 ## Suppression
-Suppress by `host.name`, `finding` for 1h. Alerts missing a key field are not suppressed. One template edit writes several attribute changes; a different host or finding still alerts.
+Suppress by `h`, `finding` for 1h. Alerts missing a key field are not suppressed. One template edit writes several attribute changes; a different host or finding still alerts.
 
 ## Known false positives / exclusions
 - Planned PKI work by the certificate team. Confirm against change control; exclude a named PKI admin account only with a ticket-bound window.
 - Template publishing during a new deployment. Expected once.
+- The mapping branch matches any write to the two registry values, including raising enforcement. Read the new value in the FDR event before escalating.
 
 ## Triage
 - Read what changed. A template that now lets the requester supply the subject, a CA with `EditFlags` changed, or mapping enforcement lowered on a DC are each direct escalation paths. Revert, then check I09 for certificates issued while the change was live.

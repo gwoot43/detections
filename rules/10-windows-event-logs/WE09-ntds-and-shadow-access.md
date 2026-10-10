@@ -44,4 +44,4 @@ Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. C
 - This is domain-hash theft. Assume krbtgt and every account hash is compromised; begin AD recovery planning (double krbtgt reset). Find how the actor reached the DC.
 
 ## Test
-Run `ntdsutil "ac i ntds" "ifm" "create full C:\temp\ifm" q q` on a lab DC.
+Create an install-from-media (IFM) set with `ntdsutil` on a lab DC, then delete it.

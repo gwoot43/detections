@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1087.002, T1482, T1558.003, T1003, T1069.002, T1018]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -42,13 +42,16 @@ FROM logs-crowdstrike.fdr-*
         (pname == "arp.exe" AND cmd LIKE "*-a*"), "arp",
         NULL)
 | WHERE tooling == 1 OR recon_cmd IS NOT NULL
-| STATS tool_hits = SUM(tooling), distinct_recon = COUNT_DISTINCT(recon_cmd), cmds = VALUES(process.command_line), parents = VALUES(process.parent.name)
-    BY host.name, user.name, BUCKET(@timestamp, 10 minutes)
+// user.name is DOMAIN\user or user depending on enrichment; group on the bare, lowercased name
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| STATS tool_hits = SUM(tooling), distinct_recon = COUNT_DISTINCT(recon_cmd), cmds = VALUES(process.command_line), parents = VALUES(process.parent.name),
+        host.name = VALUES(host.name)
+    BY host.id, user.name, BUCKET(@timestamp, 10 minutes)
 | WHERE tool_hits > 0 OR distinct_recon >= 5
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 
 ## Known false positives / exclusions
 - Credentialed vulnerability scanners running `net` and `nltest`. Exclude by service account name.

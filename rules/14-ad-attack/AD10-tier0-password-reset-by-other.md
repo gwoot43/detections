@@ -29,7 +29,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        OR target == "administrator" OR tsid LIKE "S-1-5-21-*-500"
        OR target == "krbtgt" OR target LIKE "msol_*" OR target LIKE "breakglass*")   // your Tier-0 naming
   AND NOT (actor IN ("svc-pam"))                                                    // your PAM / password vault account
-| KEEP @timestamp, host.name, actor, target, tsid, winlog.event_data.SubjectDomainName
+| KEEP @timestamp, winlog.computer_name, actor, target, tsid, winlog.event_data.SubjectDomainName
 ```
 Swap the name patterns for your own Tier-0 naming. The built-in Administrator is caught by its RID (500) whatever it is renamed to.
 

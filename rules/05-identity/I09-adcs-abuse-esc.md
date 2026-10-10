@@ -47,4 +47,4 @@ Suppress by `req_user`, `san` for 1h. Alerts missing a key field are not suppres
 - Revoke the issued certificate, disable or fix the vulnerable template (remove ENROLLEE_SUPPLIES_SUBJECT / require manager approval), and treat the SAN identity as compromised.
 
 ## Test
-In a lab AD CS, request a certificate on a template with supply-in-request enabled specifying a different SAN.
+In a lab AD CS, submit a certificate request for one test user that carries a `SAN:upn=` request attribute naming a second test user, and confirm 4886 records it.

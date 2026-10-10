@@ -20,16 +20,18 @@ Ransomware affiliates and help-desk social engineering crews drop a second RMM t
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
-| EVAL pname = TO_LOWER(process.name), exe = TO_LOWER(process.executable), cmd = TO_LOWER(process.command_line)
+| EVAL pname = TO_LOWER(process.name), exe = TO_LOWER(COALESCE(process.executable, "")), cmd = TO_LOWER(process.command_line)
 | WHERE pname IN ("anydesk.exe", "screenconnect.clientservice.exe", "screenconnect.windowsclient.exe", "connectwisecontrol.client.exe", "ateraagent.exe",
                   "splashtop_streamer.exe", "rustdesk.exe", "teamviewer.exe", "teamviewerqs.exe", "quickassist.exe",
                   "logmein.exe", "gotoassist.exe", "supremo.exe", "ammyy.exe", "ultraviewer_desktop.exe", "zohoassist.exe", "meshagent.exe", "syncro.exe", "dwagent.exe", "rport.exe", "netsupport.exe", "client32.exe", "remotepc.exe", "radmin.exe",
-                  "ngrok.exe", "cloudflared.exe", "chisel.exe", "plink.exe", "ligolo.exe", "ligolo-agent.exe", "frpc.exe", "bore.exe", "socat.exe", "gost.exe", "tailscale.exe", "zerotier-one.exe", "psiphon.exe", "tor.exe", "proxifier.exe", "devtunnel.exe", "code-tunnel.exe")
-   OR cmd LIKE "*ngrok*tcp*" OR cmd LIKE "*cloudflared*tunnel*" OR cmd LIKE "*trycloudflare*"
-   OR (pname IN ("plink.exe", "ssh.exe") AND (cmd LIKE "* -r *" OR cmd LIKE "* -d *"))
-   OR cmd LIKE "*tunnel --accept-server-license-terms*" OR cmd LIKE "*devtunnels*"
-// remove your own approved tool from the list, then keep this guard for install path
-| WHERE NOT (exe LIKE """c:\\program files\\your-approved-rmm\\*""")
+                  "ngrok.exe", "cloudflared.exe", "chisel.exe", "ligolo.exe", "ligolo-agent.exe", "frpc.exe", "bore.exe", "socat.exe", "gost.exe", "tailscale.exe", "zerotier-one.exe", "psiphon.exe", "tor.exe", "proxifier.exe", "devtunnel.exe", "code-tunnel.exe")
+   OR cmd LIKE "*ngrok*tcp*" OR cmd LIKE "*cloudflared*tunnel*"
+   // PuTTY/OpenSSH only when used as a tunnel (remote or SOCKS forward)
+   OR (pname IN ("plink.exe", "ssh.exe") AND (process.command_line LIKE "* -R *" OR process.command_line LIKE "* -D *"))
+   OR cmd LIKE "*tunnel --accept-server-license-terms*"
+// remove your own approved tool from the list, then keep this guard for its install path.
+// FDR records executables as \Device\HarddiskVolumeN\..., never C:\..., so match from the folder down.
+| WHERE NOT (exe LIKE """*\\program files\\your-approved-rmm\\*""")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256
 ```
 `quickassist.exe` and `teamviewer.exe` will be noisy if IT uses them. Decide once, then either remove them or restrict to launches under user-writable paths.
@@ -39,9 +41,11 @@ Suppress by `host.name`, `pname` for 24h. Alerts missing a key field are not sup
 
 ## Known false positives / exclusions
 - Your own RMM, VPN client and sanctioned developer tunnelling. Remove from the list rather than exclude.
+- Admins using `plink.exe` or `ssh.exe` for ordinary SSH. Only `-R` and `-D` forwards match, and the flags are matched case-sensitively so `-r`/`-d` options of other tools do not.
+- Browser launches that carry a `trycloudflare.com` or `devtunnels.ms` link are not matched; this rule is about running the tunnel, not visiting one.
 
 ## Triage
 - Block the tool in Falcon, kill the process, review who installed it and whether a help-desk call preceded it.
 
 ## Test
-Run a portable RMM installer from `%TEMP%` on a lab host.
+Run a portable build of an unapproved RMM tool from `%TEMP%` on a lab host, then remove it.

@@ -14,24 +14,32 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Falcon's Linux sensor emits `CriticalFileModified` for a curated set of persistence files, which removes the guessing. The process branch catches the same intent when the write comes through an editor or shell redirect. Package managers and config management are the only legitimate writers, and they have a recognisable parent.
+Falcon's Linux sensor emits `CriticalFileModified` for a curated set of sensitive files. The process branch catches persistence written through a shell. Package managers and config management are the only legitimate writers, and they have a recognisable parent.
+
+`CriticalFileModified` carries no process name, so a package update cannot be told apart from an attacker there. The file branch is therefore limited to `authorized_keys` and `/etc/ld.so.preload`, which packages do not write. Cron, systemd and profile changes are taken from the process branch, where the writer is known:
+- `crontab` installing from stdin (`… | crontab -`) or from a file in a temp directory, not `crontab -e` or `-l`.
+- `systemctl enable` of a unit file that lives in a temp or home directory. Plain `systemctl enable`, `is-enabled` and `daemon-reload` run on every package install.
+- Appending to a shell profile only when the line fetches, decodes or opens a socket. Installers append `PATH` exports all the time.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE host.os.type == "linux" AND event.action IN ("ProcessRollup2", "CriticalFileModified")
-| EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name), parent = TO_LOWER(process.parent.name),
-       f = TO_LOWER(COALESCE(file.path, ""))
-| WHERE (event.action == "CriticalFileModified" AND (f LIKE "/etc/cron*" OR f LIKE "/var/spool/cron/*" OR f LIKE "/etc/systemd/system/*" OR f LIKE "/usr/lib/systemd/system/*" OR f LIKE "*/.ssh/authorized_keys*" OR f LIKE "/etc/rc.local" OR f LIKE "*/.bashrc" OR f LIKE "*/.bash_profile" OR f LIKE "*/.profile" OR f LIKE "/etc/ld.so.preload" OR f LIKE "/etc/init.d/*" OR f LIKE "/etc/update-motd.d/*"))
+| EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),
+       parent = TO_LOWER(COALESCE(process.parent.name, "")), f = TO_LOWER(COALESCE(file.path, ""))
+| WHERE (event.action == "CriticalFileModified" AND (f LIKE "*/.ssh/authorized_keys*" OR f == "/etc/ld.so.preload"))
    OR (event.action == "ProcessRollup2" AND (
-          (pname == "crontab" AND NOT (cmd LIKE "* -l*"))
+          (pname == "crontab" AND (cmd LIKE "* -" OR cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*"))
        OR (cmd LIKE "*authorized_keys*" AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*tee*" OR cmd LIKE "*curl*" OR cmd LIKE "*wget*"))
-       OR (pname == "systemctl" AND (cmd LIKE "*enable*" OR cmd LIKE "*daemon-reload*"))
+       OR (pname == "systemctl" AND cmd LIKE "* enable *" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*" OR cmd LIKE "*/home/*"))
        OR (cmd LIKE "*/etc/systemd/system/*" AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*tee*" OR cmd LIKE "*cp *" OR cmd LIKE "*mv *"))
-       OR (cmd LIKE "*ld.so.preload*")
-       OR ((cmd LIKE "*.bashrc*" OR cmd LIKE "*/etc/profile.d/*") AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*curl*" OR cmd LIKE "*base64*"))
+       OR (cmd LIKE "*ld.so.preload*" AND (cmd LIKE "*>*ld.so.preload*" OR cmd LIKE "*echo*" OR cmd LIKE "*tee*" OR cmd LIKE "*cp *" OR cmd LIKE "*mv *"))
+       OR ((cmd LIKE "*.bashrc*" OR cmd LIKE "*.bash_profile*" OR cmd LIKE "*/etc/profile.d/*")
+           AND (cmd LIKE "*>>*" OR cmd LIKE "*tee*")
+           AND (cmd LIKE "*curl*" OR cmd LIKE "*wget*" OR cmd LIKE "*base64*" OR cmd LIKE "*/dev/tcp*" OR cmd LIKE "*nohup*" OR cmd LIKE "*alias sudo*"))
      ))
-| WHERE NOT (parent IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor"))
+// CriticalFileModified has no parent, so this only filters the process branch
+| WHERE parent NOT IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor")
 | KEEP @timestamp, host.name, user.name, event.action, parent, pname, process.command_line, f
 ```
 
@@ -40,6 +48,8 @@ Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not 
 
 ## Known false positives / exclusions
 - Config management and cloud-init, excluded by parent above. Add your deployment user if it writes cron over SSH, then exclude by user plus source host.
+- `authorized_keys` written at first boot by cloud-init or by a key-rotation job. The file event has no process, so exclude those by host group or time window, not by file.
+- Ansible's cron module installs via `crontab /tmp/…`. Exclude its service account.
 
 ## Triage
 - Read the new cron line, unit file or key. A key you do not recognise on a server is a compromised host.

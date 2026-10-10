@@ -22,12 +22,11 @@ suppression:
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(COALESCE(process.name, "")),
-       cl = TO_LOWER(COALESCE(process.command_line, "")),
        sid = TO_STRING(user.id)
-| WHERE pname == "tscon.exe" AND (sid == "S-1-5-18" OR cl LIKE "*/dest:*")
+| WHERE pname == "tscon.exe" AND sid == "S-1-5-18"
 | KEEP @timestamp, host.name, user.name, sid, process.command_line, process.parent.name, process.parent.command_line
 ```
-`S-1-5-18` is the SYSTEM account. A `tscon` started by `services.exe` or `cmd.exe` running as SYSTEM is the typical hijack shape.
+`S-1-5-18` is the SYSTEM account. A `tscon` started by `services.exe` or `cmd.exe` running as SYSTEM is the typical hijack shape. `tscon` run as an ordinary user (for example `tscon 1 /dest:console`, which test-automation hosts use to keep a desktop alive) needs that user's own session or password, so it is left out.
 
 ## Suppression
 Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. A different host still alerts.

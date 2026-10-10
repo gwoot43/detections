@@ -37,7 +37,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
 | KEEP @timestamp, h, event.code, user.name, winlog.event_data.SubjectUserName, winlog.event_data.BackupTypeDescription,
        process.command_line, process.parent.name
 ```
-`-exportpfx` is only flagged on CA hosts, since exporting an ordinary certificate elsewhere is routine. `-backupdb` is not matched: it copies the database without the CA key.
+`-exportpfx` is only flagged on CA hosts, since exporting an ordinary certificate elsewhere is routine. `-backupdb` is not matched in the process branch because it copies the database without the CA key; it still writes 4876/4877, and `BackupTypeDescription` shows the type.
 
 ## Suppression
 Suppress by `h` for 6h. Alerts missing a key field are not suppressed. One backup writes a start and a completion event plus the command; a different host still alerts.

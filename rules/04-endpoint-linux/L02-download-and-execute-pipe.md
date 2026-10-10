@@ -14,19 +14,20 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-`curl … | sh` is the Linux download cradle used by cryptominers, botnets and post-exploitation kits. Developers run it too, so the rule filters on paths and decoders that installers do not use, and on servers rather than developer laptops.
+`curl … | sh` is the Linux download cradle used by cryptominers, botnets and post-exploitation kits. Developers run it too, so the rule filters on paths and decoders that installers do not use, and on servers rather than developer laptops. Plain downloads to `/tmp` (`curl -o /tmp/…`) are not matched on their own; installers and CI jobs do that constantly. `/dev/shm`, a hidden file in `/tmp`, or a decode-and-pipe is the attacker shape.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
-| EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name)
-| WHERE ((cmd LIKE "*curl *" OR cmd LIKE "*wget *") AND (cmd LIKE "*| sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|sh*" OR cmd LIKE "*|bash*" OR cmd LIKE "*-o /tmp/*" OR cmd LIKE "*-o /dev/shm/*" OR cmd LIKE "*-o /var/tmp/*"))
+| EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name), h = TO_LOWER(COALESCE(host.name, ""))
+| WHERE ((cmd LIKE "*curl *" OR cmd LIKE "*wget *") AND (cmd LIKE "*| sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|sh*" OR cmd LIKE "*|bash*" OR cmd LIKE "*-o /dev/shm/*"))
    OR (cmd LIKE "*base64 -d*" AND (cmd LIKE "*| sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|sh*" OR cmd LIKE "*|bash*"))
    OR (pname LIKE "python*" AND cmd LIKE "*urllib*" AND (cmd LIKE "*exec(*" OR cmd LIKE "*os.system*"))
    OR (cmd LIKE "*http*" AND (cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/tmp/.*") AND (cmd LIKE "*chmod +x*" OR cmd LIKE "*chmod 777*"))
    OR (cmd LIKE "*&& chmod +x*" AND cmd LIKE "*&& ./*" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*"))
-| WHERE NOT (host.name LIKE "dev-*" OR host.name LIKE "*-laptop*")
+// developer machines; host names are matched lowercased
+| WHERE NOT (h LIKE "dev-*" OR h LIKE "*-laptop*")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 

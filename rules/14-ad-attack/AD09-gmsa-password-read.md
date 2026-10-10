@@ -32,7 +32,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | WHERE props LIKE "*e362ed86-b728-0842-b27d-2dea7a9df218*"      // msDS-ManagedPassword
   AND NOT ENDS_WITH(actor, "$")
   AND NOT (actor IN ("svc-gmsa-management"))                     // accounts that legitimately manage gMSAs
-| KEEP @timestamp, host.name, actor, winlog.event_data.SubjectDomainName, winlog.event_data.ObjectName, props
+| KEEP @timestamp, winlog.computer_name, actor, winlog.event_data.SubjectDomainName, winlog.event_data.ObjectName, props
 ```
 LAPS password reads can be added the same way, using the schema GUID of `msLAPS-Password` or `msLAPS-EncryptedPassword` (or `ms-Mcs-AdmPwd` for legacy LAPS, whose GUID differs per forest). Help desks read LAPS passwords routinely, so alert on volume per account rather than on single reads.
 

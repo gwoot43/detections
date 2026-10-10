@@ -10,7 +10,7 @@ index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1555, T1003]
 data_source: Windows Security event 4662 on domain controllers
 suppression:
-  fields: [host.name, actor]
+  fields: [host_key, actor]
   duration: 6h
   missing_fields: do_not_suppress
 ---
@@ -26,14 +26,15 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | WHERE event.code == "4662"
 | EVAL otype = TO_LOWER(TO_STRING(winlog.event_data.ObjectType)),
        oname = TO_LOWER(TO_STRING(winlog.event_data.ObjectName)),
-       mask = TO_LOWER(TO_STRING(winlog.event_data.AccessMask)),
-       actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, ""))
-| WHERE otype == "secretobject" AND oname LIKE "*bckupkey*" AND mask == "0x2"
-| KEEP @timestamp, host.name, actor, winlog.event_data.SubjectDomainName, oname, mask
+       mask = TO_LOWER(MV_CONCAT(TO_STRING(winlog.event_data.AccessMask), " ")),   // the integration stores AccessMask as a list
+       actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
+       host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))            // with event forwarding, host.name is the collector
+| WHERE otype == "secretobject" AND oname LIKE "*bckupkey*" AND mask == "0x2"   // 0x2 = query secret value
+| KEEP @timestamp, host_key, winlog.computer_name, actor, winlog.event_data.SubjectDomainName, oname, mask
 ```
 
 ## Suppression
-Suppress by `host.name`, `actor` for 6h. Alerts missing a key field are not suppressed. One retrieval reads more than one secret; a different actor or DC still alerts.
+Suppress by `host_key`, `actor` for 6h. Alerts missing a key field are not suppressed. One retrieval reads more than one secret; a different actor or DC still alerts.
 
 ## Known false positives / exclusions
 - None expected in normal operation. A DPAPI backup key rotation or recovery exercise by the identity team is the only planned cause.

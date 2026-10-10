@@ -26,13 +26,16 @@ Run hourly with an 11-hour lookback.
 FROM logs-system.security*, logs-windows.forwarded*
 | WHERE event.code IN ("4768", "4769", "4770")
 | EVAL acct = TO_LOWER(MV_FIRST(SPLIT(COALESCE(TO_STRING(winlog.event_data.TargetUserName), ""), "@"))),
+       svc = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.ServiceName), "")),
        transited = COALESCE(TO_STRING(winlog.event_data.TransitedServices), "-"),
        status = TO_STRING(winlog.event_data.Status)
-| WHERE acct != "" AND NOT ENDS_WITH(acct, "$") AND status == "0x0"
+// 4770 has no Status field (it is logged only on success), so it must not be filtered on status
+| WHERE acct != "" AND NOT ENDS_WITH(acct, "$") AND (status == "0x0" OR event.code == "4770")
 | STATS recent_tgs = SUM(CASE(event.code == "4769" AND transited == "-" AND @timestamp >= NOW() - 1 hour, 1, 0)),
-        tgt_events = SUM(CASE(event.code IN ("4768", "4770"), 1, 0)),
-        services = VALUES(CASE(event.code == "4769", TO_STRING(winlog.event_data.ServiceName), NULL)),
-        sources = VALUES(TO_STRING(winlog.event_data.IpAddress)),
+        // a TGT issued (4768) or a TGT renewed (4770 for krbtgt); other 4770s renew service tickets
+        tgt_events = SUM(CASE(event.code == "4768" OR (event.code == "4770" AND svc LIKE "krbtgt*"), 1, 0)),
+        services = VALUES(CASE(event.code == "4769", svc, NULL)),
+        sources = VALUES(source.ip),
         domains = VALUES(TO_STRING(winlog.event_data.TargetDomainName))
     BY acct
 | WHERE recent_tgs > 0 AND tgt_events == 0
