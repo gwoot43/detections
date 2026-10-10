@@ -20,25 +20,24 @@ An Automation runbook runs code on a schedule or via a webhook, often under a ma
 ```esql
 FROM logs-azure.activitylogs-* METADATA _id, _index, _version
 | EVAL op = TO_UPPER(azure.activitylogs.operation_name),
-       actor = TO_LOWER(COALESCE(azure.activitylogs.identity.claims_initiated_by_user.name, TO_STRING(azure.activitylogs.identity.claims.appid), ""))
+       actor = TO_LOWER(COALESCE(azure.activitylogs.identity.claims_initiated_by_user.name, azure.activitylogs.identity.claims.appid))
 | WHERE op IN (
     "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/WRITE",
-    "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/DRAFT/WRITE",
     "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/PUBLISH/ACTION",
-    "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/WEBHOOKS/WRITE",
-    "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/WRITE",
-    "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/JOBS/WRITE"
+    "MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/WEBHOOKS/WRITE"
   )
-  AND event.outcome IN ("success", "Success")
-| WHERE NOT (actor IN ("sp-platform-iac"))     // your landing-zone / IaC principal
+  AND event.outcome == "success"
+// your landing-zone / IaC principal: app ID for a service principal, UPN for a person
+| WHERE actor IS NULL OR actor NOT IN ("00000000-0000-0000-0000-000000000000")
 | KEEP @timestamp, op, actor, azure.resource.name, azure.resource.group, azure.subscription_id, source.ip
 ```
+Draft saves, job starts and automation-account writes are left out. A draft does nothing until it is published, job starts are how runbooks normally run (and are often API-driven), and account writes are mostly configuration noise. Creating, publishing and adding a webhook are the persistence steps.
 
 ## Suppression
-Suppress by `actor`, `azure.resource.name` for 1h. Alerts missing a key field are not suppressed. Editing and publishing one runbook writes several operations; a different runbook or actor still alerts.
+Suppress by `actor`, `azure.resource.name` for 1h. Alerts missing a key field are not suppressed. Creating and publishing one runbook writes several operations; a different runbook or actor still alerts.
 
 ## Known false positives / exclusions
-- The platform team's IaC pipeline, excluded by principal. Confirm human changes against change control.
+- The platform team's IaC pipeline, excluded by app ID. Confirm human changes against change control.
 
 ## Triage
 - Read the runbook content and its identity's permissions. A runbook or webhook created by an unexpected principal is cloud persistence: disable it, review what its identity can reach, and correlate with role or credential changes (C03, C04).

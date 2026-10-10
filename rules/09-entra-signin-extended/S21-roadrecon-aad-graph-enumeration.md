@@ -15,26 +15,27 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-ROADrecon, roadtx's companion in ROADtools, dumps a tenant by walking Azure AD Graph: users, groups, roles, service principals, applications, devices and policies, all within about a minute. It uses the Python `aiohttp` HTTP library, which shows in the user agent. Legitimate clients do not call AAD Graph with `aiohttp`, and do not hit five or more of these directory collections in the same minute.
+ROADrecon, roadtx's companion in ROADtools, dumps a tenant by walking Azure AD Graph: users, groups, roles, service principals, applications, devices and policies, all within about a minute. It uses the Python `aiohttp` HTTP library, which shows in the user agent. Legitimate clients do not call AAD Graph with `aiohttp`, and do not hit five or more of these directory collections within a few minutes.
 
 ## Query
+Run every 5 minutes with a 10-minute lookback.
 ```esql
 FROM logs-azure.aadgraphactivitylogs-*
-| WHERE data_stream.dataset == "azure.aadgraphactivitylogs"
-  AND TO_LOWER(user_agent.original) LIKE "*aiohttp*"
-| EVAL endpoint = CASE(
-    url.path LIKE "*/eligibleRoleAssignments*", "eligibleRoleAssignments",
-    url.path LIKE "*/roleAssignments*",         "roleAssignments",
-    url.path LIKE "*/users*",                   "users",
-    url.path LIKE "*/groups*",                  "groups",
-    url.path LIKE "*/servicePrincipals*",       "servicePrincipals",
-    url.path LIKE "*/applications*",           "applications",
-    url.path LIKE "*/devices*",                 "devices",
-    url.path LIKE "*/directoryRoles*",          "directoryRoles",
-    url.path LIKE "*/roleDefinitions*",         "roleDefinitions",
-    url.path LIKE "*/oauth2PermissionGrants*",  "oauth2PermissionGrants",
-    url.path LIKE "*/policies*",                "policies",
-    url.path LIKE "*/tenantDetails*",           "tenantDetails",
+| WHERE TO_LOWER(user_agent.original) LIKE "*aiohttp*"
+| EVAL p = TO_LOWER(url.path),
+       endpoint = CASE(
+    p LIKE "*/eligibleroleassignments*", "eligibleRoleAssignments",
+    p LIKE "*/roleassignments*",         "roleAssignments",
+    p LIKE "*/users*",                   "users",
+    p LIKE "*/groups*",                  "groups",
+    p LIKE "*/serviceprincipals*",       "servicePrincipals",
+    p LIKE "*/applications*",            "applications",
+    p LIKE "*/devices*",                 "devices",
+    p LIKE "*/directoryroles*",          "directoryRoles",
+    p LIKE "*/roledefinitions*",         "roleDefinitions",
+    p LIKE "*/oauth2permissiongrants*",  "oauth2PermissionGrants",
+    p LIKE "*/policies*",                "policies",
+    p LIKE "*/tenantdetails*",           "tenantDetails",
     "other")
 | WHERE endpoint != "other"
 | STATS requests = COUNT(*),
@@ -44,14 +45,17 @@ FROM logs-azure.aadgraphactivitylogs-*
         user_agents = VALUES(user_agent.original),
         ips = VALUES(source.ip),
         asns = VALUES(source.as.organization.name),
-        first_seen = MIN(@timestamp)
-    BY user.id, BUCKET(@timestamp, 1 minute)
+        first_seen = MIN(@timestamp),
+        last_seen = MAX(@timestamp)
+    BY user.id
 | WHERE distinct_endpoints >= 5
 ```
+The path is lower-cased before matching because `LIKE` is case-sensitive and clients differ in how they case collection names. The rule window replaces a one-minute `BUCKET`: a dump that straddles a minute boundary split into two buckets of four collections each and never fired.
+
 This log source is not collected by default. Enable the `AzureADGraphActivityLogs` diagnostic setting on Entra ID and add the dataset to the Azure integration. The same idea applies to Microsoft Graph activity logs if ROADtools moves off AAD Graph.
 
 ## Suppression
-Suppress by `user.id` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. One dump spans several one-minute buckets.
+Suppress by `user.id` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. One dump spans several overlapping runs.
 
 ## Known false positives / exclusions
 - Internal scripts built on `aiohttp` that read the directory. Rare against AAD Graph; exclude their service principal by app ID after review.

@@ -35,15 +35,15 @@ FROM logs-azure.signinlogs-*
 // stage 1: per user and IP
 | STATS f = SUM(failed), s = SUM(ok_unreg) BY usr, source.ip, ua, app
 // stage 2: per IP. failed-only users never succeeded from this IP; success users are possible landings
-| STATS ip_failed_users = COUNT_DISTINCT(CASE(f > 0 AND s == 0, usr, NULL)),
+| STATS ip_failed_users = VALUES(CASE(f > 0 AND s == 0, usr, NULL)),
         ip_attempts = SUM(f),
         ip_success_users = VALUES(CASE(s > 0, usr, NULL))
     BY source.ip, ua, app
-| EVAL spray_ip = CASE(ip_failed_users > 0, 1, 0)
-// stage 3: per client fingerprint
+| EVAL spray_ip = CASE(ip_failed_users IS NOT NULL, 1, 0)
+// stage 3: per client fingerprint. COUNT_DISTINCT over the per-IP user lists counts each account once
 | STATS spray_ips = SUM(spray_ip),
-        sprayed_users = SUM(ip_failed_users),
-        attempts = SUM(ip_attempts),
+        sprayed_users = COUNT_DISTINCT(ip_failed_users),
+        attempts = SUM(ip_attempts * spray_ip),
         landed_users = VALUES(CASE(spray_ip == 1, ip_success_users, NULL))
     BY ua, app
 | WHERE spray_ips >= 20 AND sprayed_users >= 30

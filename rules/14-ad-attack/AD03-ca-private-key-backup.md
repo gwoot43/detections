@@ -10,7 +10,7 @@ index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
 mitre: [T1649, T1552.004]
 data_source: AD CS audit events 4876/4877 on the CA, and CrowdStrike FDR process events
 suppression:
-  fields: [host.name]
+  fields: [h]
   duration: 6h
   missing_fields: do_not_suppress
 ---
@@ -23,20 +23,24 @@ Events 4876 and 4877 need CA auditing enabled for backup and restore (the CA aud
 ## Query
 ```esql
 FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| EVAL h = TO_LOWER(host.name),
-       cl = TO_LOWER(COALESCE(process.command_line, "")),
-       pname = TO_LOWER(COALESCE(process.name, "")),
-       ca_host = h IN ("ca01", "ca02")                                   // your CA servers
 | WHERE event.code IN ("4876", "4877")                                  // CA backup started / completed
-   OR (event.action == "ProcessRollup2" AND pname == "certutil.exe"
-       AND (cl LIKE "*-backupkey*" OR cl LIKE "*-backup *" OR cl LIKE "*-backupdb*"
+   OR event.action == "ProcessRollup2"
+// Windows events: winlog.computer_name (with event forwarding, host.name is the collector); FDR: host.name
+| EVAL h = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
+       cl = TO_LOWER(COALESCE(process.command_line, "")),
+       pname = TO_LOWER(COALESCE(process.name, ""))
+| EVAL ca_host = h IN ("ca01", "ca02")                                   // your CA servers
+| WHERE event.code IN ("4876", "4877")
+   OR (pname == "certutil.exe"
+       AND (cl LIKE "*-backupkey*" OR cl LIKE "*-backup *"
             OR (ca_host AND cl LIKE "*-exportpfx*")))
-| KEEP @timestamp, host.name, event.code, user.name, winlog.event_data.SubjectUserName, process.command_line, process.parent.name
+| KEEP @timestamp, h, event.code, user.name, winlog.event_data.SubjectUserName, winlog.event_data.BackupTypeDescription,
+       process.command_line, process.parent.name
 ```
-`-exportpfx` is only flagged on CA hosts, since exporting an ordinary certificate elsewhere is routine.
+`-exportpfx` is only flagged on CA hosts, since exporting an ordinary certificate elsewhere is routine. `-backupdb` is not matched: it copies the database without the CA key.
 
 ## Suppression
-Suppress by `host.name` for 6h. Alerts missing a key field are not suppressed. One backup writes a start and a completion event plus the command; a different host still alerts.
+Suppress by `h` for 6h. Alerts missing a key field are not suppressed. One backup writes a start and a completion event plus the command; a different host still alerts.
 
 ## Known false positives / exclusions
 - Planned CA backups by the PKI team. Expected a few times a year; confirm against change control rather than excluding.

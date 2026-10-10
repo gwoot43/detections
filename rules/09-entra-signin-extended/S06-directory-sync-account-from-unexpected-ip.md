@@ -14,15 +14,19 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-The `Sync_<server>_<id>@tenant.onmicrosoft.com` account (and the on-prem `MSOL_` counterpart) can set passwords on any synced user and holds directory-write rights. AADInternals-style attacks extract it from the Entra Connect server and use it from elsewhere. It should sign in from exactly one IP: the Entra Connect server's egress.
+The `Sync_<server>_<id>@tenant.onmicrosoft.com` account (and the on-prem `MSOL_` counterpart) can set passwords on any synced user and holds directory-write rights. AADInternals-style attacks extract it from the Entra Connect server and use it from elsewhere. Entra Connect builds that use application-based authentication sign in as a `ConnectSyncProvisioning_<server>_<id>` service principal instead, which has the same rights. Either identity should sign in from exactly one place: the Entra Connect server's egress.
+
+The rule alerts on successes, and on failures that prove the password was right (MFA required or Conditional Access block). Wrong-password failures are spray noise against a well-known account name and are left to I05.
 
 ## Query
 ```esql
 FROM logs-azure.signinlogs-* METADATA _id, _index, _version
-| EVAL usr = TO_LOWER(user.name)
-| WHERE (usr LIKE "sync_*@*.onmicrosoft.com" OR usr LIKE "*directory synchronization*" OR usr LIKE "aad_*")
-  AND NOT CIDR_MATCH(source.ip, "203.0.113.10/32", "203.0.113.11/32")    // Entra Connect server egress IPs
-| KEEP @timestamp, usr, event.outcome, azure.signinlogs.properties.status.error_code, source.ip, source.geo.country_iso_code, source.as.organization.name, azure.signinlogs.properties.app_display_name, user_agent.original
+| EVAL usr = TO_LOWER(COALESCE(user.name, azure.signinlogs.properties.service_principal_name)),
+       ec = TO_STRING(azure.signinlogs.properties.status.error_code)
+| WHERE (usr LIKE "sync_*@*.onmicrosoft.com" OR usr LIKE "connectsyncprovisioning_*")
+  AND ec IN ("0", "50074", "50076", "53003")
+  AND (source.ip IS NULL OR NOT CIDR_MATCH(source.ip, "203.0.113.10/32", "203.0.113.11/32"))    // Entra Connect server egress IPs
+| KEEP @timestamp, usr, event.outcome, azure.signinlogs.properties.status.error_code, azure.signinlogs.category, source.ip, source.geo.country_iso_code, source.as.organization.name, azure.signinlogs.properties.app_display_name, user_agent.original
 ```
 Pair with I06 for the on-prem side: the `MSOL_` account logging on (4624) to any host other than the Entra Connect server.
 

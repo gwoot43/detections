@@ -20,27 +20,28 @@ Data theft often happens when few people are watching: nights and weekends. A bu
 Run hourly with a 1-hour lookback.
 ```esql
 FROM logs-o365.audit-*
-| WHERE event.dataset == "o365.audit" AND o365.audit.Workload IN ("SharePoint", "OneDrive")
-  AND event.action IN ("FileDownloaded", "FileSyncDownloadedFull")
+| WHERE event.provider IN ("SharePoint", "OneDrive")
+  AND event.action == "FileDownloaded"
 | EVAL usr = TO_LOWER(o365.audit.UserId),
        hour = DATE_EXTRACT("hour_of_day", @timestamp),       // UTC; shift for your timezone
        dow = DATE_EXTRACT("day_of_week", @timestamp)         // 6 = Saturday, 7 = Sunday
-| WHERE NOT (usr LIKE "app@sharepoint" OR usr == "system account")
+| WHERE NOT (usr IN ("app@sharepoint", "system account", "sharepoint\\system")
+             OR usr IN ("svc-migration@yourdomain.com", "svc-backup@yourdomain.com"))   // migration and backup accounts
   AND (hour < 7 OR hour >= 19 OR dow >= 6)
-| STATS files = COUNT_DISTINCT(o365.audit.ObjectId),
+| STATS files = COUNT_DISTINCT(url.original),
         downloads = COUNT(*),
-        client_ips = VALUES(o365.audit.ClientIP)
+        client_ips = VALUES(source.ip)
     BY usr, BUCKET(@timestamp, 1 hour)
 | WHERE files >= 75
 ```
-`DATE_EXTRACT` works in UTC. Adjust the hour boundaries to your main timezone, or subtract an offset before comparing. Lower `files` than IN01 because the hour already narrows it.
+`DATE_EXTRACT` works in UTC. Adjust the hour boundaries to your main timezone, or subtract an offset before comparing. `files` is lower than IN01 because the hour already narrows it. OneDrive client sync (`FileSyncDownloadedFull`) is left out: a laptop left on overnight catches up on colleagues' changes, which is the main false positive at this threshold. Bulk sync is still caught by IN01 at any hour.
 
 ## Suppression
 Suppress by `usr` for 12h. Alerts missing a key field are not suppressed. Aggregating rule. Overnight pulls span buckets; a different user still alerts.
 
 ## Known false positives / exclusions
-- Shift workers, global teams and genuine evening work. If you have night shifts, scope the rule to day-shift populations or raise the threshold. Exclude service accounts inline.
-- Scheduled sync catching up overnight. The distinct-file threshold and the client IP help separate a human pull from background sync.
+- Shift workers, global teams and genuine evening work. If you have night shifts, scope the rule to day-shift populations or raise the threshold. Keep service accounts in the inline exclusion.
+- Browser or script downloads by a scheduled job running as a user. Check `client_ips` and the user agent, and exclude the job's account.
 
 ## Triage
 - Confirm the user normally works those hours and from that location. An after-hours bulk download from a home or unmanaged IP, especially by a leaver, is exfiltration.

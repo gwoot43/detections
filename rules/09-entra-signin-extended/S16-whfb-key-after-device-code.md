@@ -20,7 +20,7 @@ Dirk-jan Mollema showed that a device-code phish can be turned into a Primary Re
 Real Windows Hello enrollment happens on a device during setup, not after a device-code sign-in. A new laptop going through Autopilot produces a device registration followed by a Hello enrollment, so that pair alone is normal and does not alert here. The device-code sign-in is what separates attack from onboarding.
 
 Severity is computed per alert:
-- **critical** when the device-code sign-in used the Microsoft Authentication Broker client, or a device was registered in between. Both match the published chain.
+- **critical** when the device-code sign-in used the Microsoft Authentication Broker client, or a device was registered after the device-code sign-in. Both match the published chain.
 - **high** for a device-code sign-in followed by a Hello enrollment.
 
 ## Query
@@ -31,17 +31,22 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
          AND TO_STRING(azure.signinlogs.properties.status.error_code) == "0"
          AND TO_LOWER(TO_STRING(azure.signinlogs.properties.authentication_protocol)) == "devicecode")
      OR (data_stream.dataset == "azure.auditlogs"
-         AND event.outcome IN ("success", "Success")
-         AND azure.auditlogs.operation_name IN ("Register device", "Add registered owner to device", "Add device", "Add Windows Hello for Business credential"))
-| EVAL uid = COALESCE(azure.signinlogs.properties.user_id, azure.auditlogs.properties.initiated_by.user.id),
-       upn = TO_LOWER(COALESCE(azure.signinlogs.properties.user_principal_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName)),
+         AND event.outcome == "success"
+         // "Register device" is the user-initiated record; "Add device" and owner records are written by the service with no user ID
+         AND azure.auditlogs.operation_name IN ("Register device", "Add Windows Hello for Business credential"))
+// the Hello record falls back to its target (the user) in case the service, not the user, is the initiator
+| EVAL is_whfb = COALESCE(azure.auditlogs.operation_name, "") == "Add Windows Hello for Business credential",
+       uid = COALESCE(azure.signinlogs.properties.user_id, azure.auditlogs.properties.initiated_by.user.id,
+                      CASE(is_whfb, `azure.auditlogs.properties.target_resources.0.id`, NULL)),
+       upn = TO_LOWER(COALESCE(azure.signinlogs.properties.user_principal_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName,
+                      CASE(is_whfb, `azure.auditlogs.properties.target_resources.0.user_principal_name`, NULL))),
        stage = CASE(data_stream.dataset == "azure.signinlogs", "devicecode",
-                    azure.auditlogs.operation_name == "Add Windows Hello for Business credential", "whfb",
+                    is_whfb, "whfb",
                     "device"),
        broker = CASE(azure.signinlogs.properties.app_id == "29d9ed98-a469-4536-ade2-f981bc1d605e", 1, 0)   // Microsoft Authentication Broker
 | WHERE uid IS NOT NULL
 | STATS devicecode_at = MIN(CASE(stage == "devicecode", @timestamp, NULL)),
-        device_at = MIN(CASE(stage == "device", @timestamp, NULL)),
+        device_at = MAX(CASE(stage == "device", @timestamp, NULL)),
         whfb_at = MAX(CASE(stage == "whfb", @timestamp, NULL)),
         broker_used = MAX(broker),
         upns = VALUES(upn),
@@ -51,7 +56,7 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
         devices = VALUES(CASE(stage == "device", `azure.auditlogs.properties.target_resources.0.display_name`, NULL))
     BY uid
 | WHERE devicecode_at IS NOT NULL AND whfb_at IS NOT NULL AND whfb_at >= devicecode_at
-| EVAL severity = CASE(broker_used == 1 OR device_at IS NOT NULL, "critical", "high")
+| EVAL severity = CASE(broker_used == 1 OR (device_at IS NOT NULL AND device_at >= devicecode_at), "critical", "high")
 ```
 Join on the user's object ID rather than the UPN. It is the same in both logs and avoids case and format mismatches.
 

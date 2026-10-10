@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Someone hunting for credentials searches SharePoint for terms like "password", "api key" or ".env", then opens or downloads what the search turned up. A search alone is often innocent, and so is opening a few files. This rule requires both, in order: a search for secrets, then shortly afterwards either a file whose name looks like a secret, or a bulk download. Help-desk searches such as "password reset" are excluded.
+Someone hunting for credentials searches SharePoint for terms like "password", "api key" or ".env", then opens or downloads what the search turned up. A search alone is often innocent, and so is opening a few files. This rule requires both, in order: a search for secrets, then shortly afterwards either a file whose name looks like a secret, or a bulk download. Help-desk searches such as "password reset", and help-desk documents such as "Password policy.docx", are excluded.
 
 ## Prerequisite
 `SearchQueryInitiatedSharePoint` is an Audit (Premium) event and is not recorded for every user. Confirm it exists before enabling: count `event.action == "SearchQueryInitiatedSharePoint"` over a week. If it is absent the rule never fires.
@@ -24,13 +24,14 @@ Run hourly with a 2-hour lookback. File activity must come within 30 minutes aft
 ```esql
 FROM logs-o365.audit-*
 | EVAL act = TO_LOWER(event.action),
-       usr = TO_LOWER(COALESCE(user.email, user.name)),
+       usr = TO_LOWER(o365.audit.UserId),
        q = TO_LOWER(COALESCE(QueryText, "")),
        fname = TO_LOWER(COALESCE(file.name, ""))
 | WHERE act IN ("searchqueryinitiatedsharepoint", "filedownloaded", "filesyncdownloadedfull", "fileaccessed")
   AND NOT (usr LIKE "app@sharepoint*" OR usr == "system account")
-| EVAL secret_term = q LIKE "*password*" OR q LIKE "*passwd*" OR q LIKE "*credential*" OR q LIKE "*secret*"
-                     OR q LIKE "*api key*" OR q LIKE "*apikey*" OR q LIKE "*token*" OR q LIKE "*id_rsa*"
+| EVAL secret_term = q LIKE "*password*" OR q LIKE "*passwd*" OR q LIKE "*credential*"
+                     OR (q LIKE "*secret*" AND NOT q LIKE "*secretar*")
+                     OR q LIKE "*api key*" OR q LIKE "*apikey*" OR q LIKE "*access token*" OR q LIKE "*api token*" OR q LIKE "*id_rsa*"
                      OR q LIKE "*.env*" OR q LIKE "*private key*" OR q LIKE "*connection string*"
                      OR q LIKE "*.pem*" OR q LIKE "*.kdbx*" OR q LIKE "*keepass*",
        helpdesk = q LIKE "*reset*" OR q LIKE "*how to*" OR q LIKE "*wifi*" OR q LIKE "*byod*" OR q LIKE "*policy*",
@@ -38,7 +39,8 @@ FROM logs-o365.audit-*
        sensitive_file = act != "searchqueryinitiatedsharepoint"
                         AND (fname LIKE "*password*" OR fname LIKE "*credential*" OR fname LIKE "*secret*"
                              OR fname LIKE "*.env" OR fname LIKE "*.pem" OR fname LIKE "*.key" OR fname LIKE "*.pfx"
-                             OR fname LIKE "*.kdbx" OR fname LIKE "*id_rsa*"),
+                             OR fname LIKE "*.kdbx" OR fname LIKE "*id_rsa*")
+                        AND NOT (fname LIKE "*policy*" OR fname LIKE "*reset*" OR fname LIKE "*guide*" OR fname LIKE "*how to*"),
        download = act IN ("filedownloaded", "filesyncdownloadedfull")
 | INLINE STATS first_search = MIN(CASE(sensitive_search, @timestamp, NULL)) BY usr
 | WHERE first_search IS NOT NULL
@@ -61,13 +63,14 @@ Any file activity after the search within the lookback counts. Shorten the lookb
 ```esql
 FROM logs-o365.audit-*
 | EVAL act = TO_LOWER(event.action),
-       usr = TO_LOWER(COALESCE(user.email, user.name)),
+       usr = TO_LOWER(o365.audit.UserId),
        q = TO_LOWER(COALESCE(QueryText, "")),
        fname = TO_LOWER(COALESCE(file.name, ""))
 | WHERE act IN ("searchqueryinitiatedsharepoint", "filedownloaded", "filesyncdownloadedfull", "fileaccessed")
   AND NOT (usr LIKE "app@sharepoint*" OR usr == "system account")
-| EVAL secret_term = q LIKE "*password*" OR q LIKE "*passwd*" OR q LIKE "*credential*" OR q LIKE "*secret*"
-                     OR q LIKE "*api key*" OR q LIKE "*apikey*" OR q LIKE "*token*" OR q LIKE "*id_rsa*"
+| EVAL secret_term = q LIKE "*password*" OR q LIKE "*passwd*" OR q LIKE "*credential*"
+                     OR (q LIKE "*secret*" AND NOT q LIKE "*secretar*")
+                     OR q LIKE "*api key*" OR q LIKE "*apikey*" OR q LIKE "*access token*" OR q LIKE "*api token*" OR q LIKE "*id_rsa*"
                      OR q LIKE "*.env*" OR q LIKE "*private key*" OR q LIKE "*connection string*"
                      OR q LIKE "*.pem*" OR q LIKE "*.kdbx*" OR q LIKE "*keepass*",
        helpdesk = q LIKE "*reset*" OR q LIKE "*how to*" OR q LIKE "*wifi*" OR q LIKE "*byod*" OR q LIKE "*policy*",
@@ -75,7 +78,8 @@ FROM logs-o365.audit-*
        sensitive_file = act != "searchqueryinitiatedsharepoint"
                         AND (fname LIKE "*password*" OR fname LIKE "*credential*" OR fname LIKE "*secret*"
                              OR fname LIKE "*.env" OR fname LIKE "*.pem" OR fname LIKE "*.key" OR fname LIKE "*.pfx"
-                             OR fname LIKE "*.kdbx" OR fname LIKE "*id_rsa*"),
+                             OR fname LIKE "*.kdbx" OR fname LIKE "*id_rsa*")
+                        AND NOT (fname LIKE "*policy*" OR fname LIKE "*reset*" OR fname LIKE "*guide*" OR fname LIKE "*how to*"),
        download = act IN ("filedownloaded", "filesyncdownloadedfull")
 | STATS sensitive_searches = SUM(CASE(sensitive_search, 1, 0)),
         search_terms = VALUES(CASE(sensitive_search, q, NULL)),
@@ -96,7 +100,8 @@ Suppress by `usr` for 12h. Alerts missing a key field are not suppressed. Aggreg
 ## Known false positives / exclusions
 - IT, security and DevOps staff who legitimately search for credential documentation. Exclude them inline by user, or route them to a lower-priority queue.
 - Files are counted by name, so same-named files on different sites count once. If you have a full URL or path field, count that instead.
-- Tune the keyword and help-desk lists on two weeks of real searches before enabling.
+- Tune the keyword and help-desk lists on two weeks of real searches before enabling. Bare "token" and "secretary" are left out because they match ordinary business searches.
+- `.key` is also the Apple Keynote extension. Drop it from the file list if your users keep Keynote decks in SharePoint.
 
 ## Triage
 - Read `search_terms` and `file_names` together. A search for "aws secret" followed by opening `prod.env` is credential hunting. Rotate any secrets in the opened files, then check whether the user downloaded more (IN01) or shared externally (IN02).

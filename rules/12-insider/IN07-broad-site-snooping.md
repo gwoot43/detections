@@ -20,27 +20,28 @@ Theft is about volume from one place (IN01); snooping is about breadth. A user a
 Run every 2 hours with a 2-hour lookback.
 ```esql
 FROM logs-o365.audit-*
-| WHERE event.dataset == "o365.audit" AND o365.audit.Workload == "SharePoint"
-  AND event.action IN ("FileAccessed", "FileDownloaded", "FilePreviewed", "PageViewed")
+| WHERE event.provider == "SharePoint"
+  AND event.action IN ("FileAccessed", "FileDownloaded", "FilePreviewed")
 | EVAL usr = TO_LOWER(o365.audit.UserId)
-| WHERE NOT (usr LIKE "app@sharepoint" OR usr == "system account")
+| WHERE NOT (usr IN ("app@sharepoint", "system account", "sharepoint\\system")
+             OR usr IN ("records-manager@yourdomain.com"))        // roles that legitimately span many sites
 | STATS sites = COUNT_DISTINCT(o365.audit.SiteUrl),
-        files = COUNT_DISTINCT(o365.audit.ObjectId),
+        files = COUNT_DISTINCT(url.original),
         site_list = VALUES(o365.audit.SiteUrl)
     BY usr, BUCKET(@timestamp, 2 hours)
-| WHERE sites >= 25
+| WHERE sites >= 25 AND files >= 50
 ```
-Tune `sites` to how many sites a normal user touches. Without a per-user baseline (no lookup), a fixed breadth threshold is the pragmatic choice; review and adjust after two weeks.
+`PageViewed` is left out: browsing intranet news and hub pages touches many sites without opening any content. `files >= 50` requires real file opens, not one file per site. `url.original` is the integration's name for the file URL. Without a per-user baseline (no lookup), fixed thresholds are the pragmatic choice; tune both on two weeks of data.
 
 ## Suppression
 Suppress by `usr` for 12h. Alerts missing a key field are not suppressed. Aggregating rule. Browsing spans buckets; a different user still alerts.
 
 ## Known false positives / exclusions
-- Roles that legitimately span many sites (IT, records management, auditors, senior leadership). Exclude those users inline.
-- Search-driven work that opens many sites briefly. The file-count condition and review reduce this.
+- Roles that legitimately span many sites (IT, records management, auditors, senior leadership). Keep those users in the inline exclusion.
+- Search-driven work that opens one file on each of many sites. The `files >= 50` condition removes most of it.
 
 ## Triage
 - Compare the sites accessed with the user's team and role. A developer opening finance, HR and legal sites is snooping. Combine with IN01 if they also downloaded in volume.
 
 ## Test
-Access files across 25 or more lab sites as a test user.
+Open 50 or more files across 25 or more lab sites as a test user.

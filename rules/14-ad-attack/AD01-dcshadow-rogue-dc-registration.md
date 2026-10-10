@@ -29,14 +29,16 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),
        val = TO_LOWER(TO_STRING(winlog.event_data.AttributeValue)),
        actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
+       optype = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.OperationType), "")),
        op_id = TO_STRING(winlog.event_data.OpCorrelationID)
 | EVAL dc_object_created = event.code == "5137" AND cls IN ("ntdsdsa", "server") AND dn LIKE "*cn=sites,cn=configuration,*",
        drs_spn_added = event.code == "5136" AND attr == "serviceprincipalname"
+                       AND optype IN ("%%14674", "value added")     // the SPN being added, not its later removal
                        AND (val LIKE "e3514235-4b06-11d1-ab04-00c04fc2dcd2/*" OR val LIKE "gc/*")
 | WHERE dc_object_created OR drs_spn_added
 // real DCs carry these SPNs; list your DC computer objects so only non-DC targets alert
 | WHERE NOT (drs_spn_added AND dn LIKE "*ou=domain controllers,*")
-| KEEP @timestamp, host.name, actor, cls, dn, attr, val, op_id, dc_object_created, drs_spn_added
+| KEEP @timestamp, winlog.computer_name, actor, cls, dn, attr, val, op_id, dc_object_created, drs_spn_added
 ```
 
 ## Suppression

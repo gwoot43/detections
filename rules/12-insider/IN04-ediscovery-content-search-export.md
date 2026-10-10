@@ -1,6 +1,6 @@
 ---
 id: IN04
-name: eDiscovery or content search export, or search of another user's mailbox
+name: eDiscovery or content search created, exported or downloaded by a non-eDiscovery user
 category: insider
 status: todo
 severity: high
@@ -19,24 +19,22 @@ eDiscovery and content search let a privileged user search and export anyone's m
 ## Query
 ```esql
 FROM logs-o365.audit-* METADATA _id, _index, _version
-| WHERE event.dataset == "o365.audit"
-  AND (o365.audit.Workload IN ("SecurityComplianceCenter", "Purview") OR event.action LIKE "Search*")
-  AND event.action IN ("SearchCreated", "SearchStarted", "SearchExported", "SearchExportDownloaded",
-                       "ViewedSearchExported", "SearchPreviewed", "ComplianceSearch", "NewComplianceSearch")
+| WHERE event.action IN ("SearchCreated", "SearchStarted", "SearchPreviewed", "SearchExported", "SearchExportDownloaded",
+                         "ViewedSearchExported", "New-ComplianceSearch", "Start-ComplianceSearch", "New-ComplianceSearchAction")
 | EVAL usr = TO_LOWER(o365.audit.UserId)
-| WHERE NOT (usr IN ("svc-ediscovery@yourdomain.com"))    // your sanctioned eDiscovery accounts
-| KEEP @timestamp, usr, event.action, o365.audit.ObjectId, o365.audit.ClientIP
+| WHERE NOT usr IN ("svc-ediscovery@yourdomain.com")    // your sanctioned eDiscovery accounts
+| KEEP @timestamp, usr, event.action, event.provider, o365.audit.ObjectId, source.ip
 ```
-Keep this as a per-event alert, not a threshold: any export download outside the sanctioned accounts is worth review.
+Keep this as a per-event alert, not a threshold: any search or export outside the sanctioned accounts is worth review. The cmdlet names (`New-ComplianceSearch`, `New-ComplianceSearchAction`) cover searches run from Security & Compliance PowerShell.
 
 ## Suppression
 Suppress by `usr` for 6h. Alerts missing a key field are not suppressed. One search and export writes several events; a different user still alerts.
 
 ## Known false positives / exclusions
-- The real eDiscovery and compliance team. Exclude their accounts inline. Everyone else using these features is the alert.
+- The real eDiscovery and compliance team. Keep their accounts in the inline exclusion. Everyone else using these features is the alert.
 
 ## Triage
-- Confirm the user is authorised for eDiscovery. If not, this is a privileged insider reading or exporting others' data. Review the search scope and what was exported, and revoke the role.
+- Confirm the user is authorised for eDiscovery. If not, this is a privileged insider reading or exporting others' data. Review the search scope (`o365.audit.ObjectId` is the search name) and what was exported, and revoke the role.
 
 ## Test
 Create and export a small content search in a lab tenant with a non-eDiscovery test account that has the role.

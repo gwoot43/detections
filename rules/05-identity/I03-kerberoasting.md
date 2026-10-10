@@ -18,13 +18,13 @@ Requesting many service tickets for distinct SPNs with RC4 (0x17) encryption fro
 
 ## Query
 ```esql
-FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*
 | WHERE event.code == "4769"
 | EVAL enc = TO_LOWER(TO_STRING(winlog.event_data.TicketEncryptionType)),
        svc = TO_LOWER(winlog.event_data.ServiceName),
        acct = TO_LOWER(winlog.event_data.TargetUserName),
        status = TO_STRING(winlog.event_data.Status)
-| WHERE enc IN ("0x17", "0x18", "23", "24")           // RC4 and (optionally) downgraded; keep 0x17 as primary
+| WHERE enc IN ("0x17", "0x18")                        // RC4-HMAC and RC4-HMAC-EXP; the field is a hex string
   AND svc NOT LIKE "*$"                                 // service tickets to computer accounts are normal machine traffic
   AND svc != "krbtgt"
   AND status == "0x0"
@@ -32,7 +32,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
     BY acct, BUCKET(@timestamp, 10 minutes)
 | WHERE distinct_spns >= 8
 ```
-Tune the threshold to your environment. If you have fully moved to AES, alert on any RC4 TGS for a user-account SPN and drop the threshold.
+`acct` is the requester as `user@REALM`. Tune the threshold to your environment. If you have fully moved to AES, alert on any RC4 TGS for a user-account SPN and drop the threshold.
 
 ## Suppression
 Suppress by `acct` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.

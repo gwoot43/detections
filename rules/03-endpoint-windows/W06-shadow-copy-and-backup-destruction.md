@@ -24,7 +24,8 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE (pname == "vssadmin.exe" AND (cmd LIKE "*delete shadows*" OR cmd LIKE "*resize shadowstorage*"))
    OR (pname == "wmic.exe"     AND cmd LIKE "*shadowcopy*" AND cmd LIKE "*delete*")
    OR (pname IN ("powershell.exe", "pwsh.exe") AND cmd LIKE "*win32_shadowcopy*" AND (cmd LIKE "*delete*" OR cmd LIKE "*remove*"))
-   OR (pname == "wbadmin.exe"  AND cmd LIKE "*delete*")
+   // routine rotation ("delete systemstatebackup -keepversions:N", N >= 1) is excluded; keepversions:0 deletes everything
+   OR (pname == "wbadmin.exe"  AND (cmd LIKE "*delete catalog*" OR cmd LIKE "*-keepversions:0*" OR (cmd LIKE "*delete*backup*" AND NOT cmd LIKE "*-keepversions:*")))
    OR (pname == "bcdedit.exe"  AND (cmd LIKE "*recoveryenabled no*" OR cmd LIKE "*bootstatuspolicy ignoreallfailures*"))
    OR (pname == "diskshadow.exe" AND cmd LIKE "*delete shadows*")
    OR (pname == "fsutil.exe" AND cmd LIKE "*usn deletejournal*")
@@ -35,10 +36,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Ransomware runs several backup-destruction commands in a burst. Every other host still alerts.
 
 ## Known false positives / exclusions
-- Backup software resizing shadow storage under its own service parent. Exclude by parent executable path.
+- Backup software resizing shadow storage under its own service parent. Exclude by parent name and exact command line.
+- Scheduled system-state backup rotation on domain controllers (`wbadmin delete systemstatebackup -keepversions:N`) is already excluded unless N is 0.
 
 ## Triage
 - Isolate. Determine blast radius: which other hosts had the same user or the same parent binary in the last hour.
 
 ## Test
-Atomic Red Team T1490 on a lab host only.
+Run the Atomic Red Team T1490 test on a disposable lab host.

@@ -26,8 +26,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "vssadmin.exe" AND cmd LIKE "*create shadow*")
    OR (pname == "diskshadow.exe" AND (cmd LIKE "*create*" OR cmd LIKE "*expose*" OR cmd LIKE "*/s *"))
    OR (pname == "esentutl.exe" AND cmd LIKE "*ntds*")
-   OR (pname IN ("cmd.exe", "powershell.exe", "pwsh.exe", "robocopy.exe", "xcopy.exe", "copy.exe", "esentutl.exe") AND cmd LIKE "*ntds.dit*")
-   OR (pname IN ("cmd.exe", "powershell.exe", "pwsh.exe") AND cmd LIKE """*\\system32\\config\\system*""" AND cmd LIKE "*save*")   // SYSTEM hive for the boot key
+   OR (pname IN ("cmd.exe", "powershell.exe", "pwsh.exe", "robocopy.exe", "xcopy.exe") AND cmd LIKE "*ntds.dit*")
+   OR (pname IN ("cmd.exe", "powershell.exe", "pwsh.exe", "robocopy.exe", "xcopy.exe", "esentutl.exe")
+       AND cmd LIKE "*harddiskvolumeshadowcopy*")   // copying files (ntds.dit, the SYSTEM hive) out of a shadow copy
    OR (pname == "reg.exe" AND cmd LIKE "*save*" AND (cmd LIKE """*hklm\\system*""" OR cmd LIKE """*hklm\\sam*""" OR cmd LIKE """*hklm\\security*"""))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```

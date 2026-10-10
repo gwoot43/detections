@@ -23,14 +23,16 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | EVAL dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),
        attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),
        actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
+       optype = TO_LOWER(TO_STRING(winlog.event_data.OperationType)),
        op_id = TO_STRING(winlog.event_data.OpCorrelationID)
 | WHERE dn LIKE "cn=adminsdholder,cn=system,*"
-| KEEP @timestamp, host.name, actor, dn, attr, op_id, winlog.event_data.OperationType, winlog.event_data.AttributeValue
+  AND optype IN ("%%14674", "value added")         // the new value; the paired "value deleted" event repeats the old one
+| KEEP @timestamp, winlog.computer_name, actor, dn, attr, op_id, winlog.event_data.AttributeValue
 ```
 Requires directory-object auditing with a SACL covering the System container. Confirm 5136 events appear for a test change before relying on this.
 
 ## Suppression
-Suppress by `op_id` for 1h. Alerts missing a key field are not suppressed. One change writes a value-deleted and a value-added event sharing the operation ID; a separate change always alerts.
+Suppress by `op_id` for 1h. Alerts missing a key field are not suppressed. The query keeps only the value-added half of each change; suppression folds any repeats in the same operation, and a separate change always alerts.
 
 ## Known false positives / exclusions
 - Deliberate hardening by the AD team, for example removing a stale entry. Ticket-gated, never excluded.

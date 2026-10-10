@@ -20,11 +20,13 @@ Users RDP to servers and virtual desktops, not to each other's laptops. A remote
 ```esql
 FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4624" AND TO_STRING(winlog.event_data.LogonType) == "10"
-| EVAL dest = TO_LOWER(host.name), acct = TO_LOWER(winlog.event_data.TargetUserName)
+| EVAL dest = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, "."))),   // with event forwarding, host.name is the collector
+       acct = TO_LOWER(winlog.event_data.TargetUserName)
 | WHERE CIDR_MATCH(source.ip, "10.20.0.0/16")          // workstation subnets
   AND (dest LIKE "ws-*" OR dest LIKE "lt-*")             // your workstation naming
-| KEEP @timestamp, dest, acct, source.ip, winlog.event_data.WorkstationName
+| KEEP @timestamp, dest, acct, source.ip, source.domain
 ```
+`source.ip` and `source.domain` hold the client address and workstation name; the integration moves them out of `winlog.event_data`.
 
 ## Suppression
 Suppress by `source.ip`, `dest` for 4h. Alerts missing a key field are not suppressed. RDP sessions reconnect.

@@ -16,6 +16,8 @@ suppression:
 ## Why this is high fidelity
 Error 500121 means the password was correct but the MFA step failed: the user denied the prompt, ignored it, or reported it as fraud. A burst of these for one user means someone else has the password and is sending prompts, hoping the user eventually approves. Users rarely deny their own prompts more than once or twice. A fraud report from the Authenticator app is a deliberate signal from the user and alerts on its own.
 
+Failures are only counted from devices the tenant does not know. The attacker sends prompts from their own machine; a user whose phone is flat and who retries from their managed laptop does not count.
+
 Severity is computed per alert:
 - **critical** when a sign-in then succeeds from an IP that was sending the prompts: the user gave in.
 - **high** when the user reported a prompt as fraud.
@@ -26,13 +28,15 @@ Run every 15 minutes with a 1-hour lookback.
 ```esql
 FROM logs-azure.signinlogs-*
 | WHERE event.dataset == "azure.signinlogs" AND azure.signinlogs.category == "SignInLogs"
+// the integration folds status.failureReason and status.additionalDetails into message
 | EVAL ec = TO_STRING(azure.signinlogs.properties.status.error_code),
-       detail = TO_LOWER(COALESCE(TO_STRING(azure.signinlogs.properties.status.additional_details), "")),
+       detail = TO_LOWER(COALESCE(message, "")),
+       trust = COALESCE(TO_STRING(azure.signinlogs.properties.device_detail.trust_type), ""),
        usr = TO_LOWER(user.name)
-| EVAL mfa_fail = CASE(ec == "500121", 1, 0),
+| EVAL mfa_fail = CASE(ec == "500121" AND trust == "", 1, 0),
        fraud = CASE(ec == "500121" AND detail LIKE "*fraud*", 1, 0),
        ok = CASE(ec == "0", 1, 0)
-| WHERE mfa_fail == 1 OR ok == 1
+| WHERE mfa_fail == 1 OR fraud == 1 OR ok == 1
 // stage 1: per user and IP, so an acceptance is only counted from an IP that was also prompting
 | STATS f = SUM(mfa_fail), fr = SUM(fraud), s = SUM(ok),
         first_f = MIN(CASE(mfa_fail == 1, @timestamp, NULL)),
@@ -50,7 +54,7 @@ FROM logs-azure.signinlogs-*
 | WHERE mfa_failures >= 5 OR fraud_reports >= 1
 | EVAL severity = CASE(accepted_ips > 0, "critical", fraud_reports >= 1, "high", "medium")
 ```
-Confirm `status.additional_details` is populated in your integration. It carries text such as "MFA denied; user declined the authentication" and "MFA denied; Phone App Reported Fraud". Without it the fraud branch is silent but the burst and acceptance logic still work.
+The integration removes `status.additional_details` and writes it into `message` as "failure reason (additional details)", so the fraud branch reads `message`. It carries text such as "MFA denied; user declined the authentication" and "MFA denied; Phone App Reported Fraud".
 
 ## Suppression
 Suppress by `usr`, `severity` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. Severity is in the key, so a burst that later turns into an accepted prompt raises a new critical alert instead of folding into the open medium one.
@@ -64,4 +68,4 @@ Suppress by `usr`, `severity` for 4h. Alerts missing a key field are not suppres
 - **high or medium:** the password is known to someone else. Reset it, revoke sessions, and contact the user to confirm they did not trigger the prompts. Check I05, S13 and S14 for how the password was obtained.
 
 ## Test
-With a lab account, trigger five sign-ins from another device and decline each MFA prompt, then approve one.
+With a lab account, trigger five sign-ins from an unregistered lab device and decline each MFA prompt, then approve one.

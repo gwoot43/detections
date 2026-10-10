@@ -37,15 +37,16 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
                AND azure.signinlogs.properties.incoming_token_type == "refreshToken")
               OR
               // step 3: PRT used from an unmanaged device, not by Windows sign-in
+              // (COALESCE keeps rows where a name is missing; a != against null would drop them)
               (azure.signinlogs.properties.incoming_token_type == "primaryRefreshToken"
-               AND azure.signinlogs.properties.resource_display_name != "Device Registration Service"
+               AND COALESCE(azure.signinlogs.properties.resource_display_name, "") != "Device Registration Service"
                AND COALESCE(TO_STRING(azure.signinlogs.properties.device_detail.is_managed), "false") != "true"
-               AND azure.signinlogs.properties.app_display_name != "Windows Sign In"
+               AND COALESCE(azure.signinlogs.properties.app_display_name, "") != "Windows Sign In"
                AND COALESCE(TO_STRING(user_agent.original), "") != "Windows-AzureAD-Authentication-Provider/1.0")))
      OR (data_stream.dataset == "azure.auditlogs"
-         // step 2: device registered
-         AND azure.auditlogs.operation_name IN ("Register device", "Add device")
-         AND event.outcome IN ("success", "Success"))
+         // step 2: device registered ("Register device" carries the user; "Add device" is written by the service with no user ID)
+         AND azure.auditlogs.operation_name == "Register device"
+         AND event.outcome == "success")
 | EVAL uid = TO_STRING(COALESCE(azure.signinlogs.properties.user_id, azure.auditlogs.properties.initiated_by.user.id)),
        upn = TO_LOWER(TO_STRING(COALESCE(azure.signinlogs.properties.user_principal_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName))),
        stage = CASE(data_stream.dataset == "azure.auditlogs", "register",
@@ -53,7 +54,7 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
                     "drs_token")
 | WHERE uid IS NOT NULL
 | STATS drs_at = MIN(CASE(stage == "drs_token", @timestamp, NULL)),
-        register_at = MIN(CASE(stage == "register", @timestamp, NULL)),
+        register_at = MAX(CASE(stage == "register", @timestamp, NULL)),
         prt_at = MAX(CASE(stage == "prt_use", @timestamp, NULL)),
         prt_resources = VALUES(CASE(stage == "prt_use", azure.signinlogs.properties.resource_display_name, NULL)),
         devices = VALUES(CASE(stage == "register", `azure.auditlogs.properties.target_resources.0.display_name`, NULL)),
@@ -65,7 +66,7 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
 | WHERE drs_at IS NOT NULL AND register_at IS NOT NULL AND prt_at IS NOT NULL
   AND drs_at <= register_at AND register_at <= prt_at
 ```
-To tighten it further, also require `azure.signinlogs.properties.token_protection_status_details.sign_in_session_status == "unbound"` on step 1, if your integration version has that field. Elastic's prebuilt rule "Entra ID AiTM Phishing-Kit Chain Detected" is an EQL sequence of the same chain with a 3-minute window.
+To tighten it further, also require `azure.signinlogs.properties.token_protection_status_details.sign_in_session_status == "unbound"` on step 1. That field is not in the integration's field list and exists only once your data has carried it; check it in Discover first, because a missing column makes the whole query fail. Elastic's prebuilt rule "Entra ID AiTM Phishing-Kit Chain Detected" is an EQL sequence of the same chain with a 3-minute window.
 
 ## Suppression
 Suppress by `uid` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. The same chain re-matches on every run while the lookback overlaps.

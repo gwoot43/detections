@@ -7,19 +7,20 @@ severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1484.001, T1134.005, T1098]
-data_source: Windows Security events 4706/4716 (trusts), 4765/4766 (SID History), 4794 (DSRM)
+data_source: Windows Security events 4706/4716 (trust created or changed), 4765/4766 (SID History added or attempted), 4794 (DSRM password set)
 suppression: none
 ---
 ## Why this is high fidelity
-Each of these is a rare, high-impact directory change with no routine business cause: a new or modified domain trust widens the attack surface across forests; SID History added to an account grants inherited privilege silently; the Directory Services Restore Mode password reset (4794) gives an attacker a local admin path on a domain controller. All are attacker persistence and escalation moves.
+Each of these is a rare, high-impact directory change with no routine business cause: a new or modified domain trust widens the attack surface across forests; SID History added to an account grants inherited privilege silently; the Directory Services Restore Mode password reset (4794) gives an attacker a local admin path on a domain controller. All are attacker persistence and escalation moves. Trust removal (4707) is left out: it cuts access rather than granting it.
 
 ## Query
 ```esql
 FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
-| WHERE event.code IN ("4706", "4707", "4716", "4765", "4766", "4794")
+| WHERE event.code IN ("4706", "4716", "4765", "4766", "4794")
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name)),
-       target = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, ""))
-| KEEP @timestamp, host.name, event.code, actor, target, winlog.event_data.TargetDomainName, message
+       target = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),
+       trusted_domain = winlog.event_data.DomainName                      // 4706 only
+| KEEP @timestamp, winlog.computer_name, event.code, actor, target, winlog.event_data.TargetDomainName, trusted_domain, message
 ```
 
 ## Suppression

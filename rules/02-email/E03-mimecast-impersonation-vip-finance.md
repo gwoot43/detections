@@ -7,9 +7,9 @@ severity: medium
 language: esql
 index: logs-mimecast.ttp_ip_logs-*
 mitre: [T1656, T1534, T1566.003]
-data_source: Mimecast TTP Impersonation Protect logs
+data_source: Mimecast TTP Impersonation Protect logs (Elastic Mimecast integration, ttp_ip_logs data stream)
 suppression:
-  fields: [mimecast.senderAddress, rcpt]
+  fields: [sender, rcpt]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -20,18 +20,19 @@ Impersonation hits in general are noisy. Restricting to your payment-capable rec
 ```esql
 FROM logs-mimecast.ttp_ip_logs-* METADATA _id, _index, _version
 | EVAL ids = TO_LOWER(MV_CONCAT(mimecast.identifiers, ",")),
-       rcpt = TO_LOWER(mimecast.recipientAddress),
-       action = TO_LOWER(COALESCE(mimecast.action, "none"))
+       rcpt = TO_LOWER(MV_FIRST(email.to.address)),
+       sender = TO_LOWER(MV_FIRST(email.from.address)),
+       action = TO_LOWER(COALESCE(event.action, "none"))
 | WHERE (ids LIKE "*internal_user_name*" OR ids LIKE "*similar_internal_domain*" OR ids LIKE "*reply_address_mismatch*")
   AND (rcpt IN ("cfo@yourdomain.com", "ceo@yourdomain.com", "ap@yourdomain.com", "payments@yourdomain.com")
        OR rcpt LIKE "*finance*" OR rcpt LIKE "*payroll*" OR rcpt LIKE "*accounts*")
-  AND action IN ("none", "tag", "hold")    // delivered or held, not bounced
-| KEEP @timestamp, rcpt, mimecast.senderAddress, mimecast.subject, ids, action, mimecast.definition, mimecast.taggedMalicious
+  AND NOT (action LIKE "*bounce*" OR action LIKE "*reject*")    // delivered, tagged or held, not bounced
+| KEEP @timestamp, rcpt, sender, email.subject, ids, action, rule.name, mimecast.taggedMalicious, source.ip
 ```
-Move the VIP list to a lookup index or an Elastic value list once it is stable.
+The integration moves recipient and sender to `email.to.address` and `email.from.address`, `action` to `event.action`, `definition` to `rule.name`, and `senderIpAddress` to `source.ip`. Move the VIP list to an Elastic value list once it is stable.
 
 ## Suppression
-Suppress by `mimecast.senderAddress`, `rcpt` for 24h. Alerts missing a key field are not suppressed. A BEC sender writes repeatedly to the same target.
+Suppress by `sender`, `rcpt` for 24h. Alerts missing a key field are not suppressed. A BEC sender writes repeatedly to the same target.
 
 ## Known false positives / exclusions
 - Newsletters using an executive's name as the friendly-from. Exclude by sender domain after review.

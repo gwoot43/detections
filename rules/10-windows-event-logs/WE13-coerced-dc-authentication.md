@@ -23,12 +23,13 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | EVAL acct = TO_LOWER(winlog.event_data.TargetUserName),
        ap = TO_LOWER(TO_STRING(winlog.event_data.AuthenticationPackageName)),
        lt = TO_STRING(winlog.event_data.LogonType),
-       dest = TO_LOWER(host.name)
+       dest = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))   // with event forwarding, host.name is the collector
 | WHERE lt == "3" AND ap == "ntlm"
-  AND acct IN ("dc01$", "dc02$")                                           // your DC machine accounts, or a lookup
-  AND (NOT (dest LIKE "dc*") OR NOT CIDR_MATCH(source.ip, "10.0.0.10/32", "10.0.0.11/32"))   // DC IPs
-| KEEP @timestamp, dest, acct, source.ip, ap, winlog.event_data.WorkstationName
+  AND acct IN ("dc01$", "dc02$")                                           // your DC machine accounts
+  AND (NOT (dest LIKE "dc*") OR NOT CIDR_MATCH(source.ip, "10.0.0.10/32", "10.0.0.11/32"))   // your DC naming and DC IPs
+| KEEP @timestamp, dest, acct, source.ip, source.domain, ap
 ```
+`source.ip` and `source.domain` hold the client address and workstation name; the integration moves them out of `winlog.event_data`.
 
 ## Suppression
 Suppress by `acct`, `dest` for 1h. Alerts missing a key field are not suppressed. Forced authentication is usually retried several times.

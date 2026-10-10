@@ -7,7 +7,7 @@ severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1112, T1003.001, T1562.001, T1547.002, T1547.005, T1556.002]
-data_source: CrowdStrike FDR registry events (AsepValueUpdate / RegGenericValueUpdate)
+data_source: CrowdStrike FDR registry events (RegSystemConfigValueUpdate / AsepValueUpdate / RegGenericValueUpdate)
 suppression:
   fields: [host.name, k]
   duration: 24h
@@ -23,23 +23,27 @@ Two more LSA settings give persistent credential access and are covered here rat
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegistryOperationDetectInfo") AND host.os.type == "windows"
+| WHERE event.action IN ("RegSystemConfigValueUpdate", "AsepValueUpdate", "RegGenericValueUpdate", "RegistryOperationDetectInfo")
+  AND host.os.type == "windows"
+// registry.path is RegObjectName\RegValueName. String data is in registry.data.strings; DWORD data is only in
+// crowdstrike.RegNumericValue, which the integration does not map to ECS (registry.value is the value NAME).
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
-       v = TO_LOWER(TO_STRING(COALESCE(registry.data.strings, registry.value)))
-| WHERE (k LIKE """*securityproviders\\wdigest\\uselogoncredential*""" AND v LIKE "*1*")
-   OR (k LIKE """*control\\lsa\\runasppl*""" AND (v LIKE "*0*"))
-   OR (k LIKE """*lsa\\lsacfgflags*""" AND v LIKE "*0*")
-   OR (k LIKE "*deviceguard*" AND k LIKE "*lsacfg*" AND v LIKE "*0*")
-   OR (k LIKE """*control\\lsa\\disablerestrictedadmin*""" AND v LIKE "*0*")
-   OR (k LIKE """*control\\lsa\\restrictedadmin*""" AND v LIKE "*0*")
-   OR (k LIKE """*wow6432node*securityproviders\\wdigest\\uselogoncredential*""" AND v LIKE "*1*")
-   OR k LIKE """*control\\lsa\\security packages*"""
-   OR k LIKE """*control\\lsa\\osconfig\\security packages*"""
-   OR k LIKE """*control\\lsa\\authentication packages*"""
-   OR k LIKE """*control\\lsa\\notification packages*"""
-   OR (k LIKE """*control\\lsa\\dsrmadminlogonbehavior*""" AND v LIKE "*2*")
-| KEEP @timestamp, host.name, user.name, k, v, process.name, process.command_line
+       num = TO_STRING(crowdstrike.RegNumericValue),
+       v = TO_LOWER(MV_CONCAT(TO_STRING(registry.data.strings), " "))
+| WHERE (k LIKE """*securityproviders\\wdigest\\uselogoncredential""" AND num == "1")
+   OR (k LIKE """*control\\lsa\\runasppl""" AND num == "0")
+   OR (k LIKE """*control\\lsa\\lsacfgflags""" AND num == "0")                     // Credential Guard off
+   OR (k LIKE """*deviceguard\\lsacfgflags""" AND num == "0")                        // same, by policy
+   OR (k LIKE """*control\\lsa\\disablerestrictedadmin""" AND num == "0")          // enables pass-the-hash over RDP
+   OR (k LIKE """*control\\lsa\\dsrmadminlogonbehavior""" AND num == "2")
+   OR k LIKE """*control\\lsa\\security packages"""
+   OR k LIKE """*control\\lsa\\osconfig\\security packages"""
+   OR k LIKE """*control\\lsa\\authentication packages"""
+   OR k LIKE """*control\\lsa\\notification packages"""
+| KEEP @timestamp, host.name, user.name, k, num, v, process.name, process.command_line
 ```
+Value checks are exact, so a hardening write (for example `RunAsPPL` set to 1 by Group Policy) does not match. `crowdstrike.RegNumericValue` is not in the integration's predefined fields; the query fails with "Unknown column" until an FDR registry event carrying it has been indexed. Confirm the field name in your FDR data first.
+
 This is a registry rule, so it runs on FDR, not the Windows Security channel. It belongs with the credential-access group but is grouped here because it is the registry twin of the event-log credential signals.
 
 ## Suppression

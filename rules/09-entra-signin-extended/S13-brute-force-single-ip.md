@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-I05 catches one IP trying many users. This rule catches the opposite: one IP trying one user many times. Failures are only counted from unregistered devices. That removes the most common benign cause, a stale saved password in an app on a managed laptop or phone. Smart Lockout returns 50053 once it starts blocking, so lockout responses are counted as failures too.
+I05 catches one IP trying many users. This rule catches the opposite: one IP trying one user many times. Failures are only counted from unregistered devices. That removes the most common benign cause, a stale saved password in an app on a managed laptop or phone. If the same user also signs in successfully from a registered device on that IP in the window, the IP is the user's own network and the row is dropped. Smart Lockout returns 50053 once it starts blocking, so lockout responses are counted as failures too.
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
@@ -28,6 +28,7 @@ FROM logs-azure.signinlogs-*
        ok = CASE(ec == "0", 1, 0)
 | WHERE failed == 1 OR ok == 1
 | STATS failures = SUM(failed), successes = SUM(ok),
+        managed_successes = SUM(CASE(ok == 1 AND trust != "", 1, 0)),
         lockouts = SUM(CASE(ec == "50053", 1, 0)),
         first_fail = MIN(CASE(failed == 1, @timestamp, NULL)),
         last_success = MAX(CASE(ok == 1, @timestamp, NULL)),
@@ -36,7 +37,7 @@ FROM logs-azure.signinlogs-*
         apps = VALUES(azure.signinlogs.properties.app_display_name),
         uas = VALUES(user_agent.original)
     BY usr, source.ip
-| WHERE failures >= 15
+| WHERE failures >= 15 AND managed_successes == 0
 | EVAL landed = successes > 0 AND last_success >= first_fail
 ```
 `landed` is true when a sign-in succeeds from the same IP after the failures began. That is the case to act on first.
@@ -45,7 +46,7 @@ FROM logs-azure.signinlogs-*
 Suppress by `usr`, `source.ip`, `landed` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. `landed` is in the key so a later success raises a new alert.
 
 ## Known false positives / exclusions
-- A user with an old password saved in an app on an unregistered personal device at home. It shows as steady failures from the user's own home IP, often followed by a success from a browser on the same IP, which also sets `landed`. To remove it, exclude IPs where the user signed in successfully from a registered or compliant device in the past 14 days. Build that as a lookup of familiar user-and-IP pairs and join on it.
+- A user with an old password saved in an app on an unregistered personal device at home. When their managed laptop or phone signs in from the same home IP in the window, the row is dropped. If they only use unregistered devices at home, it shows as steady failures from the user's own home IP, often followed by a success from a browser on the same IP, which also sets `landed`. Check the IP's history in Discover before acting.
 - Shared NAT or VPN egress IPs, where many users share one IP. The per-user grouping keeps them apart, but exclude your own egress ranges if a broken app causes floods.
 
 ## Triage

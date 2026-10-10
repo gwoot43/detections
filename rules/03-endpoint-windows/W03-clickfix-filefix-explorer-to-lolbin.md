@@ -25,24 +25,28 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   AND child IN ("powershell.exe", "pwsh.exe", "mshta.exe", "cmd.exe", "curl.exe", "msiexec.exe", "wscript.exe", "cscript.exe", "bitsadmin.exe", "certutil.exe")
   AND (
        cmd LIKE "*http://*" OR cmd LIKE "*https://*"
-    OR cmd LIKE "*iwr *" OR cmd LIKE "*irm *" OR cmd LIKE "*iex*" OR cmd LIKE "*invoke-webrequest*" OR cmd LIKE "*invoke-restmethod*" OR cmd LIKE "*invoke-expression*"
+    // whole-word aliases only: "*irm *" alone also matches "-confirm ", "*iex*" also matches "iexplore"
+    OR cmd LIKE "* iwr *" OR cmd LIKE "* irm *" OR cmd LIKE "*iex(*" OR cmd LIKE "*iex *" OR cmd LIKE "*|iex*" OR cmd LIKE "*| iex*"
+    OR cmd LIKE "*invoke-webrequest*" OR cmd LIKE "*invoke-restmethod*" OR cmd LIKE "*invoke-expression*"
     OR cmd LIKE "*downloadstring*" OR cmd LIKE "*downloadfile*" OR cmd LIKE "*net.webclient*"
     OR cmd LIKE "* -enc*" OR cmd LIKE "*frombase64string*" OR cmd LIKE "* -w hidden*" OR cmd LIKE "*-windowstyle hidden*"
     OR cmd LIKE "*i am not a robot*" OR cmd LIKE "*captcha*" OR cmd LIKE "*verification*" OR cmd LIKE "*ray id*"
-    OR cmd LIKE "*# *"       // FileFix: comment padding hides the command in the Explorer address bar
+    // FileFix: a run of spaces before a "#" comment, or a fake file path after it, hides the command in the address bar
+    OR cmd LIKE "*   #*" OR cmd LIKE """*# c:\\*"""
   )
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line
 ```
-Add the registry side once F01 is live: `RunMRU` and `TypedPaths` values containing `powershell`, `mshta` or `http` are the same technique seen from the registry.
+The same technique also leaves `RunMRU` and `TypedPaths` registry values containing `powershell`, `mshta` or `http`. Those keys are not ASEPs, so CS02 does not watch them; add a registry branch only if your FDR feed records them.
 
 ## Suppression
 Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. One pasted command produces a chain of child processes.
 
 ## Known false positives / exclusions
 - Developers pasting `iwr` one-liners. Rare enough to ask.
+- Shortcuts or desktop files that start PowerShell with a URL. Exclude by exact command line.
 
 ## Triage
-- Ask the user what page they were on. Pull the URL from the command line, block it in Zscaler (N08), check for a dropped payload (F07) and outbound connections (F06).
+- Ask the user what page they were on. Pull the URL from the command line, block it in Zscaler (N08), check for a dropped payload (file-written events) and outbound connections (NetworkConnectIP4) from the child.
 
 ## Test
-From Win+R on a lab host, run a `powershell -w hidden` command that fetches a local test URL.
+From Win+R on a lab host, run a hidden PowerShell command that fetches a local test URL.

@@ -9,7 +9,7 @@ index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1550.002]
 data_source: Windows Security event 4624
 suppression:
-  fields: [host.name, outbound]
+  fields: [host_key, outbound]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -24,14 +24,16 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        lp = TO_LOWER(TRIM(TO_STRING(winlog.event_data.LogonProcessName))),
        ap = TO_LOWER(TO_STRING(winlog.event_data.AuthenticationPackageName)),
        outbound = TO_LOWER(COALESCE(winlog.event_data.TargetOutboundUserName, "")),
-       acct = TO_LOWER(winlog.event_data.TargetUserName)
+       acct = TO_LOWER(winlog.event_data.TargetUserName),
+       host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))   // with event forwarding, host.name is the collector
 | WHERE lt == "9" AND lp == "seclogo" AND ap == "negotiate"
-| WHERE NOT (TO_LOWER(host.name) IN ("jump01", "paw-01"))     // admin jump hosts where runas /netonly is expected
-| KEEP @timestamp, host.name, acct, outbound, winlog.event_data.TargetOutboundDomainName, lt, lp, ap
+| WHERE host_key NOT IN ("jump01", "paw-01")     // admin jump hosts where runas /netonly is expected
+| KEEP @timestamp, host_key, winlog.computer_name, acct, outbound, winlog.event_data.TargetOutboundDomainName, lt, lp, ap
 ```
+`TargetOutboundUserName` and `TargetOutboundDomainName` are not in the integration's predefined fields. Every 4624 from Windows 10 / Server 2016 or later carries them, so they are mapped on any current fleet.
 
 ## Suppression
-Suppress by `host.name`, `outbound` for 1h. Alerts missing a key field are not suppressed. One session produces several of these logons; a different impersonated account still alerts.
+Suppress by `host_key`, `outbound` for 1h. Alerts missing a key field are not suppressed. One session produces several of these logons; a different impersonated account still alerts.
 
 ## Known false positives / exclusions
 - `runas /netonly` by admins, excluded by jump host. Some management tools use the same logon type; exclude them by host after review.

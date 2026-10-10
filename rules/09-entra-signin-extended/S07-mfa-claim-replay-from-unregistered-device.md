@@ -19,21 +19,25 @@ After an adversary-in-the-middle phish (Evilginx-class) the attacker replays the
 ## Query
 ```esql
 FROM logs-azure.signinlogs-* METADATA _id, _index, _version
-| WHERE TO_STRING(azure.signinlogs.properties.status.error_code) == "0"
-| EVAL details = TO_LOWER(TO_STRING(azure.signinlogs.properties.authentication_details)),
-       mfa = TO_LOWER(TO_STRING(azure.signinlogs.properties.mfa_detail)),
+| WHERE azure.signinlogs.category IN ("SignInLogs", "NonInteractiveUserSignInLogs")
+  AND TO_STRING(azure.signinlogs.properties.status.error_code) == "0"
+// the integration folds status.additionalDetails into message ("MFA requirement satisfied by claim in the token")
+| EVAL detail = TO_LOWER(COALESCE(message, "")),
        trust = TO_LOWER(COALESCE(TO_STRING(azure.signinlogs.properties.device_detail.trust_type), "")),
        asn = TO_LOWER(COALESCE(source.as.organization.name, "")),
        req = TO_LOWER(TO_STRING(azure.signinlogs.properties.authentication_requirement))
 | WHERE req == "multifactorauthentication"
-  AND (details LIKE "*satisfied by claim in the token*" OR details LIKE "*previously satisfied*" OR mfa LIKE "*previously satisfied*")
+  AND detail LIKE "*mfa requirement satisfied by claim in the token*"
   AND trust == ""                                           // not Entra joined, hybrid joined or registered
   AND (asn LIKE "*digitalocean*" OR asn LIKE "*m247*" OR asn LIKE "*vultr*" OR asn LIKE "*linode*" OR asn LIKE "*ovh*" OR asn LIKE "*hetzner*"
-       OR asn LIKE "*choopa*" OR asn LIKE "*leaseweb*" OR asn LIKE "*contabo*" OR asn LIKE "*amazon*" OR asn LIKE "*google*cloud*" OR asn LIKE "*microsoft*azure*"
+       OR asn LIKE "*choopa*" OR asn LIKE "*leaseweb*" OR asn LIKE "*contabo*" OR asn LIKE "*amazon*" OR asn LIKE "*google*cloud*"
        OR asn LIKE "*nordvpn*" OR asn LIKE "*expressvpn*" OR asn LIKE "*mullvad*" OR asn LIKE "*private internet access*" OR asn LIKE "*datacamp*" OR asn LIKE "*packethub*")
-| KEEP @timestamp, user.name, source.ip, asn, source.geo.country_iso_code, azure.signinlogs.properties.app_display_name, user_agent.original, trust, details
+| WHERE NOT CIDR_MATCH(source.ip, "203.0.113.0/24")     // corporate egress or VPN that sits in a cloud ASN
+| KEEP @timestamp, user.name, source.ip, asn, source.geo.country_iso_code, azure.signinlogs.properties.app_display_name, user_agent.original, trust, detail
 ```
-Keep the ASN list in a value list and grow it from your own alerts. If you licence Identity Protection, `risk_event_types` containing `anonymizedIPAddress` or `anomalousToken` is a cleaner third condition than the ASN list.
+Keep the ASN list in step with S10 and grow it from your own alerts. If you licence Identity Protection, `risk_event_types_v2` containing `anonymizedIPAddress` or `anomalousToken` is a cleaner third condition than the ASN list.
+
+The old `mfa_detail` condition was removed: it is an object, not a field ES|QL can read, and the sample data carries it empty. A Microsoft Azure ASN pattern was also removed: MaxMind names that network `MICROSOFT-CORP-MSN-AS-BLOCK`, so the pattern never matched, and Azure egress is shared with Windows 365 and Azure Virtual Desktop users.
 
 ## Suppression
 Suppress by `user.name`, `source.ip` for 24h. Alerts missing a key field are not suppressed. A replayed session keeps refreshing. A new IP still alerts.

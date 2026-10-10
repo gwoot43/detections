@@ -3,7 +3,7 @@ id: I10
 name: MFA method registered from a new context, or authentication policy weakened
 category: identity
 status: todo
-severity: high
+severity: medium
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1556.006, T1098.005]
@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-After stealing a password, attackers register their own MFA method to gain durable access, or an admin disables security defaults / weakens the authentication methods policy. Self-service MFA registration is normal at onboarding, so the fidelity comes from registration happening right after a risky sign-in, or from admin-level policy changes which are always rare.
+After stealing a password, attackers register their own MFA method to gain durable access, or an admin disables security defaults / weakens the authentication methods policy. Self-service MFA registration is normal at onboarding, so the fidelity comes from registration happening right after a risky sign-in, or from admin-level policy changes which are always rare. Routine security-info events (reviewed, deleted, registration started or cancelled) and broad tenant changes such as "Set company information" are left out.
 
 ## Query
 ```esql
@@ -24,10 +24,10 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
        target = TO_LOWER(TO_STRING(`azure.auditlogs.properties.target_resources.0.user_principal_name`))
 | WHERE azure.auditlogs.properties.result == "success"
   AND (
-       op LIKE "*security info*" OR op LIKE "*registered security info*" OR op LIKE "*user registered*method*"
-    OR op == "admin registered security info" OR op LIKE "*strong authentication*"
-    OR op LIKE "*update authentication methods policy*" OR op LIKE "*disable strong authentication*"
-    OR op LIKE "*set company information*" OR op LIKE "*disable security defaults*"
+       op IN ("user registered security info", "admin registered security info")   // a new method on an account
+    OR op LIKE "*authentication methods policy*"                                    // tenant-wide method policy changed
+    OR op LIKE "*disable strong authentication*"                                    // per-user MFA turned off
+    OR op LIKE "*security defaults*"
   )
 | KEEP @timestamp, op, actor, target, source.ip, azure.auditlogs.properties.additional_details
 ```

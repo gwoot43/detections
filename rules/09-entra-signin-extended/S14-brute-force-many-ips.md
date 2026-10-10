@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Attackers route guesses against one account through residential proxy networks so that each IP makes only one or two attempts. Per-IP rules such as S13 never see enough from one address. Grouping by the account instead shows the real pattern: many failures from many unrelated IPs and networks in a few hours. A real user does not fail from ten different networks in one afternoon.
+Attackers route guesses against one account through residential proxy networks so that each IP makes only one or two attempts. Per-IP rules such as S13 never see enough from one address. Grouping by the account instead shows the real pattern: many failures from many unrelated IPs and networks in a few hours. A real user does not fail from ten different IPs spread over three or more networks in one afternoon. The network condition matters: a phone with a stale password on mobile data can change IP many times an hour, but all inside one carrier.
 
 ## Query
 Run every 30 minutes with a 4-hour lookback.
@@ -37,7 +37,7 @@ FROM logs-azure.signinlogs-*
         sample_ips = VALUES(CASE(failed == 1, source.ip, NULL)),
         uas = VALUES(CASE(failed == 1, user_agent.original, NULL))
     BY usr
-| WHERE failures >= 20 AND fail_ips >= 10
+| WHERE failures >= 20 AND fail_ips >= 10 AND fail_asns >= 3
 | EVAL landed = successes > 0 AND last_success >= first_fail,
        sample_ips = MV_SLICE(sample_ips, 0, 19)
 ```
@@ -47,7 +47,7 @@ FROM logs-azure.signinlogs-*
 Suppress by `usr`, `landed` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. A slow attack spans several runs, and `landed` is in the key so a success raises a new alert.
 
 ## Known false positives / exclusions
-- A user travelling with a phone that has a stale password, failing across mobile networks and hotel Wi-Fi. It rarely reaches ten distinct IPs in four hours, and the ASN list shows carriers rather than hosting and proxy providers.
+- A user travelling with a phone that has a stale password, failing across mobile networks and hotel Wi-Fi. It rarely reaches ten distinct IPs on three networks in four hours, and the ASN list shows carriers rather than hosting and proxy providers.
 
 ## Triage
 - Look at `fail_asns` and `sample_ips`. A spread of residential and hosting networks with one or two attempts each is a proxy network.

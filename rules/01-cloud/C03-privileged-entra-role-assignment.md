@@ -16,47 +16,52 @@ suppression:
 ## Why this is high fidelity
 Global Administrator, Privileged Role Administrator, Privileged Authentication Administrator, Security Administrator and Exchange Administrator are the roles that let an attacker own the tenant. Assignments should be rare, and PIM activations should follow a shift pattern you can baseline.
 
+The rule reads the Core Directory records only. Every path (direct assignment, PIM eligibility, PIM activation) writes one of them with the same shape: the member in the first target and the role name in its modified properties. PIM's own "... in PIM completed" records describe the same change a second time, so they are left out.
+
 ## Query
 ```esql
 FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 | WHERE azure.auditlogs.properties.category == "RoleManagement"
-  AND azure.auditlogs.operation_name IN (
-    "Add member to role",
-    "Add eligible member to role",
-    "Add member to role completed (PIM activation)",
-    "Add member to role outside of PIM (permanent)",
-    "Add member to role in PIM completed (permanent)"
-  )
-  AND azure.auditlogs.properties.result == "success"
-// The role display name sits in target_resources[].modified_properties[].new_value. Position varies;
-// copy it to a stable field (entra.role_name) in an ingest pipeline. Fallback: KQL rule, see note.
-| EVAL role = TO_LOWER(TO_STRING(entra.role_name))
-| WHERE role IN (
-    "global administrator", "privileged role administrator", "privileged authentication administrator",
-    "security administrator", "exchange administrator", "conditional access administrator",
-    "application administrator", "cloud application administrator", "intune administrator",
-    "authentication administrator", "hybrid identity administrator", "partner tier2 support"
-  )
+  AND azure.auditlogs.operation_name IN ("Add member to role", "Add eligible member to role")
+  // the integration moves properties.result into event.outcome, so filter on that
+  AND event.outcome == "success"
+// Role.DisplayName is one of the first modified properties of the member; its position varies.
+// Values arrive JSON-quoted ("Global Administrator"), so quotes become delimiters for an exact match.
+| EVAL props = REPLACE(TO_LOWER(CONCAT(
+         COALESCE(`azure.auditlogs.properties.target_resources.0.modified_properties.0.new_value`, ""), "|",
+         COALESCE(`azure.auditlogs.properties.target_resources.0.modified_properties.1.new_value`, ""), "|",
+         COALESCE(`azure.auditlogs.properties.target_resources.0.modified_properties.2.new_value`, ""), "|",
+         COALESCE(`azure.auditlogs.properties.target_resources.0.modified_properties.3.new_value`, ""))), "\"", "|")
+| EVAL role = CASE(
+    props LIKE "*|global administrator|*",                    "Global Administrator",
+    props LIKE "*|privileged role administrator|*",           "Privileged Role Administrator",
+    props LIKE "*|privileged authentication administrator|*", "Privileged Authentication Administrator",
+    props LIKE "*|security administrator|*",                  "Security Administrator",
+    props LIKE "*|exchange administrator|*",                  "Exchange Administrator",
+    props LIKE "*|conditional access administrator|*",        "Conditional Access Administrator",
+    props LIKE "*|application administrator|*",               "Application Administrator",
+    props LIKE "*|cloud application administrator|*",         "Cloud Application Administrator",
+    props LIKE "*|intune administrator|*",                    "Intune Administrator",
+    props LIKE "*|authentication administrator|*",            "Authentication Administrator",
+    props LIKE "*|hybrid identity administrator|*",           "Hybrid Identity Administrator",
+    props LIKE "*|partner tier2 support|*",                   "Partner Tier2 Support",
+    NULL)
+| WHERE role IS NOT NULL
 | KEEP @timestamp, azure.auditlogs.operation_name, role,
-       azure.auditlogs.properties.initiated_by.user.userPrincipalName,
+       azure.auditlogs.properties.initiated_by.user.userPrincipalName, azure.auditlogs.properties.initiated_by.app.displayName,
        `azure.auditlogs.properties.target_resources.0.user_principal_name`, source.ip
 ```
-
-KQL fallback while the pipeline field is not there:
-```
-event.dataset:azure.auditlogs and azure.auditlogs.operation_name:("Add member to role" or "Add eligible member to role" or "Add member to role completed (PIM activation)")
-and azure.auditlogs.properties.target_resources.*.modified_properties.*.new_value:("\"Global Administrator\"" or "\"Privileged Role Administrator\"" or "\"Security Administrator\"" or "\"Exchange Administrator\"")
-```
+A PIM activation is initiated by the `MS-PIM` service principal, so `initiated_by.user` is empty and the member is the person who activated.
 
 ## Suppression
-Suppress by `azure.auditlogs.properties.target_resources.0.user_principal_name`, `role` for 8h. Alerts missing a key field are not suppressed. PIM activations by on-call staff repeat through a shift. A different person or role still alerts.
+Suppress by `azure.auditlogs.properties.target_resources.0.user_principal_name`, `role` for 8h. Alerts missing a key field are not suppressed. PIM activations by on-call staff repeat through a shift. A different person or role still alerts. Role grants to a service principal have no UPN, so each one alerts on its own.
 
 ## Known false positives / exclusions
-- PIM activations by the on-call identity team. Suppress by (actor, role) for 8 hours after the first alert, do not allowlist.
+- PIM activations by the on-call identity team. Suppression on member and role covers the shift; do not allowlist.
 - Break-glass accounts should never activate. If they do, that is the highest-priority version of this alert.
 
 ## Triage
-- Who assigned, who received, permanent or eligible, from which IP and session.
+- Who assigned (user, or `MS-PIM` for an activation), who received, active or eligible, from which IP and session.
 - Correlate with C02 and C04 in the same hour: role add followed by policy change or credential add is an attack chain.
 
 ## Test

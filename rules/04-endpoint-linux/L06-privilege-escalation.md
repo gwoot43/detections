@@ -39,7 +39,7 @@ Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not 
 - Installers running `chmod u+s` on their own binaries under `/usr/`. Exclude by parent package manager.
 
 ## Triage
-- Confirm the escalation succeeded (subsequent root process from the same session). Check how the user got on the host (L03, SSH brute force in F04).
+- Confirm the escalation succeeded (subsequent root process from the same session). Check how the user got on the host (L03, or SSH authentication logs for brute force).
 
 ## Test
 Atomic Red Team T1548.003 on a lab host.

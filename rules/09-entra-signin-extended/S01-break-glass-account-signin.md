@@ -19,13 +19,12 @@ Emergency access accounts are excluded from Conditional Access by design and nev
 ## Query
 ```esql
 FROM logs-azure.signinlogs-* METADATA _id, _index, _version
-| WHERE TO_LOWER(user.name) IN ("breakglass1@yourtenant.onmicrosoft.com", "breakglass2@yourtenant.onmicrosoft.com")
-   OR TO_LOWER(azure.signinlogs.properties.user_principal_name) LIKE "*breakglass*"
-   OR TO_LOWER(azure.signinlogs.properties.user_principal_name) LIKE "*emergency*"
-| KEEP @timestamp, user.name, event.outcome, azure.signinlogs.properties.status.error_code, source.ip, source.geo.country_iso_code,
+| WHERE user.id IN ("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002")
+   OR TO_LOWER(user.name) IN ("breakglass1@yourtenant.onmicrosoft.com", "breakglass2@yourtenant.onmicrosoft.com")
+| KEEP @timestamp, user.name, user.id, event.outcome, azure.signinlogs.properties.status.error_code, source.ip, source.geo.country_iso_code,
        source.as.organization.name, azure.signinlogs.properties.app_display_name, azure.signinlogs.category, user_agent.original
 ```
-Replace the UPNs with the exact break-glass accounts. Do not rely on the name patterns alone.
+Replace the object IDs and UPNs with the exact break-glass accounts. The object ID still matches if someone renames the account. Name patterns such as `*emergency*` were removed: they match ordinary shared mailboxes and service accounts, and the exact list already covers the real accounts.
 
 ## Suppression
 Suppress by `user.name`, `source.ip` for 1h. Alerts missing a key field are not suppressed. One sign-in produces several token events. A new IP still alerts.

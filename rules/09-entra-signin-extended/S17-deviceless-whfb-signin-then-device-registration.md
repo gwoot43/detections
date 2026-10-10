@@ -29,8 +29,9 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
          AND azure.signinlogs.properties.cross_tenant_access_type == "none"
          AND COALESCE(TO_STRING(azure.signinlogs.properties.device_detail.device_id), "") == "")
      OR (data_stream.dataset == "azure.auditlogs"
-         AND event.outcome IN ("success", "Success")
-         AND azure.auditlogs.operation_name IN ("Register device", "Add registered owner to device", "Add device"))
+         AND event.outcome == "success"
+         // "Register device" is the user-initiated record; "Add device" and owner records are written by the service with no user ID
+         AND azure.auditlogs.operation_name == "Register device")
 | EVAL uid = COALESCE(azure.signinlogs.properties.user_id, azure.auditlogs.properties.initiated_by.user.id),
        upn = TO_LOWER(COALESCE(azure.signinlogs.properties.user_principal_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName)),
        stage = CASE(data_stream.dataset == "azure.signinlogs", "signin", "register"),
@@ -54,7 +55,7 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
 ```
 The sign-in must come before the registration and both fall inside the 30-minute lookback. Elastic's prebuilt rule, "Entra ID Deviceless Windows Hello Sign-in Followed by Device Registration", tightens this to 15 minutes but uses newer ES|QL commands (`INLINE STATS`, `LIMIT ... BY`). Use theirs if your cluster supports them; this version runs on more releases.
 
-`FIELD_EXTRACT` reads the method out of the sign-in's authentication details, the same way Elastic's rule does. If your version lacks it, copy `authentication_details[].authentication_method` into a keyword field in the ingest pipeline and match on that.
+`FIELD_EXTRACT` reads the method out of the sign-in's authentication details, which the integration maps as a `flattened` field. It needs an ES|QL version with `flattened` support; on older versions the query fails. If your version lacks it, copy `authentication_details[].authentication_method` into a keyword field in the ingest pipeline and match on that.
 
 ## Suppression
 Suppress by `uid` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. One attack produces several sign-ins and registration events across overlapping runs.
