@@ -20,14 +20,16 @@ Loading a kernel module from a user-writable path, or the shape of an eBPF-based
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
-| EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name), parent = TO_LOWER(process.parent.name)
-| WHERE (pname IN ("insmod", "modprobe") AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*" OR cmd LIKE "*/home/*" OR cmd LIKE "*./*"))
-   OR (pname == "insmod")   // any insmod outside package tooling is worth a look; scope by parent below
+| EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(process.name), parent = TO_LOWER(COALESCE(process.parent.name, ""))
+// insmod and modprobe are symlinks to kmod on most distributions, so match the invoked name in the command line as well
+| EVAL insmod_call = pname == "insmod" OR cmd LIKE "insmod *" OR cmd LIKE "*/insmod *" OR cmd LIKE "*kmod insert *",
+       modprobe_call = pname == "modprobe" OR cmd LIKE "modprobe *" OR cmd LIKE "*/modprobe *"
+| WHERE insmod_call    // any insmod outside package tooling is worth a look; scoped by parent below
+   OR (modprobe_call AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*" OR cmd LIKE "*/home/*"))
    OR (cmd LIKE "*bpftool*" AND (cmd LIKE "*prog load*" OR cmd LIKE "*map create*"))
    OR (cmd LIKE "*/sys/kernel/debug/*" AND (cmd LIKE "*echo*" OR cmd LIKE "*>*"))
    OR (cmd LIKE "*ld_preload*" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*"))
-   OR (pname IN ("kmod") AND cmd LIKE "*insert*")
-| WHERE NOT (parent IN ("dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd", "cloud-init", "falcon-sensor"))
+| WHERE parent NOT IN ("dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd", "cloud-init", "falcon-sensor", "falcond")
 | KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
 ```
 
@@ -35,7 +37,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 Suppress by `host.name` for 24h. Alerts missing a key field are not suppressed. Modules reload at every boot.
 
 ## Known false positives / exclusions
-- DKMS building GPU or VPN modules, excluded by parent. Hardware agents (`nvidia`, `vmware`) at boot. Exclude the boot-time udev parent.
+- DKMS building GPU or VPN modules, and the Falcon sensor loading its own module, are excluded by parent. Hardware agents (`nvidia`, `vmware`) at boot run under `systemd-udevd`, also excluded.
 
 ## Triage
 - A module from `/tmp` is a rootkit until disproven. Capture the file, do not reboot (some rootkits only persist in memory), engage IR.

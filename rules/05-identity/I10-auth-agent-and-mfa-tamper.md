@@ -22,14 +22,15 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 | EVAL op = TO_LOWER(azure.auditlogs.operation_name),
        actor = TO_LOWER(COALESCE(azure.auditlogs.properties.initiated_by.user.userPrincipalName, azure.auditlogs.properties.initiated_by.app.displayName)),
        target = TO_LOWER(TO_STRING(`azure.auditlogs.properties.target_resources.0.user_principal_name`))
-| WHERE azure.auditlogs.properties.result == "success"
+| WHERE event.outcome == "success"                // the integration moves properties.result to event.outcome
   AND (
        op IN ("user registered security info", "admin registered security info")   // a new method on an account
     OR op LIKE "*authentication methods policy*"                                    // tenant-wide method policy changed
     OR op LIKE "*disable strong authentication*"                                    // per-user MFA turned off
     OR op LIKE "*security defaults*"
   )
-| KEEP @timestamp, op, actor, target, source.ip, azure.auditlogs.properties.additional_details
+| KEEP @timestamp, op, actor, target, source.ip,
+       azure.auditlogs.properties.additional_details.key, azure.auditlogs.properties.additional_details.value
 ```
 The high-fidelity version joins this to I07: an MFA method registered within an hour of a high-risk sign-in for the same user. Run as a correlation rule once both are live.
 

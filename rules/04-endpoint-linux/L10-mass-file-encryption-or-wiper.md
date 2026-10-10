@@ -14,30 +14,31 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Linux ransomware (ESXi and NAS variants especially) rewrites hundreds of files in seconds and drops a ransom note. A single process touching a large number of distinct files across many directories in a short window, or invoking bulk crypto tooling, is the encryption event itself.
+Linux ransomware (ESXi and NAS variants especially) rewrites hundreds of files in seconds and drops a ransom note. A single process touching a large number of distinct files across many directories in a short window, or bulk crypto tooling run over a directory tree, is the encryption event itself.
+
+A single `openssl enc` or `gpg --encrypt` is how backup scripts protect their archives, so branch A only counts encryption driven across a tree by `find -exec`. Overwriting a block device from `/dev/urandom` is a wipe; writing it to `/dev/null` is a benchmark and is excluded.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE host.os.type == "linux"
+| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
 // Branch A: bulk crypto/wipe command shapes
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, ""))
-| EVAL crypto_cmd = CASE(
-     (pname == "openssl" AND cmd LIKE "*enc*" AND (cmd LIKE "*-aes*" OR cmd LIKE "*-e *")) OR cmd LIKE "*gpg*--encrypt*--recipient*"
-     OR (pname IN ("find") AND cmd LIKE "*-exec*" AND (cmd LIKE "*openssl*enc*" OR cmd LIKE "*gpg*"))
-     OR (pname == "dd" AND cmd LIKE "*of=/dev/*" AND cmd LIKE "*if=/dev/urandom*")
-     OR (cmd LIKE "*.vmdk*" AND cmd LIKE "*encrypt*") OR cmd LIKE "*vim-cmd*vmsvc/power.off*"
-     OR cmd LIKE "*esxcli*vm process kill*", 1, 0)
-| WHERE event.action == "ProcessRollup2" AND crypto_cmd == 1
+| WHERE (pname == "find" AND cmd LIKE "*-exec*" AND (cmd LIKE "*openssl*enc*" OR cmd LIKE "*gpg*"))
+   OR (pname == "dd" AND cmd LIKE "*if=/dev/urandom*" AND cmd LIKE "*of=/dev/*" AND NOT cmd LIKE "*of=/dev/null*")
+   OR (cmd LIKE "*.vmdk*" AND cmd LIKE "*encrypt*")
+   OR cmd LIKE "*esxcli*vm process kill*"
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
-Branch B (volume-based) needs file-write events. Run it as a second rule once you confirm the file-write event name in your feed (Falcon Linux emits generic file events; confirm the `event.action` value):
+Branch B (volume-based) needs file-write events. Run it as a second rule once you confirm which `*FileWritten` and `FileRenameInfo` events your Linux sensors send and that they carry the writing process name (newer sensors set `process.name` from `ContextBaseFileName`):
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE host.os.type == "linux" AND event.action IN ("NewFileWritten", "FileRenameInfo", "GenericFileWritten")
-| EVAL ext = TO_LOWER(file.extension)
-| STATS files = COUNT_DISTINCT(file.path), dirs = COUNT_DISTINCT(file.directory), new_exts = VALUES(ext)
-    BY process.entity_id, host.name, process.name, BUCKET(@timestamp, 5 minutes)
+| WHERE host.os.type == "linux" AND (event.action LIKE "*FileWritten" OR event.action == "FileRenameInfo")
+| EVAL pname = TO_LOWER(COALESCE(process.name, "unknown")), ext = TO_LOWER(file.extension)
+// package managers, archivers and sync tools write thousands of files by design
+| WHERE pname NOT IN ("dpkg", "rpm", "dnf", "yum", "apt", "apt-get", "unattended-upgr", "packagekitd", "pip", "pip3", "npm", "rsync", "tar", "unzip", "cp", "git")
+| STATS files = COUNT_DISTINCT(file.path), dirs = COUNT_DISTINCT(file.directory), new_exts = VALUES(ext), host.name = VALUES(host.name)
+    BY host.id, process.entity_id, pname, BUCKET(@timestamp, 5 minutes)
 | WHERE files >= 200 AND dirs >= 5
 ```
 
@@ -45,11 +46,12 @@ FROM logs-crowdstrike.fdr-*
 Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Encryption produces thousands of events. One alert per host, and every new host still alerts.
 
 ## Known false positives / exclusions
-- Legitimate backup encryption and large `dd` disk clones. Exclude the backup service account and known imaging hosts.
-- Developer builds writing many files. Exclude build hosts on branch B.
+- Large `dd` disk wipes during decommissioning. Exclude known imaging and decommissioning hosts.
+- Branch B: package managers, archivers and sync tools are excluded by name above. Exclude build hosts and backup restore jobs by host.
+- `esxcli vm process kill` is also an admin command for hung VMs, but it only appears where a sensor runs on the hypervisor shell.
 
 ## Triage
 - Isolate every host showing branch B. Identify the ransom note filename from VALUES and sweep the fleet for it. Check W05/W06 equivalents and initial access.
 
 ## Test
-Branch A: `find /labdir -type f -exec openssl enc -aes-256-cbc -k test -in {} -out {}.enc \;` on a disposable lab directory.
+Branch A: run the Atomic Red Team T1486 (Linux) test against a disposable lab directory.

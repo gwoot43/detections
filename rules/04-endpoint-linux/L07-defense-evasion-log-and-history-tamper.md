@@ -29,7 +29,8 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
                  OR cmd LIKE "*/var/log/audit/*" OR cmd LIKE "*wtmp*" OR cmd LIKE "*btmp*" OR cmd LIKE "*lastlog*"
                  OR cmd LIKE "*.bash_history*" OR cmd LIKE "*.zsh_history*" OR cmd LIKE "*/root/.*history*"
 | WHERE (pname IN ("rm", "unlink", "shred", "truncate") AND sec_log)
-   OR (sec_log AND (cmd LIKE "*: >*" OR cmd LIKE "*echo*>*" OR cmd LIKE "*cat /dev/null*>*"))
+   // overwrite, not append: scripts append status lines to /var/log/messages
+   OR (sec_log AND (cmd LIKE "*: >*" OR cmd LIKE "*echo*>*" OR cmd LIKE "*cat /dev/null*>*") AND NOT cmd LIKE "*>>*")
    OR (cmd LIKE "*history -c*" OR cmd LIKE "*unset histfile*" OR cmd LIKE "*export histfile=/dev/null*" OR cmd LIKE "*set +o history*" OR cmd LIKE "*histsize=0*")
    OR (cmd LIKE "*ln -sf /dev/null*" AND cmd LIKE "*history*")
    OR (pname == "touch" AND (cmd LIKE "*-r *" OR cmd LIKE "*-t *" OR cmd LIKE "*-d *") AND (cmd LIKE "*/usr/*" OR cmd LIKE "*/bin/*" OR cmd LIKE "*/sbin/*" OR cmd LIKE "*/lib*" OR cmd LIKE "*/etc/*"))
