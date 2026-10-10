@@ -48,7 +48,7 @@ None. Each broad role assignment is a separate privilege grant. The success filt
 
 ## Triage
 - Principal that was granted (`principalId` in the body), by whom, from where.
-- Check whether the grantor's Entra sign-in was risky (I05, I07).
+- Check whether the grantor's Entra sign-in was risky (I07).
 
 ## Test
 Assign Reader at subscription scope (no fire), then Contributor to a test group (fire), then remove it.

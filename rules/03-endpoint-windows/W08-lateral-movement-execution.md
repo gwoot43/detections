@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-The parent tells the story. `services.exe` spawning a shell is a service binary that is a shell (PsExec-class tools). `wmiprvse.exe` spawning a shell is remote WMI. `wsmprovhost.exe` is WinRM. `mmc.exe` spawning shells is DCOM (MMC20.Application). Admins use these too, from a small number of jump hosts you can exclude.
+The parent tells the story. `services.exe` spawning a shell is a service binary that is a shell (PsExec-class tools), and the PsExec-style service binaries themselves (PSEXESVC, PAExec, RemCom, CSExec) starting on a host are matched by name. Service installs from user-writable paths are WE08. `wmiprvse.exe` spawning a shell is remote WMI. `wsmprovhost.exe` is WinRM. `mmc.exe` spawning shells is DCOM (MMC20.Application). Admins use these too, from a small number of jump hosts you can exclude.
 
 The source-side branches (`wmic /node`, `schtasks /s`, `sc \\host`) catch the same moves from the machine that launches them. `dllhost.exe` and PowerShell `Invoke-Command`/`Enter-PSSession` are not matched: both are everyday admin and COM activity, and WinRM execution is already seen on the destination through `wsmprovhost.exe`.
 
@@ -26,7 +26,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE (parent IN ("wmiprvse.exe", "wsmprovhost.exe", "mmc.exe", "psexesvc.exe", "paexec.exe", "winrshost.exe")
         AND child IN ("cmd.exe", "powershell.exe", "pwsh.exe", "rundll32.exe", "regsvr32.exe", "mshta.exe", "wscript.exe", "cscript.exe", "certutil.exe", "net.exe", "whoami.exe", "reg.exe"))
    OR (parent == "services.exe" AND child IN ("cmd.exe", "powershell.exe", "pwsh.exe", "rundll32.exe"))
-   OR child IN ("psexesvc.exe", "paexec.exe", "remcomsvc.exe")
+   OR child IN ("psexesvc.exe", "paexec.exe", "remcomsvc.exe", "csexecsvc.exe")
    OR (child == "wmic.exe" AND cmd LIKE "*/node:*" AND cmd LIKE "*process call create*")
    OR (child == "schtasks.exe" AND cmd LIKE "*/s *" AND cmd LIKE "*/create*")
    OR (child == "sc.exe" AND cmd LIKE """*\\\\*""" AND (cmd LIKE "*create*" OR cmd LIKE "*start*"))

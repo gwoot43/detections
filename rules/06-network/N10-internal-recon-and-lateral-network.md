@@ -1,39 +1,24 @@
 ---
 id: N10
-name: External scanning against the F5/Imperva edge, or internal port-scan fan-out
+name: External reconnaissance scan against the Imperva-protected web edge (one source, many URIs)
 category: network
 status: todo
 severity: medium
 language: esql
-index: logs-zscaler_zia.firewall-*, logs-imperva_cloud_waf.event-*
-mitre: [T1595.001, T1046, T1210]
-data_source: Zscaler ZIA firewall logs (internal branch; add internal firewall/flow logs) and Imperva Cloud WAF events (edge branch)
+index: logs-imperva_cloud_waf.event-*
+mitre: [T1595.001, T1595.003]
+data_source: Imperva Cloud WAF events
 suppression:
   fields: [src]
   duration: 1h
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Two branches. External: a single source touching many distinct URIs or hostnames on the edge in a short window is reconnaissance ahead of exploitation. Internal: one internal host connecting to many distinct internal hosts on the same port in a short window is lateral scanning, which precedes lateral movement (W08).
+A single source touching many distinct URIs or hostnames on the edge in a short window is reconnaissance ahead of exploitation: directory and file brute forcing, or a vulnerability scanner walking the site. Normal visitors and crawlers request far fewer distinct paths in five minutes.
 
-## Query (internal fan-out)
-```esql
-FROM logs-zscaler_zia.firewall-*   // ZIA only logs traffic forwarded to Zscaler: add your internal firewall/flow data streams here
-| WHERE event.category == "network" AND destination.ip IS NOT NULL
-| EVAL src = source.ip,
-       // Zscaler firewall appends both the client-side and server-side destination port (cdport, sdport),
-       // so destination.port can be multi-valued; take one value so each connection is counted once
-       dport = MV_MIN(destination.port)
-// keep RFC1918 to RFC1918 only
-| WHERE CIDR_MATCH(source.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
-  AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
-| STATS dst_hosts = COUNT_DISTINCT(destination.ip), conns = COUNT(*)
-    BY src, dport, BUCKET(@timestamp, 10 minutes)
-| WHERE dst_hosts >= 50
-```
-There is no `network.direction` filter. None of the Zscaler ZIA data streams set `network.direction`, so filtering on it dropped every event. The RFC1918-to-RFC1918 `CIDR_MATCH` is what scopes the query to internal traffic.
+Internal fan-out (one internal host connecting to many internal hosts) is not covered here. B01 (horizontal scan) and B04 (lateral sweep over admin protocols) see it from the Falcon sensor on every host, including traffic that never passes through Zscaler.
 
-External edge branch:
+## Query
 ```esql
 FROM logs-imperva_cloud_waf.event-*
 | EVAL src = source.ip
@@ -43,14 +28,14 @@ FROM logs-imperva_cloud_waf.event-*
 ```
 
 ## Suppression
-Suppress by `src` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. A scan spans many ports and buckets.
+Suppress by `src` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. A scan spans many buckets.
 
 ## Known false positives / exclusions
-- Vulnerability scanners (Tenable, Qualys) and monitoring probes. Exclude their source IPs.
-- Load balancers and legitimate service discovery. Exclude by source.
+- Your own external vulnerability scanners and attack-surface monitoring (Tenable, Qualys) and uptime probes. Exclude their source IPs.
+- Search-engine crawlers and partner integrations that walk many URIs. Exclude by source after confirming.
 
 ## Triage
-- Internal fan-out from a workstation is never normal. Map the source IP to the host and user, isolate, and check for W08/W09 on that host.
+- Identify the source (ASN, country, reputation) and what it reached. Check the same source for unblocked attacks (N05) and for a block followed by success (N06): a scan that turns into exploitation is the case to act on.
 
 ## Test
-Run a controlled `nmap` sweep from a lab host against a lab subnet.
+Run a controlled directory brute force (for example `ffuf` with a small wordlist) from a lab host against a lab site behind Imperva.

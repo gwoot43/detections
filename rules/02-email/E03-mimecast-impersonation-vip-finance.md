@@ -6,7 +6,7 @@ status: todo
 severity: medium
 language: esql
 index: logs-mimecast.ttp_ip_logs-*
-mitre: [T1656, T1534, T1566.003]
+mitre: [T1684.001, T1534, T1566.003]
 data_source: Mimecast TTP Impersonation Protect logs (Elastic Mimecast integration, ttp_ip_logs data stream)
 suppression:
   fields: [sender, rcpt]

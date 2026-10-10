@@ -1,12 +1,12 @@
 ---
 id: W05
-name: Defender or Falcon tampered with, EDR-killer tooling, or safe boot configured
+name: Defender or security service stopped, Defender engine wiped, EDR-killer tooling, or safe boot configured
 category: endpoint-windows
 status: todo
 severity: critical
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1562.001, T1685, T1068]
+mitre: [T1685, T1068]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
   fields: [host.id]
@@ -14,7 +14,13 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Ransomware operators in 2026 disable EDR before encryption, usually through BYOVD EDR killers. The process-level precursors (stopping the service, adding exclusions, setting safe boot, running a known killer) are unambiguous. Pair with CS01 (driver loads) for the kernel side.
+Ransomware operators in 2026 disable EDR before encryption, usually through BYOVD EDR killers. The process-level precursors this rule keeps (stopping or deleting the Defender services, wiping the Defender engine with `MpCmdRun`, setting safe boot so the next boot runs without security drivers, running a known killer) are unambiguous. Pair with CS01 (driver loads) for the kernel side.
+
+Two neighbouring signals are owned elsewhere, so they are not repeated here:
+- **Defender settings changes** (`Set-MpPreference` disables, `Add-MpPreference` exclusions, the `DisableAntiSpyware` registry value) are CP06. It reads Defender's own event 5007, which records the outcome however the change was made, and needs the **Windows Defender** stream turned on in the Elastic Windows integration.
+- **Falcon tamper** (uninstall with `CsUninstallTool` or `msiexec /x`, sensor stopped or tampered with) is CS05, which uses the sensor's own uninstall and tamper events.
+
+Service creation with `sc create ... type= kernel` is not matched here either: WE08 sees every new service from user-writable paths (7045/4697), and CS01 sees the driver load.
 
 ## Query
 ```esql
@@ -22,17 +28,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | WHERE
-     (cmd LIKE "*set-mppreference*" AND (cmd LIKE "*disable*" OR cmd LIKE "*exclusion*" OR cmd LIKE "*mapsreporting*"))
-  OR (cmd LIKE "*add-mppreference*" AND cmd LIKE "*exclusion*")
   // -RemoveDefinitions -DynamicSignatures is a Microsoft troubleshooting step; -All wipes the engine
-  OR (cmd LIKE "*mpcmdrun*" AND ((cmd LIKE "*-removedefinitions*" AND cmd LIKE "*-all*") OR cmd LIKE "*-disableservice*"))
-  OR (cmd LIKE "*windows defender*" AND cmd LIKE "*disableantispyware*")
+     (cmd LIKE "*mpcmdrun*" AND ((cmd LIKE "*-removedefinitions*" AND cmd LIKE "*-all*") OR cmd LIKE "*-disableservice*"))
   OR (pname IN ("sc.exe", "net.exe", "net1.exe") AND (cmd LIKE "*stop*" OR cmd LIKE "*delete*" OR cmd LIKE "*config*")
-      AND (cmd LIKE "*windefend*" OR cmd LIKE "*wdnissvc*" OR cmd LIKE "* sense*" OR cmd LIKE "*csagent*" OR cmd LIKE "*csfalconservice*"))
-  OR cmd LIKE "*csuninstalltool*"
-  OR (pname == "msiexec.exe" AND cmd LIKE "*/x*" AND cmd LIKE "*falcon*")
+      AND (cmd LIKE "*windefend*" OR cmd LIKE "*wdnissvc*" OR cmd LIKE "* sense*"))
   OR (pname == "bcdedit.exe" AND cmd LIKE "*/set*safeboot*")
-  OR (pname == "sc.exe" AND cmd LIKE "*create*" AND cmd LIKE "*type=*kernel*" AND (cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\users\\*""" OR cmd LIKE """*\\programdata\\*"""))
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256
 ```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
@@ -41,11 +41,12 @@ Maintain a value list of EDR-killer tool hashes from your threat intel feed and 
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Tamper scripts issue many commands in seconds. One alert per host is the triage unit, and other hosts still alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Configuration management adding Defender exclusions under the CM agent parent. Exclude by parent and exact exclusion path, never by parent alone: attackers who own SCCM or Intune push exactly this.
+- Build or decommission scripts that stop or reconfigure `WinDefend` explicitly. Exclude them by exact command line, never by parent alone: attackers who own SCCM or Intune push exactly this.
 - Helpdesk booting a machine into safe mode for repair. Ticket-gated. Removing safe boot (`/deletevalue`) no longer matches.
 
 ## Triage
 - Isolate immediately. This is the last step before encryption. Check for shadow copy deletion (W06) and lateral movement (W08) on the same host in the previous hour.
+- Check the same host for the neighbouring signals: Defender settings weakened (CP06, needs the Windows Defender stream), Falcon uninstalled or tampered with (CS05), and a vulnerable driver loaded (CS01).
 
 ## Test
-Run the Atomic Red Team Defender tamper test (T1562.001) on a lab host. Tamper protection refuses it; the rule still fires.
+Run `sc stop WinDefend` or `bcdedit /set {current} safeboot minimal` (then `bcdedit /deletevalue {current} safeboot`) on a lab host. Tamper protection refuses the service stop; the rule still fires on the command.

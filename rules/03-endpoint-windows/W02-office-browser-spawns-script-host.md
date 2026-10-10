@@ -21,7 +21,7 @@ Three benign patterns are removed in the query:
 - Outlook and other apps call `rundll32 shell32.dll,OpenAs_RunDLL` for the "Open with" dialog.
 - `msiexec.exe` is only counted under Office, PDF and mail parents. Users install downloaded MSIs from browsers and archives all the time.
 
-`explorer.exe` as a parent is limited to script files launched from Downloads, a temp folder or an archive extraction folder. Commands pasted into the Run dialog or address bar are W03.
+`explorer.exe` is not a parent here. W03 owns script hosts and LOLBINs launched from Explorer: commands pasted into the Run dialog or address bar (ClickFix/FileFix), and script files opened from Downloads, a temp folder or an archive extraction folder.
 
 ## Query
 ```esql
@@ -32,17 +32,13 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
                                "acrord32.exe", "acrobat.exe", "foxitreader.exe"),
        web_parent = parent IN ("msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "teams.exe", "ms-teams.exe", "slack.exe",
                                "7zfm.exe", "winrar.exe", "winzip64.exe")
-| WHERE ((doc_parent OR web_parent)
-         AND child IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe",
-                       "certutil.exe", "bitsadmin.exe", "msiexec.exe", "msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe",
-                       "curl.exe", "wget.exe", "schtasks.exe", "wmic.exe", "cmstp.exe", "forfiles.exe", "hh.exe")
-         AND NOT (child == "msiexec.exe" AND web_parent)
-         AND NOT (child == "cmd.exe" AND cmd LIKE "*chrome-extension://*")
-         AND NOT (child == "rundll32.exe" AND cmd LIKE "*shell32.dll*openas_rundll*"))
-   // explorer.exe: a script file double-clicked from Downloads, a temp folder or an archive extraction folder
-   OR (parent == "explorer.exe"
-       AND child IN ("wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
-       AND (cmd LIKE """*\\downloads\\*""" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\7zo*""" OR cmd LIKE """*\\rar$*"""))
+| WHERE (doc_parent OR web_parent)
+  AND child IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe",
+                "certutil.exe", "bitsadmin.exe", "msiexec.exe", "msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe",
+                "curl.exe", "wget.exe", "schtasks.exe", "wmic.exe", "cmstp.exe", "forfiles.exe", "hh.exe")
+  AND NOT (child == "msiexec.exe" AND web_parent)
+  AND NOT (child == "cmd.exe" AND cmd LIKE "*chrome-extension://*")
+  AND NOT (child == "rundll32.exe" AND cmd LIKE "*shell32.dll*openas_rundll*")
 | KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
@@ -52,7 +48,6 @@ Suppress by `host.id`, `parent`, `child` for 1h. Alerts missing a key field are 
 ## Known false positives / exclusions
 - Excel spawning `cmd.exe` for approved macros in finance. Exclude by exact command line after review, never by host.
 - Browser extensions that launch a native host through `powershell.exe` instead of `cmd.exe`. Exclude by exact command line.
-- Users double-clicking a `.bat` or `.ps1` they downloaded themselves. Rare on a managed fleet; confirm with the user.
 
 ## Triage
 - FDR does not carry the parent's command line. Find the parent's own ProcessRollup2 (its `process.entity_id` equals this event's `process.parent.entity_id`) to get the document or download path. Pull it from Mimecast (E02) or detonate.

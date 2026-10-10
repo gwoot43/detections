@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1071, T1573, T1095]
+mitre: [T1071.001, T1573, T1095]
 data_source: CrowdStrike FDR network connection events
 suppression:
   fields: [host.id, process.name, destination.ip]

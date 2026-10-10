@@ -6,7 +6,7 @@ status: todo
 severity: critical
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1562.001, T1070]
+mitre: [T1685, T1070]
 data_source: CrowdStrike FDR sensor uninstall and tamper events, ProcessRollup2
 suppression:
   fields: [host.id]
@@ -16,7 +16,7 @@ suppression:
 ## Why this is high fidelity
 An endpoint whose sensor is removed or silenced is an endpoint an attacker wants dark. Two signals: explicit uninstall/stop events, and a host that was reporting and then goes silent while other signals suggest it is still up. Blind spots are as important as alerts.
 
-## Query (explicit tamper; see also W05)
+## Query (explicit tamper)
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),

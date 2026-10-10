@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Event 7045 records a new service. On domain controllers, new services are rare and planned, and a service is how PsExec-class lateral movement and many drivers (including BYOVD) install. The rule alerts on any new service on a DC, and fleet-wide only on services that run from user-writable paths, run a shell or script host, or carry a known remote-execution service name. Kernel drivers from normal driver paths are left to CS01, because vendor software installs them constantly.
+Event 7045 records a new service. On domain controllers, new services are rare and planned, and a service is how PsExec-class lateral movement and many drivers (including BYOVD) install. The rule alerts on any new service on a DC, and fleet-wide only on services that run from user-writable paths or the `ADMIN$` share, or run a shell or script host. Kernel drivers from normal driver paths are left to CS01, because vendor software installs them constantly. Known remote-execution service names (PSEXESVC, PAExec, RemCom, CSExec) are not listed here: W08 sees those services start and spawn their children on every Falcon host.
 
 ## Query
 ```esql
@@ -28,7 +28,6 @@ FROM logs-system.system-*, logs-system.security*, logs-windows.forwarded* METADA
      img LIKE """*\\temp\\*""" OR img LIKE """*\\users\\*""" OR img LIKE """*\\programdata\\*""" OR img LIKE """*\\appdata\\*""" OR img LIKE """*\\perflogs\\*"""
   OR img LIKE "*powershell*" OR img LIKE "*cmd.exe*/c*" OR img LIKE "*cmd /c*" OR img LIKE "*%comspec%*" OR img LIKE "*-enc*"
   OR img LIKE "*rundll32*" OR img LIKE "*mshta*" OR img LIKE """*\\admin$\\*"""
-  OR svc IN ("psexesvc", "paexec", "remcomsvc", "csexecsvc")
   OR host_key LIKE "dc*" OR host_key LIKE "*-dc*"   // your DC naming: any new service on a DC is worth review
 | KEEP @timestamp, host_key, winlog.computer_name, event.code, svc, img, stype, winlog.event_data.SubjectUserName, winlog.event_data.AccountName
 ```

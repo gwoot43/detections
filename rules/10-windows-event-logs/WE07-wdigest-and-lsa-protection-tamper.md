@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1112, T1003.001, T1562.001, T1547.002, T1547.005, T1556.002]
+mitre: [T1112, T1003.001, T1685, T1547.002, T1547.005, T1556.002]
 data_source: CrowdStrike FDR registry events (RegSystemConfigValueUpdate / AsepValueUpdate / RegGenericValueUpdate)
 suppression:
   fields: [host.name, k]

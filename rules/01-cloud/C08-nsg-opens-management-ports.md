@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-azure.activitylogs-*
-mitre: [T1562.007, T1133]
+mitre: [T1686.001, T1133]
 data_source: Azure Activity log
 suppression:
   fields: [actor, azure.resource.name]

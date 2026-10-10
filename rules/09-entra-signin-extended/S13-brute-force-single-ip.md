@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-I05 catches one IP trying many users. This rule catches the opposite: one IP trying one user many times. Failures are only counted from unregistered devices. That removes the most common benign cause, a stale saved password in an app on a managed laptop or phone. If the same user also signs in successfully from a registered device on that IP in the window, the IP is the user's own network and the row is dropped. Smart Lockout returns 50053 once it starts blocking, so lockout responses are counted as failures too.
+I05 (on-premises) and S15 (Entra) catch sprays across many users. This rule catches the opposite: one IP trying one user many times. Failures are only counted from unregistered devices. That removes the most common benign cause, a stale saved password in an app on a managed laptop or phone. If the same user also signs in successfully from a registered device on that IP in the window, the IP is the user's own network and the row is dropped. Smart Lockout returns 50053 once it starts blocking, so lockout responses are counted as failures too. A response that proves the password was right is never a failure: 50055 (password expired), 50074, 50076 and 50079 (MFA required or registration interrupted) and 53003 (Conditional Access block) all come after a correct password, so they count as a landing alongside a full success (0).
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
@@ -24,8 +24,10 @@ FROM logs-azure.signinlogs-*
 | EVAL ec = TO_STRING(azure.signinlogs.properties.status.error_code),
        usr = TO_LOWER(user.name),
        trust = COALESCE(TO_STRING(azure.signinlogs.properties.device_detail.trust_type), "")
-| EVAL failed = CASE(ec IN ("50126", "50053", "50055", "50056") AND trust == "", 1, 0),
-       ok = CASE(ec == "0", 1, 0)
+// failed: wrong password, locked, null password. ok: the password was right, even if expiry, MFA
+// or Conditional Access then stopped the sign-in (0, 50055, 50074, 50076, 50079, 53003)
+| EVAL failed = CASE(ec IN ("50126", "50053", "50056") AND trust == "", 1, 0),
+       ok = CASE(ec IN ("0", "50055", "50074", "50076", "50079", "53003"), 1, 0)
 | WHERE failed == 1 OR ok == 1
 | STATS failures = SUM(failed), successes = SUM(ok),
         managed_successes = SUM(CASE(ok == 1 AND trust != "", 1, 0)),
@@ -40,7 +42,7 @@ FROM logs-azure.signinlogs-*
 | WHERE failures >= 15 AND managed_successes == 0
 | EVAL landed = successes > 0 AND last_success >= first_fail
 ```
-`landed` is true when a sign-in succeeds from the same IP after the failures began. That is the case to act on first.
+`landed` is true when the password is accepted from the same IP after the failures began, whether the sign-in then completed or was stopped by password expiry, MFA or Conditional Access. That is the case to act on first: the attacker has the password.
 
 ## Suppression
 Suppress by `usr`, `source.ip`, `landed` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. `landed` is in the key so a later success raises a new alert.
@@ -51,7 +53,7 @@ Suppress by `usr`, `source.ip`, `landed` for 4h. Alerts missing a key field are 
 
 ## Triage
 - Check the IP's ASN and country against the user's usual locations. A hosting provider or a new country is an attack.
-- If `landed` is true and the IP is not familiar, revoke sessions and refresh tokens, reset the password, and check for persistence (I10, E06, C05).
+- If `landed` is true and the IP is not familiar, revoke sessions and refresh tokens, reset the password, and check for persistence (I10, E06, C05). If the landing was an MFA or Conditional Access interrupt, the password is still known to the attacker; reset it and watch for MFA fatigue (S12).
 - If `landed` is false, the account held. Confirm the user's password is strong and that MFA is registered.
 
 ## Test

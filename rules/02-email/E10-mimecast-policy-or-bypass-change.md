@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-mimecast.audit_events-*
-mitre: [T1562.001, T1685, T1078]
+mitre: [T1685, T1078]
 data_source: Mimecast administration audit events (Elastic Mimecast integration, audit_events data stream)
 suppression:
   fields: [user.email, event.action]

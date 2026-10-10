@@ -117,7 +117,7 @@ These Entra ideas came up with the deception plan. This is how they map to the l
 | Many different users signing in from one Entra device | **S22** (new) |
 | Refresh-token (non-interactive) sign-in from a network the user has never used interactively | **S23** (new) |
 | Same session ID from multiple ASNs or countries (AiTM token replay) | Already covered: S08 |
-| Device code flow and ROPC | Already covered: S02, C11, I08 |
+| Device code flow and ROPC | Already covered: S02, C11 |
 | Developer tools (Azure CLI, Graph PowerShell, VS Code) used by non-developers | Already covered: S04 |
 | Distributed low-and-slow spray | Already covered: S15 |
 | MFA fatigue | Already covered: S12 |

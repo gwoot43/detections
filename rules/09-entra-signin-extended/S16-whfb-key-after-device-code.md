@@ -64,13 +64,13 @@ Join on the user's object ID rather than the UPN. It is the same in both logs an
 Suppress by `uid`, `severity` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Severity is in the key, so a device registration that arrives after the first alert raises a new critical alert.
 
 ## Known false positives / exclusions
-- A user who legitimately signs in with device code (for example, the Azure CLI) and enrolls Hello on a new laptop in the same hour. This is rare. Exclude sanctioned device-code users (see I08) by object ID.
+- A user who legitimately signs in with device code (for example, the Azure CLI) and enrolls Hello on a new laptop in the same hour. This is rare. Exclude sanctioned device-code users (see C11) by object ID.
 - Elastic also ships a first-seen rule, "Entra ID Windows Hello for Business Credential Registered", which fires on any Hello enrollment from a new user-and-ASN pair. Enable it as a low-severity companion for enrollments this rule does not chain.
 
 ## Triage
 - Delete the attacker's devices first, then the Hello credential. The device holds the PRT, so revoking sessions before removing the device leaves access in place.
 - Then revoke sessions and refresh tokens, reset the password, and re-enroll the user from a trusted device.
-- Find the device-code phish: check the user's mail (E01, E05) and the proxy investigation query in I08 for the lure.
+- Find the device-code phish: check the user's mail (E01, E05) and the proxy investigation query in C11's triage for the lure.
 - In hybrid key-trust deployments the attacker's key is synced into on-premises AD by the directory sync account. I12 excludes that account, so this rule is the place it gets caught.
 
 ## Test

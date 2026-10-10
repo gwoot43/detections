@@ -47,7 +47,7 @@ Suppress by `source.ip` for 4h. Alerts missing a key field are not suppressed. A
 - A user with a stale saved password retrying then fixing it. The multi-user (spray) branch avoids this. For the single-source branch, require the success account to be one of the failed accounts.
 
 ## Triage
-- Treat the succeeded account as compromised until confirmed. Terminate the session, reset, and correlate with I05 (same spray may hit Entra too).
+- Treat the succeeded account as compromised until confirmed. Terminate the session, reset, and correlate with S13-S15 (same spray may hit Entra too) and I05 (on-premises AD).
 
 ## Test
 Fail the VPN logon several times then succeed with a lab account from one source.

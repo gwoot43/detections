@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-f5.audit-*
-mitre: [T1556, T1562.001, T1078]
+mitre: [T1556, T1685, T1078]
 data_source: F5 TMOS/APM audit (MCP audit) logs
 suppression:
   fields: [usr]

@@ -15,7 +15,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Falcon records a file-written event for documents, archives, PDFs and executables, and flags the ones written to a removable disk. Normal USB use is a handful of files. Dozens of documents or archives copied to a stick within an hour is staging for exfiltration, or someone walking out with data. The insider rules (IN01-IN08) cover cloud downloads. This is the physical path they can't see.
+Falcon records a file-written event for documents, archives, PDFs and executables, and flags the ones written to a removable disk. Normal USB use is a handful of files. Dozens of documents or archives copied to a stick within an hour is staging for exfiltration, or someone walking out with data. The insider rules (IN01-IN09) cover cloud downloads. This is the physical path they can't see.
 
 ## Query
 **Option A: CrowdStrike FDR (recommended, no extra auditing needed)**

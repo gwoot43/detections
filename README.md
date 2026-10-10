@@ -5,7 +5,7 @@ Starter detection content for a new detection & response function. Stack: **Crow
 ## Layout
 ```
 rules/
-  01-cloud/                 C01-C13   Azure & Entra activity/identity-plane
+  01-cloud/                 C01-C12   Azure & Entra activity/identity-plane
   02-email/                 E01-E14   Mimecast + O365 / Defender for Office
   03-endpoint-windows/      W01-W14   CrowdStrike FDR (Windows) + Defender for Endpoint alerts
   04-endpoint-linux/        L01-L12   CrowdStrike FDR (Linux)
@@ -31,7 +31,7 @@ Each rule file is self-contained: front-matter (id, severity, MITRE, data source
 
 ## Design principles (why these are high fidelity, not the AI-noise you have now)
 1. **Alert on the improbable, not the merely suspicious.** Every rule targets behaviour with a small, knowable legitimate population you can exclude by name, not by guesswork.
-2. **Prefer the transition over the state.** Block-then-success (C11, N02, N06), spray-then-success (I05), disable-then-destroy (X05). Sequences are far cleaner than single events.
+2. **Prefer the transition over the state.** Block-then-success (C11, N02, N06), spray-then-success (S13-S15), disable-then-destroy (X05). Sequences are far cleaner than single events.
 3. **Correlate across domains.** The X-series turns two medium signals into one certain one. These are the rules that justify having everything in Elastic.
 4. **Exclude by identity, never by muting a technique.** Exclusions are service accounts, pipelines and known hosts, kept in lookups, never "turn the rule off because it's noisy".
 5. **Vendor alerts are inputs, not the whole story.** CS04 routes Falcon detections in on day one; the custom rules cover what the vendors cannot see (non-endpoint sources and cross-source chains).
@@ -44,184 +44,12 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 
 ## MITRE ATT&CK coverage map
 
-| Rule | Technique(s) | Tactic (v19) |
-|---|---|---|
-| C01 | T1484.002 | Privilege Escalation / Persistence |
-| C02 | T1556.009, T1562.007 | Defense Impairment / Credential Access |
-| C03 | T1098.003, T1078.004 | Persistence / Privilege Escalation |
-| C04 | T1098.001, T1550.001 | Persistence / Lateral Movement |
-| C05 | T1528, T1098.001 | Credential Access / Persistence |
-| C06 | T1098.003 | Privilege Escalation |
-| C07 | T1651, T1098, T1021.008 | Execution / Lateral Movement |
-| C08 | T1562.007, T1133 | Defense Impairment / Initial Access |
-| C09 | T1562.008, T1685.002 | Defense Impairment |
-| C10 | T1530, T1552, T1005 | Collection / Credential Access |
-| C11 | T1621, T1528, T1078.004, T1556.009 | Credential Access / Initial Access |
-| E01 | T1566.002, T1204.001 | Initial Access / Execution |
-| E02 | T1566.001, T1204.002 | Initial Access / Execution |
-| E03 | T1656, T1534, T1566.003 | Initial Access / Lateral Movement |
-| E04 | T1566.001/.002 | Initial Access |
-| E05 | T1204.001, T1566.002 | Execution / Initial Access |
-| E06 | T1114.003, T1564.008 | Collection / Stealth |
-| E07 | T1114.003 | Collection |
-| E08 | T1098.002 | Persistence |
-| E09 | T1534, T1114, T1078.004 | Lateral Movement / Collection |
-| E10 | T1562.001, T1685, T1078 | Defense Impairment |
-| W01 | T1003.001 | Credential Access |
-| W02 | T1204.002, T1566.001, T1059 | Execution |
-| W03 | T1204.004, T1059.001, T1105 | Execution / Command and Control |
-| W04 | T1105, T1218.005/.010, T1197, T1059.001 | Execution / Stealth |
-| W05 | T1562.001, T1685, T1068 | Defense Impairment |
-| W06 | T1490, T1485 | Impact |
-| W07 | T1136.001, T1098, T1021.001, T1562.004 | Persistence / Defense Impairment |
-| W08 | T1021.002, T1047, T1021.006/.003, T1053.005, T1569.002 | Lateral Movement / Execution |
-| W09 | T1087.002, T1482, T1558.003, T1003, T1069.002, T1018 | Discovery / Credential Access |
-| W10 | T1219, T1572, T1090, T1105 | Command and Control |
-| L01 | T1059.004, T1071 | Execution / Command and Control |
-| L02 | T1105, T1059.004, T1140 | Execution / Command and Control |
-| L03 | T1505.003, T1190, T1059.004 | Persistence / Initial Access |
-| L04 | T1053.003, T1543.002, T1546.004, T1098.004 | Persistence |
-| L05 | T1003.008, T1552.004/.005/.001 | Credential Access |
-| L06 | T1548.001/.003, T1068 | Privilege Escalation |
-| L07 | T1070.002/.003/.006, T1562.001, T1222.002 | Stealth / Defense Impairment |
-| L08 | T1611, T1610, T1613 | Privilege Escalation / Execution |
-| L09 | T1547.006, T1014, T1205.002 | Persistence / Stealth |
-| L10 | T1486, T1485, T1490 | Impact |
-| I01 | T1003.006 | Credential Access |
-| I02 | T1098, T1078.002 | Persistence / Privilege Escalation |
-| I03 | T1558.003 | Credential Access |
-| I04 | T1558.004, T1098 | Credential Access / Persistence |
-| I05 | T1110.003 | Credential Access |
-| I06 | T1078.002, T1021 | Privilege Escalation / Lateral Movement |
-| I07 | T1078.004, T1550.001, T1621 | Initial Access / Credential Access |
-| I08 | T1528, T1621, T1078.004 | Credential Access / Initial Access |
-| I09 | T1649 | Credential Access |
-| I10 | T1556.006, T1098.005 | Defense Impairment / Persistence |
-| N01 | T1133, T1078 | Initial Access |
-| N02 | T1110, T1133 | Credential Access / Initial Access |
-| N03 | T1133, T1078, T1556 | Initial Access / Defense Impairment |
-| N04 | T1556, T1562.001, T1078 | Defense Impairment |
-| N05 | T1190, T1059 | Initial Access / Execution |
-| N06 | T1190, T1595.002 | Initial Access / Reconnaissance |
-| N07 | T1071, T1105, T1571 | Command and Control |
-| N08 | T1567, T1048, T1041 | Exfiltration |
-| N09 | T1090.003, T1572, T1573 | Command and Control |
-| N10 | T1595.001, T1046, T1210 | Reconnaissance / Discovery |
-| CS01 | T1068, T1211, T1562.001 | Privilege Escalation / Defense Impairment |
-| CS02 | T1547.001, T1543.003, T1546 | Persistence |
-| CS03 | T1071.004, T1568.002, T1572 | Command and Control |
-| CS04 | (various, from Falcon) | (various) |
-| CS05 | T1562.001, T1070 | Defense Impairment |
-| CS06 | T1055, T1055.012, T1620 | Stealth |
-| CS07 | T1053.005, T1543.003 | Persistence / Execution |
-| CS08 | (reference) | (reference) |
-| X01 | T1566, T1204, T1059 | Initial Access -> Execution |
-| X02 | T1078.004, T1098, T1528, T1114.003 | Initial Access -> Persistence |
-| X03 | T1133, T1021, T1078 | Initial Access -> Lateral Movement |
-| X04 | T1190, T1505.003, T1059 | Initial Access -> Execution |
-| X05 | T1486, T1490, T1562.001, T1489 | Impact |
-| S01 | T1078.004 | Initial Access |
-| S02 | T1078.004, T1110.003, T1556.006 | Credential Access / Defense Impairment |
-| S03 | T1078.004, T1556.006 | Initial Access / Defense Impairment |
-| S04 | T1087.004, T1526, T1078.004 | Discovery |
-| S05 | T1078.004, T1528, T1110 | Credential Access |
-| S06 | T1078.004, T1003.006, T1098 | Credential Access / Persistence |
-| S07 | T1550.001, T1557, T1078.004 | Lateral Movement / Credential Access |
-| S08 | T1550.004, T1539, T1078.004 | Lateral Movement |
-| S09 | T1078.004, T1110 | Credential Access |
-| S10 | T1078.004, T1090.003 | Initial Access / Command and Control |
-| S12 | T1621, T1110 | Credential Access |
-| S13 | T1110.001 | Credential Access |
-| S14 | T1110.001, T1090.002 | Credential Access / Command and Control |
-| S15 | T1110.003, T1090.002 | Credential Access / Command and Control |
-| S16 | T1098.005, T1556.006, T1528 | Persistence / Credential Access |
-| S17 | T1550, T1098.005 | Lateral Movement / Persistence |
-| S18 | T1098.005 | Persistence |
-| S19 | T1550.001, T1528, T1078.004 | Lateral Movement / Credential Access |
-| S20 | T1098.005, T1550.001, T1528 | Persistence / Credential Access |
-| S21 | T1087.004, T1069.003, T1526 | Discovery |
-| WE01 | T1070.001 | Stealth |
-| WE02 | T1562.002 | Defense Impairment |
-| WE03 | T1484.001, T1134.005, T1098 | Privilege Escalation / Persistence |
-| WE04 | T1110, T1078, T1550.002 | Credential Access |
-| WE05 | T1134, T1078.002, T1068 | Privilege Escalation |
-| WE06 | T1484.001, T1078.002 | Privilege Escalation |
-| WE07 | T1112, T1003.001, T1562.001, T1547.002, T1547.005, T1556.002 | Credential Access / Defense Impairment / Persistence |
-| WE08 | T1543.003, T1569.002, T1068 | Persistence / Execution |
-| WE09 | T1003.003 | Credential Access |
-| WE10 | T1204, T1059, T1003.001, T1055, T1071, T1505.003, T1068 | Execution / Credential Access / Command and Control |
-| I11 | T1098, T1078.002 | (see rule) |
-| I12 | T1556, T1098 | (see rule) |
-| I13 | T1558.003, T1098 | (see rule) |
-| I14 | T1134.001, T1098 | Privilege Escalation / Persistence |
-| WE11 | T1546.003 | (see rule) |
-| WE12 | T1550.002 | (see rule) |
-| WE13 | T1187, T1557.001 | (see rule) |
-| WE14 | T1021.002, T1569.002, T1053.005 | (see rule) |
-| WE15 | T1021.001 | (see rule) |
-| W11 | T1546.015, T1137.006 | (see rule) |
-| W12 | T1553.005, T1204.002 | (see rule) |
-| W13 | T1072 | (see rule) |
-| L11 | T1556.003, T1543 | (see rule) |
-| L12 | T1021.004 | (see rule) |
-| C12 | T1648, T1098.001, T1053 | (see rule) |
-| C13 | T1098.005, T1078.004 | (see rule) |
-| E11 | T1566, T1656 | (see rule) |
-| S11 | T1098.005, T1621, T1078.004 | (see rule) |
-| X06 | T1566, T1219, T1204 | (see rule) |
-| X07 | T1098, T1078.002 | (see rule) |
-| B01 | T1046, T1018 | Discovery |
-| B02 | T1046 | Discovery |
-| B03 | T1018, T1087.002, T1069.002, T1049 | Discovery |
-| B04 | T1021, T1570 | Lateral Movement |
-| B05 | T1021.002, T1550.002, T1078 | Lateral Movement |
-| B06 | T1071, T1573, T1095 | Command and Control |
-| B07 | T1119, T1005, T1552.001 | Collection / Credential Access |
-| B08 | T1555, T1552.001, T1539 | Credential Access |
-| B09 | T1033, T1016, T1057, T1082, T1087 | Discovery |
-| IN01 | T1213.002, T1530, T1119 | Collection |
-| IN02 | T1213.002, T1537, T1567 | Exfiltration |
-| IN03 | T1213.001, T1119 | Collection |
-| IN04 | T1114, T1213, T1530 | Collection |
-| IN05 | T1114, T1567, T1048.003 | Exfiltration |
-| IN06 | T1485, T1490 | Impact |
-| IN07 | T1213.002, T1087 | Collection / Discovery |
-| IN08 | T1213.002, T1530 | Collection |
-| IN09 | T1213.002, T1552.001, T1083 | Collection / Credential Access |
-| CP01 | T1562.001, T1562.006 | Defense Impairment |
-| CP02 | T1562, T1566 | Defense Impairment |
-| CP03 | T1562.001, T1556 | Defense Impairment |
-| CP04 | T1562.001, T1562.008 | Defense Impairment |
-| CP05 | T1562.001, T1489 | Defense Impairment / Impact |
-| CP06 | T1562.001, T1685, T1112 | Defense Impairment |
-| AD01 | T1207 | Stealth |
-| AD02 | T1098, T1003.006 | Persistence / Credential Access |
-| AD03 | T1649, T1552.004 | Credential Access |
-| AD04 | T1555, T1003 | Credential Access |
-| AD05 | T1078.002, T1068, T1136.002 | Privilege Escalation |
-| AD06 | T1649, T1484 | Credential Access / Privilege Escalation |
-| AD07 | T1574, T1068 | Privilege Escalation |
-| AD08 | T1558.001 | Credential Access |
-| AD09 | T1003, T1552 | Credential Access |
-| AD10 | T1098 | Persistence |
-| AD11 | T1505.001, T1505.003, T1190 | Persistence / Initial Access |
-| AD12 | T1557 | Credential Access |
-| AD13 | T1563.002 | Lateral Movement |
-| E12 | T1562.001, T1562.006 | Defense Impairment |
-| E13 | T1566.001, T1566.002 | Initial Access |
-| E14 | T1566.001, T1566.002 | Initial Access |
+The coverage map is generated from each rule's `mitre:` front-matter, so it can't drift from the rules:
 
-| W14 | (various, from Defender for Endpoint) | (various) |
-| S22 | T1078.004, T1550.001, T1098.005 | Initial Access / Lateral Movement / Persistence |
-| S23 | T1550.001, T1528, T1539 | Lateral Movement / Credential Access |
-| DV01 | T1052.001, T1074.001 | Exfiltration / Collection |
-| DV02 | T1200, T1059.001, T1059.003 | Initial Access / Execution |
-| DV03 | T1200, T1052.001, T1011 | Initial Access / Exfiltration |
-| DV04 | T1553.006, T1542, T1014, T1562 | Defense Impairment / Persistence / Stealth |
-| DV05 | T1200, T1052.001 | Initial Access / Exfiltration |
-| D01 | T1558.003, T1558.004, T1078.002, T1110, T1552.001, T1003.001 | Credential Access |
-| D02 | T1078.004, T1110.003, T1528, T1552.001 | Credential Access / Initial Access |
-| D03 | T1213.002, T1552.001, T1083 | Collection / Credential Access / Discovery |
-| D04 | T1018, T1046, T1021, T1135 | Discovery / Lateral Movement |
+- **`docs/MITRE-COVERAGE.md`**: kill-chain diagram, coverage by tactic, priority techniques with no rule, and the rules behind each technique.
+- **`docs/attack-navigator-layer.json`**: import into the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) for the standard heat map (score = number of rules).
+- **`tools/mitre_coverage.py`**: regenerates both. Run it after adding or changing a rule.
 
-Total: 176 detections across 16 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Technique IDs follow ATT&CK v19, where Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686.
+
+Total: 170 detections across 16 groups.

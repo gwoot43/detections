@@ -52,8 +52,8 @@ Refreshes from a registered or joined device are not counted. The user's own pho
 Suppress by `upn`, `asn` for 24h. Alerts missing a key field are not suppressed. A replayed token keeps refreshing from the same network all day.
 
 ## Known false positives / exclusions
-- **Unregistered phones or tablets changing networks** (roaming abroad, a new carrier, a hotel's Wi-Fi), where the mail or Teams app refreshes silently and the user never signs in interactively there. Raise to high severity only when the country is also new (check I07), or when `network` is a hosting provider (S10).
-- **Microsoft's network (ASN 8075)** is excluded because first-party services redeem tokens from Azure. That also hides an attacker renting an Azure VM. S10 does not cover Azure either, because Windows 365 and Azure Virtual Desktop users share that ASN.
+- **Unregistered phones or tablets changing networks** (roaming abroad, a new carrier, a hotel's Wi-Fi), where the mail or Teams app refreshes silently and the user never signs in interactively there. Raise to high severity only when the country is also new (check I07 and S08), or when `network` is a hosting provider (S07).
+- **Microsoft's network (ASN 8075)** is excluded because first-party services redeem tokens from Azure. That also hides an attacker renting an Azure VM. S07 does not cover Azure either, because Windows 365 and Azure Virtual Desktop users share that ASN.
 
 ## Triage
 - Compare `network` and `countries` with where the user really is. A hosting or VPN provider, or a country the user has never been in, means token replay. Revoke sessions (`Revoke-MgUserSignInSession`), reset the password, and check S11 and I10 for persistence added since.

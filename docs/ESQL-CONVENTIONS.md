@@ -120,7 +120,7 @@ suppression:
 2. **Key on the triage entity.** Host, user, source IP or target object. A key that changes per event suppresses nothing; a key that is too broad merges separate incidents.
 3. **Key fields must be output columns.** ES|QL suppression can only use fields the query returns, so the key must appear in `KEEP` or in the `STATS ... BY` list. Renamed columns (`acct`, `usr`, `h`) are used as-is.
 4. **Aggregating and correlation rules always need it.** `METADATA _id` deduplication only works for rules that return source events. A `STATS` or `LOOKUP JOIN` rule re-alerts on every run whose lookback overlaps the previous one, so suppress on its grouping key.
-5. **Put severity in the key when a rule can escalate.** A suppressed alert does not change severity when later events arrive. C11 keys on `severity` and I05 on a `landed` flag, so an escalation raises a new alert instead of folding into the old one.
+5. **Put severity in the key when a rule can escalate.** A suppressed alert does not change severity when later events arrive. C11 keys on `severity` and S13-S15 on a `landed` flag, so an escalation raises a new alert instead of folding into the old one.
 6. **Do not suppress alerts with missing fields.** Otherwise an event missing the key folds into another alert, and attackers can influence which fields are present.
 7. **Read the suppressed count.** A second action by the same attacker on the same entity inside the window folds into the open alert. A count that keeps climbing is a signal in its own right.
 

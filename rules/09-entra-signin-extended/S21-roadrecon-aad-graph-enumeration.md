@@ -61,7 +61,7 @@ Suppress by `user.id` for 1h. Alerts missing a key field are not suppressed. Agg
 - Internal scripts built on `aiohttp` that read the directory. Rare against AAD Graph; exclude their service principal by app ID after review.
 
 ## Triage
-- Enumeration means the account's token is in someone else's hands. Check how it was obtained (I08, S19, S20), then revoke sessions and refresh tokens and reset credentials.
+- Enumeration means the account's token is in someone else's hands. Check how it was obtained (C11, S19, S20), then revoke sessions and refresh tokens and reset credentials.
 - Assume the attacker now has your role assignments and app inventory. Review privileged roles (C03) and app credentials (C04) for follow-on changes.
 
 ## Test

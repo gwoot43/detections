@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-windows.windows_defender-*, logs-system.system-*
-mitre: [T1562.001, T1489]
+mitre: [T1685, T1489]
 data_source: Defender Operational channel (5008, 5101, 2004, 3002, 1151 health report) and System channel Service Control Manager (7036, 7031, 7034)
 suppression:
   fields: [host.name, component, problem]

@@ -6,7 +6,7 @@ status: todo
 severity: critical
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1068, T1211, T1562.001]
+mitre: [T1068, T1211, T1685]
 data_source: CrowdStrike FDR DriverLoad events
 suppression:
   fields: [host.id, img]

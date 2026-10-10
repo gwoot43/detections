@@ -76,7 +76,7 @@ Suppress by `uid` for 24h. Alerts missing a key field are not suppressed. Aggreg
 
 ## Triage
 - Treat as account takeover with device persistence. Delete the registered device first, which kills the PRT. Then revoke sessions and refresh tokens and reset credentials.
-- Find where the original refresh token came from, usually a device-code phish (I08) or an adversary-in-the-middle kit. Check what the PRT reached (`prt_resources`).
+- Find where the original refresh token came from, usually a device-code phish (C11) or an adversary-in-the-middle kit. Check what the PRT reached (`prt_resources`).
 
 ## Test
 In a lab tenant, use roadtx to redeem a refresh token for the device registration service, register a device and request a PRT.

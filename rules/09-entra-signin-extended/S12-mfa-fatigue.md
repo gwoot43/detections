@@ -65,7 +65,7 @@ Suppress by `usr`, `severity` for 4h. Alerts missing a key field are not suppres
 
 ## Triage
 - **critical:** revoke the user's sessions and refresh tokens, reset the password, and check for a newly registered MFA method (I10), inbox rules (E06) and consent grants (C05) in the next hour.
-- **high or medium:** the password is known to someone else. Reset it, revoke sessions, and contact the user to confirm they did not trigger the prompts. Check I05, S13 and S14 for how the password was obtained.
+- **high or medium:** the password is known to someone else. Reset it, revoke sessions, and contact the user to confirm they did not trigger the prompts. Check S13, S14 and S15 for how the password was obtained.
 
 ## Test
 With a lab account, trigger five sign-ins from an unregistered lab device and decline each MFA prompt, then approve one.

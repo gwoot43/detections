@@ -1,12 +1,12 @@
 ---
 id: CS02
-name: Persistence written to Run keys, services or other ASEPs
+name: Persistence written to Run keys, Winlogon, IFEO or other ASEPs (not services)
 category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1547.001, T1543.003, T1546]
+mitre: [T1547.001, T1546]
 data_source: CrowdStrike FDR AsepValueUpdate / registry events
 suppression:
   fields: [host.id, k]
@@ -16,6 +16,8 @@ suppression:
 ## Why this is high fidelity
 Falcon's `AsepValueUpdate` fires specifically for auto-start extensibility points, so it is pre-filtered to the registry locations attackers use for persistence. The signal sharpens when the value data points at a user-writable path, a script host, or an encoded command.
 
+Service keys (`\Services\`) are not watched. WE08 owns service installs (7045/4697 on every host), and a service-key branch here also double-fired with AD07 on the DNS `ServerLevelPluginDll` value.
+
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
@@ -23,13 +25,13 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
        v = TO_LOWER(TO_STRING(COALESCE(registry.data.strings, registry.value)))
 // Winlogon covers its Shell and Userinit values; a bare "*shell*" matched shell-extension and context-menu keys
-| WHERE (k LIKE """*currentversion\\run*""" OR k LIKE """*currentversion\\runonce*""" OR k LIKE """*\\services\\*"""
+| WHERE (k LIKE """*currentversion\\run*""" OR k LIKE """*currentversion\\runonce*"""
         OR k LIKE "*winlogon*" OR k LIKE "*image file execution options*"
         OR k LIKE """*currentversion\\policies\\explorer\\run*""" OR k LIKE "*appinit_dlls*")
   AND (v LIKE """*\\temp\\*""" OR v LIKE """*\\appdata\\*""" OR v LIKE """*\\programdata\\*""" OR v LIKE """*\\users\\public\\*""" OR v LIKE """*\\downloads\\*"""
         OR v LIKE "*powershell*" OR v LIKE "*mshta*" OR v LIKE "*rundll32*" OR v LIKE "*regsvr32*" OR v LIKE "*wscript*" OR v LIKE "*cscript*"
         OR v LIKE "*-enc*" OR v LIKE "*frombase64*" OR v LIKE "*http*" OR v LIKE "*cmd /c*" OR v LIKE "*.hta*")
-  // Defender platform updates rewrite its service paths under ProgramData; OneDrive and Teams rewrite their per-user Run values on every update
+  // Defender platform updates rewrite their paths under ProgramData; OneDrive and Teams rewrite their per-user Run values on every update
   AND NOT (v LIKE """*\\programdata\\microsoft\\windows defender\\platform\\*"""
            OR v LIKE """*\\appdata\\local\\microsoft\\onedrive\\*""" OR v LIKE """*\\appdata\\local\\microsoft\\teams\\*""")
 | KEEP @timestamp, host.id, host.name, user.name, k, v, process.name, process.command_line

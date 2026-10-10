@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1105, T1218.005, T1218.010, T1197, T1059.001, T1218.007]
+mitre: [T1105, T1218.005, T1218.010, T1218.011, T1197, T1059.001, T1218.007, T1027.010]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
   fields: [host.id, pname]
@@ -15,6 +15,8 @@ suppression:
 ---
 ## Why this is high fidelity
 These binary-plus-argument combinations exist to fetch and run remote content and have almost no administrative use on user workstations. Each branch is a known LOLBAS entry. The branches that admin tooling also uses (encoded PowerShell, .NET build and registration tools) exclude the management agents and installers that run them by design.
+
+When the parent is `explorer.exe` and the child is one W03 watches (PowerShell, mshta, cmd, curl, msiexec, the script hosts, BITSAdmin, certutil, hh), the event is left to W03, so a cradle pasted into the Run dialog or address bar fires one rule, not two.
 
 ## Query
 ```esql
@@ -37,6 +39,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    // .NET LOLBINs loading from user-writable paths; installers (msiexec) and Visual Studio run these legitimately
    OR (pname IN ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe") AND (cmd LIKE "*http*" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\appdata\\*""")
        AND parent NOT IN ("msiexec.exe", "devenv.exe"))
+// Explorer-launched script hosts and downloaders are W03 (ClickFix/FileFix); one pasted cradle should alert once
+| WHERE NOT (parent == "explorer.exe"
+             AND pname IN ("powershell.exe", "pwsh.exe", "mshta.exe", "cmd.exe", "curl.exe", "msiexec.exe", "wscript.exe", "cscript.exe", "bitsadmin.exe", "certutil.exe", "hh.exe"))
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 

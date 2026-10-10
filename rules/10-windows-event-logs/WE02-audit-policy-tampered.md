@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
-mitre: [T1562.002]
+mitre: [T1685.001]
 data_source: Windows Security events 4719 (system audit policy changed) and 4912 (per-user audit policy changed)
 suppression:
   fields: [host_key]

@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-windows.windows_defender-*
-mitre: [T1562.001, T1685, T1112]
+mitre: [T1685, T1112]
 data_source: Defender Operational channel. 5007 configuration changed (old and new registry value), 5001 real-time protection disabled, 5013 tamper protection blocked a change.
 suppression:
   fields: [setting, change]
@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Event 5007 records **every** Defender setting change as an old and a new registry value, whichever way it was made: `Set-MpPreference`, the Windows Security app, a direct `reg add`, Group Policy, Intune, or a tool that registers a fake AV. W05 catches the *command* when Falcon sees it. This rule catches the *result*, even when the change came through a path W05 doesn't watch.
+Event 5007 records **every** Defender setting change as an old and a new registry value, whichever way it was made: `Set-MpPreference`, the Windows Security app, a direct `reg add`, Group Policy, Intune, or a tool that registers a fake AV. This rule owns Defender settings changes: it catches the *result*, whatever command or tool made it. W05 no longer matches `Set-MpPreference`, `Add-MpPreference` or `DisableAntiSpyware` commands; it keeps the process-side signals 5007 cannot see (Defender services stopped, the engine wiped with `MpCmdRun`, safe boot set).
 
 Only changes that make protection weaker are kept:
 - Real-time, behaviour, script, download or on-access scanning switched off, or Defender AV turned off outright.

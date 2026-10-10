@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1562.001, T1562.008]
+mitre: [T1685]
 data_source: CrowdStrike FDR (OsVersionInfo, SensorMetadataUpdate, SensorHeartbeat)
 suppression:
   fields: [host.id]
@@ -103,7 +103,7 @@ Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. RF
 
 ## Triage
 - **rfm_sensor_alive:** identify the OS or kernel build that triggered RFM and move the host to a sensor version that supports it. Until then, treat the host as lightly protected and lean on the non-endpoint rules.
-- **rfm_stale_or_offline:** check whether the machine is up elsewhere (recent AD logons, DHCP). If it is, investigate a possible sensor tamper (CS05, W05) and restore coverage.
+- **rfm_stale_or_offline:** check whether the machine is up elsewhere (recent AD logons, DHCP). If it is, investigate a possible sensor tamper (CS05) and restore coverage.
 
 ## Test
 Validate against a host the Falcon console shows in RFM, or move a lab host to an unsupported kernel.

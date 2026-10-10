@@ -48,7 +48,7 @@ Suppress by `uid`, `ua` for 24h. Alerts missing a key field are not suppressed. 
 
 ## Triage
 - Look at the source IP and ASN and at what the token was for. A device registration service token from a hosting provider is the start of a fake-device chain: check S18 and S20 for the same user.
-- Revoke the user's sessions and refresh tokens. The refresh token used here was most likely phished (I08).
+- Revoke the user's sessions and refresh tokens. The refresh token used here was most likely phished (C11).
 
 ## Test
 Request a broker token with roadtx from a lab machine without overriding the user agent.

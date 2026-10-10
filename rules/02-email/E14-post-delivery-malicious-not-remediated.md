@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-This is the ZAP miss. Defender re-rates a delivered message as phishing or malware after delivery, but 30 minutes later nothing has moved it out of the inbox: ZAP is off (E12), the mailbox is excluded, or the move failed. The malicious message is sitting in front of the user right now, which makes it the most actionable of the ZAP signals. Messages rated malicious at delivery time but let through by an allow entry or override are left out; that is CP03's area.
+This is the ZAP miss. Defender re-rates a delivered message as phishing or malware after delivery, but 30 minutes later nothing has moved it out of the inbox: ZAP is off (CP01), the mailbox is excluded, or the move failed. The malicious message is sitting in front of the user right now, which makes it the most actionable of the ZAP signals. Messages rated malicious at delivery time but let through by an allow entry or override are left out; that is CP03's area.
 
 ## Query
 Run every 15 minutes with a 2-hour lookback.
@@ -46,7 +46,7 @@ Suppress by `usr` for 6h. Alerts missing a key field are not suppressed. One wav
 - A message moved by the user or an admin without a new `TIMailData` record still looks unremediated. Re-check the message location at triage.
 
 ## Triage
-- Purge the message from the recipient's mailbox now, then find out why ZAP missed it: check E12 for ZAP disabled, the mailbox for a ZAP exclusion, and whether the user already clicked (E01, E04, E05).
+- Purge the message from the recipient's mailbox now, then find out why ZAP missed it: check CP01 for ZAP disabled, the mailbox for a ZAP exclusion, and whether the user already clicked (E01, E04, E05).
 
 ## Test
 Validate against historical TIMailData records where the delivery location remained Inbox after a post-delivery verdict.

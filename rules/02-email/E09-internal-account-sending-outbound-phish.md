@@ -41,7 +41,7 @@ Suppress by `sender` for 24h. Alerts missing a key field are not suppressed. Agg
 - Legitimate mass mail flagged because of a broken DKIM key. Still worth knowing.
 
 ## Triage
-- Disable the account, revoke sessions, check inbox rules (E06), check sign-ins (I05, I07).
+- Disable the account, revoke sessions, check inbox rules (E06), check sign-ins (I07, S13, S14).
 
 ## Test
 Validate on historical data. Do not send test spam from production.

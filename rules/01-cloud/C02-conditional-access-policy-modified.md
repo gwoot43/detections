@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-azure.auditlogs-*
-mitre: [T1556.009, T1562.007]
+mitre: [T1556.009, T1686.001]
 data_source: Entra ID audit logs
 suppression:
   fields: [actor, azure.auditlogs.properties.target_resources.0.display_name]

@@ -59,7 +59,7 @@ Suppress by `honey_identity`, `source.ip` for 1h. Alerts missing a key field are
 ## Triage
 - Identify where the attempt came from (`source.ip`, ASN, country, user agent), and block the IP at Conditional Access and Zscaler if it's external.
 - Map the identity to its lure location in the restricted register. That tells you what the attacker read.
-- **Service principal success:** revoke the secret, review the app's sign-ins and the audit log for anything it touched, and look for the same source IP on real accounts (S10, I07).
+- **Service principal success:** revoke the secret, review the app's sign-ins and the audit log for anything it touched, and look for the same source IP on real accounts (S07, I07).
 
 ## Test
 - **User:** sign in to `https://portal.office.com` with a honey UPN and a wrong password.

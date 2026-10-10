@@ -6,7 +6,7 @@ status: todo
 severity: critical
 language: esql
 index: logs-azure.activitylogs-*
-mitre: [T1562.008, T1685.002]
+mitre: [T1685.002]
 data_source: Azure Activity log
 suppression: none
 ---

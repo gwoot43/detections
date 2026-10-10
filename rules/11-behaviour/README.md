@@ -13,10 +13,9 @@ Design constraints for this folder:
 |---|---|---|
 | B01 | One host connects to many hosts | nmap, masscan, rustscan, custom scanners |
 | B02 | One host sweeps many ports on one target | any port scanner |
-| B03 | SMB/RPC/LDAP fan-out across the estate | BloodHound/SharpHound, ADExplorer, PingCastle, net loops |
-| B04 | Fan-out on remote-admin ports | CrackMapExec/NetExec, Impacket, PsExec loops |
+| B04 | Fan-out on remote-admin ports (SMB/RPC, WinRM, RDP), or LDAP fan-out to several domain controllers | CrackMapExec/NetExec, Impacket, PsExec loops, BloodHound/SharpHound, ADExplorer |
 | B05 | One account authenticates to many hosts | pass-the-hash tooling, credential-spray lateral movement |
 | B06 | Regular outbound callbacks to one destination | Cobalt Strike, Sliver, Mythic, Havoc beacons |
 | B07 | One process reads very many files fast | TruffleHog, gitleaks, data collection, stealers |
 | B08 | One process reads many credential stores | LaZagne, infostealers, secret scanners |
-| B09 | Burst of distinct discovery commands | post-exploitation orientation, loaders |
+| B09 | Burst of distinct discovery commands; high when it includes domain enumeration (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) | post-exploitation orientation, loaders, operators enumerating the domain |

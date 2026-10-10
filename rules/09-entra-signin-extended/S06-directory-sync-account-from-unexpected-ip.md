@@ -16,7 +16,7 @@ suppression:
 ## Why this is high fidelity
 The `Sync_<server>_<id>@tenant.onmicrosoft.com` account (and the on-prem `MSOL_` counterpart) can set passwords on any synced user and holds directory-write rights. AADInternals-style attacks extract it from the Entra Connect server and use it from elsewhere. Entra Connect builds that use application-based authentication sign in as a `ConnectSyncProvisioning_<server>_<id>` service principal instead, which has the same rights. Either identity should sign in from exactly one place: the Entra Connect server's egress.
 
-The rule alerts on successes, and on failures that prove the password was right (MFA required or Conditional Access block). Wrong-password failures are spray noise against a well-known account name and are left to I05.
+The rule alerts on successes, and on failures that prove the password was right (MFA required or Conditional Access block). Wrong-password failures are spray noise against a well-known account name and are left to S13-S15.
 
 ## Query
 ```esql

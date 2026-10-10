@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-After stealing a password, attackers register their own MFA method to gain durable access, or an admin disables security defaults / weakens the authentication methods policy. Self-service MFA registration is normal at onboarding, so the fidelity comes from registration happening right after a risky sign-in, or from admin-level policy changes which are always rare. Routine security-info events (reviewed, deleted, registration started or cancelled) and broad tenant changes such as "Set company information" are left out.
+After stealing a password, attackers register their own MFA method to gain durable access, or an admin disables security defaults / weakens the authentication methods policy. Self-service MFA registration is normal at onboarding, so the fidelity comes from registration happening right after a risky sign-in, or from admin-level policy changes which are always rare. Routine security-info events (reviewed, deleted, registration started or cancelled) and broad tenant-property changes (C01's area) are left out.
 
 ## Query
 ```esql

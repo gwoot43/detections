@@ -46,7 +46,7 @@ Suppress by `usr` for 24h. Alerts missing a key field are not suppressed. Aggreg
 - Developers and cloud engineers using Azure CLI or Azure PowerShell. List them by UPN in the inline exclusion, which only covers those two apps. Keep the Azure AD PowerShell and Graph CLI branches even for developers; those are the ones the recon tooling prefers.
 
 ## Triage
-- Check the user's role: if not an admin or developer, the token was stolen. Look at the same user's earlier sign-ins (I07/I08/C11) for how the token was obtained, then revoke.
+- Check the user's role: if not an admin or developer, the token was stolen. Look at the same user's earlier sign-ins (I07/C11) for how the token was obtained, then revoke.
 
 ## Test
 Run `Connect-MgGraph` as a standard test user.

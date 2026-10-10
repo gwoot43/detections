@@ -1,6 +1,6 @@
 ---
 id: W09
-name: Active Directory attack tooling signature or recon burst
+name: Active Directory attack tool signature (SharpHound/BloodHound, Rubeus, Certify/Certipy, PowerView, AdFind and similar) by argument or binary name
 category: endpoint-windows
 status: todo
 severity: high
@@ -14,7 +14,12 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Two branches. The tooling branch matches argument signatures of the common AD attack frameworks even when the binary is renamed. The recon branch fires only when one user on one host runs five or more distinct domain-enumeration commands inside ten minutes, which is how operators behave and admins do not.
+One branch: argument signatures and binary names of the common AD attack frameworks. The arguments (`--collectionmethod`, `asktgt`, `/ptt`, `find /vulnerable`, `/altname:`, PowerView cmdlets) are specific to the tools and match even when the binary is renamed; the binary names catch unmodified copies. Admins do not run these on a normal working day.
+
+Other rules own the neighbouring signals, so they are not repeated here:
+- Discovery-command bursts and domain-enumeration arguments (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) are B09.
+- Mimikatz credential-dumping modules (`sekurlsa`, `lsadump`, `dcsync`) are W01 and I01.
+- Kerberoasting and AS-REP roasting are caught by behaviour in I03, I04 and I13, and by the honey accounts in D01.
 
 ## Query
 ```esql
@@ -22,43 +27,29 @@ FROM logs-crowdstrike.fdr-*
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | EVAL tooling = CASE(
-        cmd LIKE "*kerberoast*" OR cmd LIKE "*asreproast*" OR cmd LIKE "*asktgt*" OR cmd LIKE "* /ptt*"
-     OR cmd LIKE "*sekurlsa*" OR cmd LIKE "*lsadump*" OR cmd LIKE "*dcsync*"
+        cmd LIKE "*asktgt*" OR cmd LIKE "* /ptt*"
      OR cmd LIKE "*--collectionmethod*" OR cmd LIKE "*invoke-bloodhound*" OR cmd LIKE "*sharphound*"
      OR cmd LIKE "*find /vulnerable*" OR cmd LIKE "*/altname:*" OR cmd LIKE "*certipy*"
-     OR cmd LIKE "*get-domainuser*" OR cmd LIKE "*get-netgroupmember*" OR cmd LIKE "*invoke-kerberoast*" OR cmd LIKE "*find-localadminaccess*"
+     OR cmd LIKE "*get-domainuser*" OR cmd LIKE "*get-netgroupmember*" OR cmd LIKE "*find-localadminaccess*"
      OR pname IN ("adfind.exe", "rubeus.exe", "mimikatz.exe", "sharphound.exe", "certify.exe", "whisker.exe", "seatbelt.exe", "sharpview.exe", "snaffler.exe"),
      1, 0)
-| EVAL recon_cmd = CASE(
-        (pname IN ("net.exe", "net1.exe") AND (cmd LIKE "*group*/domain*" OR cmd LIKE "*domain admins*" OR cmd LIKE "*user*/domain*")), "net-domain",
-        (pname == "nltest.exe" AND (cmd LIKE "*/dclist*" OR cmd LIKE "*/domain_trusts*")), "nltest",
-        (pname IN ("dsquery.exe", "dsget.exe")), "dsquery",
-        (pname == "whoami.exe" AND (cmd LIKE "*/priv*" OR cmd LIKE "*/groups*" OR cmd LIKE "*/all*")), "whoami",
-        (pname IN ("quser.exe", "qwinsta.exe")), "sessions",
-        (pname == "setspn.exe" AND cmd LIKE "*-q*"), "spn",
-        (pname == "klist.exe"), "klist",
-        (pname == "systeminfo.exe"), "systeminfo",
-        (pname == "tasklist.exe"), "tasklist",
-        (pname == "arp.exe" AND cmd LIKE "*-a*"), "arp",
-        NULL)
-| WHERE tooling == 1 OR recon_cmd IS NOT NULL
+| WHERE tooling == 1
 // user.name is DOMAIN\user or user depending on enrichment; group on the bare, lowercased name
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| STATS tool_hits = SUM(tooling), distinct_recon = COUNT_DISTINCT(recon_cmd), cmds = VALUES(process.command_line), parents = VALUES(process.parent.name),
+| STATS tool_hits = SUM(tooling), cmds = VALUES(process.command_line), parents = VALUES(process.parent.name),
         host.name = VALUES(host.name)
     BY host.id, user.name, BUCKET(@timestamp, 10 minutes)
-| WHERE tool_hits > 0 OR distinct_recon >= 5
 ```
 
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 
 ## Known false positives / exclusions
-- Credentialed vulnerability scanners running `net` and `nltest`. Exclude by service account name.
-- AD engineers on the admin jump host. Exclude by (host, user) pair only, and review monthly.
+- Authorised penetration tests and AD security assessments (the security team running SharpHound, Snaffler or Seatbelt). Exclude by (host, user) pair only for the engagement window.
+- AD engineers who keep AdFind on the admin jump host. Exclude by (host, user) pair only, and review monthly.
 
 ## Triage
-- Tooling branch: isolate and treat as active intrusion. Recon branch: a normal user should never enumerate Domain Admins; look for I03 from the same host.
+- Isolate and treat as active intrusion unless it matches a scheduled engagement. Read `cmds` for the target (users, groups, certificate templates, ticket requests), check the host for credential access (W01, B08) and the domain for what followed (I03, I09, I12).
 
 ## Test
-Run five of the recon commands in sequence on a lab host.
+Run SharpHound with `--CollectionMethod Default`, or `Rubeus.exe asktgt` against a lab account, on a lab host.

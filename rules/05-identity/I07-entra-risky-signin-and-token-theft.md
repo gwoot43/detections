@@ -14,7 +14,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Microsoft's own risk engine, combined with a same-user two-country rule, gives a strong post-phishing signal. The rule keeps high-risk sign-ins and the risk detections that point at token replay or a hostile source (anomalous token, token issuer anomaly, malicious IP, impossible travel, password spray). Medium risk and `unfamiliarFeatures` alone are left out: they fire on every new device or travel and are too noisy to page on. This is the cloud side of the X01 correlation.
+Microsoft's own risk engine gives a strong post-phishing signal. The rule keeps high-risk sign-ins and the risk detections that point at token replay or a hostile source (anomalous token, token issuer anomaly, malicious IP, impossible travel, password spray). Medium risk and `unfamiliarFeatures` alone are left out: they fire on every new device or travel and are too noisy to page on. This is the cloud side of the X01 correlation. Session reuse across countries or networks without a risk flag (no Identity Protection licence needed) is S08.
 
 ## Query
 ```esql
@@ -32,25 +32,16 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | KEEP @timestamp, usr, source.ip, source.geo.country_iso_code, source.as.organization.name,
        azure.signinlogs.properties.app_display_name, azure.signinlogs.properties.authentication_requirement, risk, detail
 ```
-Companion same-user two-country query (works without Identity Protection licensing):
-```esql
-FROM logs-azure.signinlogs-*
-| WHERE event.dataset == "azure.signinlogs" AND azure.signinlogs.category == "SignInLogs"   // interactive only
-  AND TO_STRING(azure.signinlogs.properties.status.error_code) == "0"
-| STATS countries = COUNT_DISTINCT(source.geo.country_iso_code), where_from = VALUES(source.geo.country_iso_code), ips = VALUES(source.ip)
-    BY TO_LOWER(user.name), BUCKET(@timestamp, 2 hours)
-| WHERE countries >= 2
-```
 
 ## Suppression
 Suppress by `usr`, `source.ip` for 24h. Alerts missing a key field are not suppressed. Token refreshes repeat the same risky sign-in. A new IP still alerts.
 
 ## Known false positives / exclusions
-- VPN exits and mobile roaming create false impossible-travel. Exclude your corporate VPN egress ranges and known travel corridors. The two-country query reads only interactive sign-ins, because non-interactive token refreshes often come from Microsoft or app-hosting IPs in other countries.
+- VPN exits and mobile roaming create false impossible-travel. Exclude your corporate VPN egress ranges and known travel corridors.
 - `authentication_requirement == "singleFactorAuthentication"` on a resource that should require MFA is itself worth flagging (Conditional Access gap).
 
 ## Triage
-- Revoke sessions, require password reset and MFA re-registration. Check for device-code sign-ins (I08) and consent grants (C05) from the same user.
+- Revoke sessions, require password reset and MFA re-registration. Check for device-code sign-ins (C11), session reuse across networks (S08) and consent grants (C05) from the same user.
 
 ## Test
 Validate on historical data; simulate with a VPN exit in another country against a lab account.

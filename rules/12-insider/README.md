@@ -10,12 +10,11 @@ Notes for this folder:
 
 | Rule | Behaviour |
 |---|---|
-| IN01 | Mass SharePoint/OneDrive download or sync by one user |
+| IN01 | Mass SharePoint/OneDrive download or sync by one user, with a lower threshold for after-hours browser downloads |
 | IN02 | External or anonymous sharing at volume, or to personal webmail |
 | IN03 | Confluence space or site export, or page export at volume (the audit log has no page views) |
 | IN04 | eDiscovery / content search created or exported by a non-eDiscovery user |
 | IN05 | Outbound mail with attachments to personal webmail at volume |
 | IN06 | Mass file or site deletion (sabotage) |
 | IN07 | Broad access across many sites the user does not own (snooping) |
-| IN08 | After-hours bulk browser download |
 | IN09 | SharePoint search for secrets followed by sensitive file access or bulk download |

@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-o365.audit-*
-mitre: [T1562.001, T1556]
+mitre: [T1685, T1556]
 data_source: Microsoft 365 Unified Audit Log (Exchange admin)
 suppression:
   fields: [usr]

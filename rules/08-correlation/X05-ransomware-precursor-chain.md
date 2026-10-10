@@ -6,7 +6,7 @@ status: todo
 severity: critical
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1486, T1490, T1562.001, T1489]
+mitre: [T1486, T1490, T1685, T1489]
 data_source: CrowdStrike FDR (W05/W06/CS01) on the same host in a short window
 suppression:
   fields: [host.id]

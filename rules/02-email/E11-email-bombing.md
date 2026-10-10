@@ -6,7 +6,7 @@ status: todo
 severity: medium
 language: esql
 index: logs-mimecast.siem_logs-*
-mitre: [T1566, T1656]
+mitre: [T1566, T1684.001]
 data_source: Mimecast SIEM receipt logs, inbound (Elastic Mimecast integration, siem_logs data stream)
 suppression:
   fields: [rcpt]

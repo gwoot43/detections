@@ -24,8 +24,10 @@ FROM logs-azure.signinlogs-*
 | EVAL ec = TO_STRING(azure.signinlogs.properties.status.error_code),
        usr = TO_LOWER(user.name),
        trust = COALESCE(TO_STRING(azure.signinlogs.properties.device_detail.trust_type), "")
-| EVAL failed = CASE(ec IN ("50126", "50053", "50055", "50056") AND trust == "", 1, 0),
-       ok_unreg = CASE(ec == "0" AND trust == "", 1, 0)
+// failed: wrong password, locked, null password. ok_unreg: the password was right, even if expiry, MFA
+// or Conditional Access then stopped the sign-in (0, 50055, 50074, 50076, 50079, 53003)
+| EVAL failed = CASE(ec IN ("50126", "50053", "50056") AND trust == "", 1, 0),
+       ok_unreg = CASE(ec IN ("0", "50055", "50074", "50076", "50079", "53003") AND trust == "", 1, 0)
 | WHERE failed == 1 OR ok_unreg == 1
 | STATS failures = SUM(failed),
         fail_ips = COUNT_DISTINCT(CASE(failed == 1, source.ip, NULL)),
@@ -41,7 +43,7 @@ FROM logs-azure.signinlogs-*
 | EVAL landed = successes > 0 AND last_success >= first_fail,
        sample_ips = MV_SLICE(sample_ips, 0, 19)
 ```
-`landed` only counts successes from unregistered devices, so the real user signing in normally from a managed laptop during the attack does not set it.
+`landed` only counts sign-ins from unregistered devices, so the real user signing in normally from a managed laptop during the attack does not set it. It counts any response that proves the password was right: a full success (0), password expired (50055), MFA required or interrupted (50074, 50076, 50079) or a Conditional Access block (53003). None of those is ever counted as a failure.
 
 ## Suppression
 Suppress by `usr`, `landed` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. A slow attack spans several runs, and `landed` is in the key so a success raises a new alert.
@@ -51,7 +53,7 @@ Suppress by `usr`, `landed` for 4h. Alerts missing a key field are not suppresse
 
 ## Triage
 - Look at `fail_asns` and `sample_ips`. A spread of residential and hosting networks with one or two attempts each is a proxy network.
-- If `landed` is true, revoke sessions and refresh tokens, reset the password, and check for persistence (I10, E06, C05).
+- If `landed` is true, revoke sessions and refresh tokens, reset the password, and check for persistence (I10, E06, C05). An MFA or Conditional Access interrupt still means the password is known; reset it and watch for MFA fatigue (S12).
 - If not, the account held. Make sure it has strong MFA, and consider forcing a password change, since targeted accounts are often on a breach list.
 
 ## Test

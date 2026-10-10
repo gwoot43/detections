@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-o365.audit-*
-mitre: [T1114, T1213, T1530]
+mitre: [T1114.002, T1213, T1530]
 data_source: Microsoft 365 Unified Audit Log (eDiscovery / Purview)
 suppression:
   fields: [usr]

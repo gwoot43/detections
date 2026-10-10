@@ -45,7 +45,7 @@ Suppress by `usr`, `url.original` for 24h. Alerts missing a key field are not su
 ## Triage
 - `action` says whether Mimecast blocked the page. A blocked click is lower impact; an allowed or overridden click means the user reached the page.
 - Pull the message and the URL destination, and check whether the page harvested credentials.
-- Check Entra sign-ins for the user in the next 2 hours (I05, I07) and CrowdStrike for the host (X01). If credentials were entered, reset and revoke tokens.
+- Check Entra sign-ins for the user in the next 2 hours (I07, S13, S14) and CrowdStrike for the host (X01). If credentials were entered, reset and revoke tokens.
 
 ## Test
 Click a URL from Mimecast's test set in a lab mailbox and confirm the record has `creationMethod` "User Click" and a malicious result.

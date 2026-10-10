@@ -6,7 +6,7 @@ status: todo
 severity: medium
 language: esql
 index: logs-zscaler_zia.web-*
-mitre: [T1567, T1048, T1041]
+mitre: [T1567.002, T1048, T1041]
 data_source: Zscaler Internet Access web logs (Elastic zscaler_zia integration, web data stream)
 suppression:
   fields: [user.name, destination.domain]

@@ -6,7 +6,7 @@ status: todo
 severity: high
 language: esql
 index: logs-o365.audit-*
-mitre: [T1562, T1566]
+mitre: [T1685, T1566]
 data_source: Microsoft 365 Unified Audit Log (quarantine operations and TIMailData records)
 suppression:
   fields: [usr]

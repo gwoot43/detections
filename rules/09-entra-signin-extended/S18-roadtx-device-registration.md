@@ -67,7 +67,7 @@ Suppress by `azure.correlation_id` for 24h. Alerts missing a key field are not s
 - Device management or provisioning tools that join devices on behalf of users. Exclude their service accounts by object ID.
 
 ## Triage
-- Check who registered it and from where (`ips`, `initiated_by.user.ipAddress`), and whether that user had a device-code or risky sign-in just before (I08, I07, C13, S16).
+- Check who registered it and from where (`ips`, `initiated_by.user.ipAddress`), and whether that user had a device-code or risky sign-in just before (C11, I07, X02, S16).
 - If unexpected, delete the device first, then revoke the user's sessions and refresh tokens and reset credentials. Deleting the device invalidates its PRT.
 
 ## Test

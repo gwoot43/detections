@@ -6,7 +6,7 @@ status: todo
 severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-system.system-*
-mitre: [T1070.001]
+mitre: [T1685.005]
 data_source: Windows Security event 1102, System event 104
 suppression:
   fields: [host_key]

@@ -55,7 +55,7 @@ Suppress by `o365.audit.UserId`, `rule_name` for 1h. Alerts missing a key field 
 - Shared-mailbox automation rules created by the service desk. Keep those accounts in the inline exclusion.
 
 ## Triage
-- Check the creating session's IP (`source.ip`) against the user's normal Entra sign-in locations (I05).
+- Check the creating session's IP (`source.ip`) against the user's normal Entra sign-in locations (I07).
 - Remove the rule, reset the password, revoke sessions, and review sent items for the last 24 hours.
 
 ## Test

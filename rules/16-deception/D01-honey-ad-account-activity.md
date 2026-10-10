@@ -49,7 +49,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 
 **Reading `trap` and `honey_account` together:**
 - `<honey_kerberoast>` with "kerberoast": someone requested its service ticket. `requester` is the account that did it, and `from_ip` is where it came from.
-- `<honey_description>` with "authentication or logon attempt": someone read the description-field bait and tried it. That means they enumerated AD user attributes (W09, B03 may show the enumeration itself).
+- `<honey_description>` with "authentication or logon attempt": someone read the description-field bait and tried it. That means they enumerated AD user attributes (W09 for the collector tool, or B04's LDAP tiers, may show the enumeration itself).
 - `<honey_lsass>` used anywhere: someone dumped LSASS on one of the servers holding the injected credentials.
 
 ## Suppression

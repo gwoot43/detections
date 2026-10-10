@@ -7,7 +7,7 @@ severity: high
 rank: 2
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
-mitre: [T1553.006, T1542, T1014, T1562]
+mitre: [T1553.006, T1542, T1014, T1685]
 data_source: Windows Security 4826 (Boot Configuration Data loaded) and CrowdStrike FDR ProcessRollup2 (bcdedit)
 suppression:
   fields: [host_key, finding]

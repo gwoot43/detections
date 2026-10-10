@@ -42,7 +42,7 @@ Suppress by `usr`, `sid` for 24h. Alerts missing a key field are not suppressed.
 ## Known false positives / exclusions
 - Mobile devices switching between Wi-Fi and cellular. The ASN threshold is set to 3 for that reason; country is the stronger signal. Exclude known carrier ASN pairs if they dominate.
 - A user on a flight or crossing a border with a laptop that keeps its session. Check the timing between countries before escalating.
-- An attacker on an Azure VM is hidden by the Microsoft ASN exclusion. S10 does not cover Azure either, because Windows 365 and Azure Virtual Desktop users share that ASN.
+- An attacker on an Azure VM is hidden by the Microsoft ASN exclusion. S07 does not cover Azure either, because Windows 365 and Azure Virtual Desktop users share that ASN.
 
 ## Triage
 - Same response as S07: revoke sessions and tokens, then hunt the persistence that usually follows.

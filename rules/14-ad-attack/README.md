@@ -51,7 +51,7 @@ Rank reflects impact (how close the technique is to full domain compromise) and 
 | MSSQL and Exchange | AD11 |
 | Lateral movement: pass-the-hash, remote execution, RDP | WE12, W08, B04, B05, WE14, WE15, AD13 |
 | Machine account quota abuse, KrbRelayUp | AD05 (computer created by user) + I14 |
-| Entra hybrid: Entra Connect, PRT theft, device code, consent phishing | S06, S16 to S21, I08, C05 |
+| Entra hybrid: Entra Connect, PRT theft, device code, consent phishing | S06, S16 to S21, C11, C05 |
 | Local privilege escalation, AMSI and EDR evasion | W05, CS01, CS06; mostly Falcon's own detections (CS04) |
 
 ### Not built, and why
@@ -66,6 +66,6 @@ Rank reflects impact (how close the technique is to full domain compromise) and 
 The three Kerberoasting rules detect three different things, but one of them also duplicates other rules:
 - **I03** detects the roast itself: a burst of weak-encryption service-ticket requests. It is the behavioural Kerberoasting rule and catches any tool.
 - **I13** detects a different step: someone writing an SPN onto a user so that user can be roasted (targeted Kerberoasting). It stays.
-- **W09** is the real duplicate. Its keyword branch matches tool arguments (`kerberoast`, `asreproast`, `asktgt`) already covered by behaviour in I03 and I04, and credential-dumping keywords (`sekurlsa`, `lsadump`, `dcsync`) already owned by W01 and I01. Its recon branch counts the same nine discovery utilities as B09.
+- **W09** was the real duplicate. Its keyword branch matched tool arguments (`kerberoast`, `asreproast`) already covered by behaviour in I03 and I04, and credential-dumping keywords (`sekurlsa`, `lsadump`, `dcsync`) already owned by W01 and I01. Its recon branch counted the same discovery utilities as B09.
 
-Recommended: trim W09 to a tool-signature rule only (BloodHound/SharpHound, AdFind, Certify/Certipy, Whisker and similar collectors and their arguments), and drop its roasting keywords, its credential-dumping keywords and its recon branch. One trade-off: I03 needs eight or more SPNs in ten minutes, so a single-account roast with an unrenamed tool would then rely on I13 catching the SPN write that usually precedes it. This change has not been made.
+Done: W09 is now a tool-signature rule only (BloodHound/SharpHound, AdFind, Rubeus `asktgt` and `/ptt`, Certify/Certipy, Whisker and similar tools, by argument or binary name). Its roasting keywords, credential-dumping keywords and recon branch were dropped, and its high-signal domain-enumeration arguments (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) moved into B09 as a high-severity tier. One trade-off: I03 needs eight or more SPNs in ten minutes, so a single-account roast with a renamed tool relies on I13 catching the SPN write that usually precedes it (an unrenamed `rubeus.exe` still matches W09 by name).
