@@ -30,7 +30,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | EVAL target = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.event_data.TargetUserName, ""), "@"))),
        service = TO_LOWER(COALESCE(winlog.event_data.ServiceName, "")),
        honey_account = CASE(event.code IN ("4769", "4770"), service, target)
-// ---- honey account list: one per lure location (placeholders) ----
+// honey accounts, one per lure location (placeholders). sAMAccountName in lowercase: both sides are lowercased
 | WHERE honey_account IN ("<honey_kerberoast>", "<honey_asrep>", "<honey_description>",
                           "<honey_sysvol>", "<honey_lsass>", "<honey_sharepoint>", "<honey_confluence>")
 | EVAL trap = CASE(

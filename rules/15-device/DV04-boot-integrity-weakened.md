@@ -43,16 +43,18 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
     event.code == "4826" AND test_signing == "yes", "booted with test signing",
     event.code == "4826" AND (integrity_off == "yes" OR load_options LIKE "*disable_integrity_checks*"), "booted with integrity checks off",
     event.code == "4826" AND (kernel_debug == "yes" OR hv_debug == "yes"), "booted with kernel debugging",
-    cmd LIKE "*testsigning*on*" OR cmd LIKE "*testsigning*yes*", "bcdedit set test signing",
-    cmd LIKE "*nointegritychecks*on*" OR cmd LIKE "*nointegritychecks*yes*" OR cmd LIKE "*disable_integrity_checks*", "bcdedit disabled integrity checks",
-    cmd LIKE "*debug on*" OR cmd LIKE "*debug yes*" OR cmd LIKE "*/dbgsettings *" OR cmd LIKE "*debugtype*", "bcdedit enabled kernel debugging",
+    cmd RLIKE ".*testsigning +(on|yes|true).*", "bcdedit set test signing",
+    cmd RLIKE ".*nointegritychecks +(on|yes|true).*" OR cmd LIKE "*disable_integrity_checks*", "bcdedit disabled integrity checks",
+    cmd RLIKE ".*debug +(on|yes|true).*" OR cmd LIKE "*/dbgsettings *" OR cmd LIKE "*debugtype*", "bcdedit enabled kernel debugging",
     NULL)
 | WHERE finding IS NOT NULL
 | KEEP @timestamp, host_key, finding, load_options, test_signing, integrity_off, kernel_debug, hv_debug,
        user.name, process.parent.name, process.command_line
 ```
 
-**How the parsing works.** 4826 renders each setting as `Name: Yes|No` on its own line. Each `GROK` captures one word after the label. `Load Options` can hold several switches, so it takes the rest of the line. `Flight Signing` is deliberately ignored, because Windows Insider builds turn it on.
+**How the parsing works.** 4826 renders each setting as `Name: Yes|No` on its own line. Each `GROK` captures one word after the label. `Load Options` can hold several switches, so it takes the rest of the line (the first match is the general one, which comes before `HyperVisor Load Options`). `Flight Signing` is deliberately ignored, because Windows Insider builds turn it on. The structured `winlog.event_data` copies of these settings stay as raw `%%1842`/`%%1843` codes, which is why the rendered `message` is parsed instead.
+
+The bcdedit patterns need the setting name followed by a value that turns it on. `debug +(on|yes|true)` also covers `bootdebug` and `hypervisordebug`. A looser `*testsigning*on*` would also match `testsigning off` followed by any later "on" (a `.conf` path, for example).
 
 ## Suppression
 Suppress by `host_key`, `finding` for 24h. Alerts missing a key field are not suppressed. A host booted with test signing logs 4826 on every reboot until it's fixed. Going from "bcdedit set" to "booted with" is a new finding and still alerts.

@@ -31,6 +31,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | EVAL upn = TO_LOWER(COALESCE(azure.signinlogs.properties.user_principal_name, "")),
        app_id = TO_LOWER(COALESCE(azure.signinlogs.properties.app_id, "")),
        sp_id = TO_LOWER(COALESCE(azure.signinlogs.properties.service_principal_id, "")),
+       // placeholders: UPNs and IDs in lowercase, because the fields are lowercased above
        honey_identity = CASE(
          upn IN ("<honey_upn_1>", "<honey_upn_2>", "<honey_upn_3>"), upn,
          azure.signinlogs.category == "ServicePrincipalSignInLogs"

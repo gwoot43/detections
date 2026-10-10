@@ -16,6 +16,14 @@ suppression:
 ## Why this is high fidelity
 Because APM is VPN-only, a VPN session is the entry point to the internal network. An anomalous VPN logon (impossible travel, or brute-force-then-success) followed by internal lateral movement or AD recon from the same user is a remote intrusion progressing. The VPN anomaly gives you the earliest possible catch.
 
+## Prerequisite
+**Blocked.** The VPN side depends on F5 APM, which the stock `f5_bigip` integration doesn't parse (no user, no result on one record; see the N01 Prerequisite). Don't deploy this rule until the APM parser behind N01-N04 exists.
+
+When it does, rebuild the query below. It's kept as the original pattern only:
+- It uses `LOOKUP JOIN` against a custom `vpn_anomalies_last_4h` index, which this deployment doesn't allow. Rebuild it the way X01 and X02 work: one `FROM` over the APM data stream and `logs-crowdstrike.fdr-*`, flag each side with `EVAL`, then `STATS ... BY` the normalised user and require the VPN anomaly to come before the endpoint activity.
+- Normalise the user on both sides (lowercase, strip `DOMAIN\`, take the part before `@`). FDR `user.name` on process events is `DOMAIN\user`, and only exists when the integration's "Enrich Host and User Metadata" option is on.
+- Lowercase `process.name` before the `IN` list. FDR keeps the original case (`PSEXESVC.exe`).
+
 ## Query (pattern)
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version

@@ -10,7 +10,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1052.001, T1074.001]
 data_source: CrowdStrike FDR file-written events flagged IsOnRemovableDisk (option A); Windows Security 4663 Removable Storage (option B)
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 12h
   missing_fields: do_not_suppress
 ---
@@ -24,17 +24,19 @@ FROM logs-crowdstrike.fdr-*
 | WHERE event.action LIKE "*FileWritten" AND crowdstrike.IsOnRemovableDisk IN ("1", "true")
 | EVAL fpath = TO_LOWER(COALESCE(file.path, "")),
        is_archive = CASE(fpath RLIKE ".*\\.(zip|7z|rar|tar|gz|iso|vhdx?)", 1, 0)
-| STATS files = COUNT_DISTINCT(fpath), archives = SUM(is_archive), users = VALUES(user.name),
+| STATS files = COUNT_DISTINCT(fpath), archives = SUM(is_archive), users = VALUES(user.name), host_names = VALUES(host.name),
         file_types = VALUES(event.action), devices = VALUES(file.device), sample_files = VALUES(fpath),
         first_write = MIN(@timestamp), last_write = MAX(@timestamp)
-    BY host.name
+    BY host.id
 | WHERE files >= 25 OR archives >= 3
 | EVAL sample_files = MV_SLICE(sample_files, 0, 19)
-| KEEP host.name, users, files, archives, file_types, devices, first_write, last_write, sample_files
+| KEEP host.id, host_names, users, files, archives, file_types, devices, first_write, last_write, sample_files
 ```
 Run every 15 minutes with a 1-hour lookback.
 
 Falcon only emits `*FileWritten` events for the file types it tracks (Office documents, PDFs, archives, executables and scripts). That is the content that matters here. The `file.device` column is the removable disk's device instance ID, so you can tell one stick from another.
+
+The query groups on `host.id` (the Falcon agent ID), which every FDR event carries. `host.name` and `user.name` are only filled when the CrowdStrike integration's "Enrich Host and User Metadata" option is on. Grouping on an empty `host.name` would add every host's writes into one row.
 
 **Option B: Windows Security 4663 (needs "Audit Removable Storage")**
 ```esql
@@ -53,10 +55,10 @@ FROM logs-system.security*, logs-windows.forwarded*
 4663 logs every object touched, not only documents, so the threshold is higher. `4417` is the WriteData access code. `AccessList` is multi-valued, which is why it's joined into one string before matching. Use `winlog.computer_name` because, with event forwarding, `host.name` is the collector.
 
 ## Suppression
-Suppress by `host.name` (option B: `host_key`) for 12h. Alerts missing a key field are not suppressed. One copy session spans several runs of the 1-hour lookback.
+Suppress by `host.id` (option B: `host_key`) for 12h. Alerts missing a key field are not suppressed. One copy session spans several runs of the 1-hour lookback.
 
 ## Known false positives / exclusions
-- **Approved transfers:** the IT build team, forensics workstations, and media production teams moving large projects. Add their hosts to the WHERE.
+- **Approved transfers:** the IT build team, forensics workstations, and media production teams moving large projects. Add their `host.id` values to the WHERE.
 - **Backup to USB disk** on standalone kiosks or lab machines.
 - If you run CrowdStrike Device Control with USB storage blocked, this rule only sees the approved device classes, so it doubles as a check that the allow list is not abused.
 

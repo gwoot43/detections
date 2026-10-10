@@ -23,7 +23,8 @@ FROM logs-zscaler_zia.web-* METADATA _id, _index, _version
        dom = TO_LOWER(TO_STRING(destination.domain))
 | WHERE cat IN ("anonymizer", "proxy avoidance", "dns over https services")   // verify value in Discover
      OR cat LIKE "*vpn*"                                                       // verify value in Discover
-     OR dom LIKE "*.onion*" OR dom LIKE "*ngrok*" OR dom LIKE "*trycloudflare*" OR dom LIKE "*.workers.dev"
+     OR dom LIKE "*.onion*" OR dom LIKE "*trycloudflare*" OR dom LIKE "*.workers.dev"
+     OR (dom LIKE "*ngrok*" AND NOT dom IN ("ngrok.com", "www.ngrok.com", "dashboard.ngrok.com", "download.ngrok.com"))   // vendor site, not a tunnel
      OR dom IN ("dns.google", "cloudflare-dns.com", "mozilla.cloudflare-dns.com", "dns.quad9.net", "doh.opendns.com")
 | KEEP @timestamp, user.name, source.ip, destination.domain, url.full, cat, event.action
 ```

@@ -10,7 +10,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1018, T1046, T1021, T1135]
 data_source: CrowdStrike FDR DnsRequest and NetworkConnectIP4 from every managed host. OpenCanary JSON log (option B).
 suppression:
-  fields: [host.name, decoy]
+  fields: [host.id, decoy]
   duration: 4h
   missing_fields: do_not_suppress
 ---
@@ -36,10 +36,13 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
          event.action == "NetworkConnectIP4" AND dst IN ("<decoy_ip_1>"), CONCAT("connect:", dst),
          NULL)
 | WHERE decoy IS NOT NULL
-| WHERE NOT host.name IN ("<vuln_scanner_host>", "<monitoring_host>")
-| KEEP @timestamp, host.name, user.name, decoy, q, dst, destination.port, process.name, process.command_line
+// scanners and monitoring that sweep every IP (placeholders: Falcon agent IDs)
+| WHERE NOT host.id IN ("<vuln_scanner_aid>", "<monitoring_aid>")
+| KEEP @timestamp, host.id, host.name, user.name, decoy, q, dst, destination.port, process.name, process.command_line
 ```
 Matching on the **first DNS label** catches both `vault-prod` and `vault-prod.corp.local`. If a decoy name could collide with a real public host name, match on the full name instead.
+
+The exclusion and the suppression use `host.id` (the Falcon agent ID), which every FDR event carries. `host.name` is only filled when the CrowdStrike integration's "Enrich Host and User Metadata" option is on, and `NOT host.name IN (...)` drops every row where it's empty.
 
 **Option B: OpenCanary log**
 
@@ -53,10 +56,10 @@ FROM logs-opencanary.log-*
 Field names depend on how the JSON is parsed. With the default parser they arrive at the top level, as shown. If you set a JSON target, prefix the fields with it.
 
 ## Suppression
-Suppress by `host.name`, `decoy` for 4h. Alerts missing a key field are not suppressed. A scan of the decoy produces many connections. A different source host or decoy still alerts.
+Suppress by `host.id`, `decoy` for 4h. Alerts missing a key field are not suppressed. A scan of the decoy produces many connections. A different source host or decoy still alerts.
 
 ## Known false positives / exclusions
-- **Vulnerability scanners, asset discovery, CMDB and monitoring** sweep every IP and so will hit the decoy. Exclude their source hosts in the second WHERE (and their `src_host` in option B). This is the only routine noise. Agree it with the scanner owner so the decoy isn't flagged as a finding.
+- **Vulnerability scanners, asset discovery, CMDB and monitoring** sweep every IP and so will hit the decoy. Exclude their agent IDs in the scanner WHERE (and their `src_host` in option B). This is the only routine noise. Agree it with the scanner owner so the decoy isn't flagged as a finding.
 - **DNS scavenging and zone transfers** run on DNS servers, which don't produce DnsRequest events for the names they hold.
 - **An admin who saw the record** and looked it up out of curiosity. Brief the DNS and server teams.
 

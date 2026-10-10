@@ -23,7 +23,9 @@ Detections for physical access and hardware: keystroke-injection devices, USB ne
 
 PNP auditing is low volume: 6416 only fires the first time a device instance is seen on a host. Removable Storage auditing logs every file touched on USB media and is noisy, which is why DV01 uses Falcon by default.
 
-All five rules match hosts on `winlog.computer_name` (short name, lowercase) rather than `host.name`. With Windows Event Forwarding, `host.name` is the collector, not the machine the event came from.
+The rules that read Windows events match hosts on `winlog.computer_name` (short name, lowercase) rather than `host.name`. With Windows Event Forwarding, `host.name` is the collector, not the machine the event came from. DV01 option A reads only FDR and groups on `host.id` (the Falcon agent ID).
+
+FDR process events carry `host.name` and `user.name` only when the CrowdStrike integration's "Enrich Host and User Metadata" option is on. DV02 pairs 6416 events with FDR shells by host name, so it needs it. Without it, DV04's bcdedit branch still fires but has no host name.
 
 ## What Falcon can add
 

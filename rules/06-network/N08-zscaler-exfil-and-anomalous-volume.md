@@ -21,20 +21,24 @@ Data theft over web shows up as an unusually large upload to a destination the u
 FROM logs-zscaler_zia.web-*
 | EVAL up = TO_LONG(http.request.bytes),
        cat = TO_LOWER(TO_STRING(zscaler_zia.web.url.category.sub))
-| WHERE up IS NOT NULL
+// blocked requests never left the network, so only allowed ones count
+| WHERE up IS NOT NULL AND event.action == "allowed"
 | STATS bytes_up = SUM(up), hits = COUNT(*), cats = VALUES(cat)
-    BY user.name, destination.domain, BUCKET(@timestamp, 1 hour)
-| WHERE bytes_up >= 524288000            // 500 MB/hour to one destination; tune to your baseline
+    BY user.name, destination.domain
+| WHERE bytes_up >= 524288000            // 500 MB in the 1-hour lookback to one destination; tune to your baseline
 | EVAL catlist = MV_CONCAT(cats, ",")
 // URL category names are best guesses: verify value in Discover
 | WHERE (catlist LIKE "*file*shar*" OR catlist LIKE "*file host*" OR catlist LIKE "*personal*storage*"
         OR catlist LIKE "*paste*" OR catlist LIKE "*newly*registered*" OR catlist LIKE "*uncategor*"
         OR catlist LIKE "*miscellaneous*" OR catlist LIKE "*unknown*")
 ```
+Run every 30 minutes with a 1-hour lookback. The lookback is the window. There is no hourly `BUCKET`, so an upload that runs across the hour isn't split in two and missed.
+
 Field notes for the Elastic Zscaler ZIA integration (`zscaler_zia.web`):
 - `http.request.bytes` is Zscaler's request size (`reqsize`). The raw copy `zscaler_zia.web.request.size` is removed at ingest unless you enable duplicate custom fields.
 - `cat` is the URL category (`zscaler_zia.web.url.category.sub`). The integration's test samples include "Cloud Storage" and "Collaboration".
 - `user.name` is the part of the Zscaler login before the @. The full login is in `user.email`.
+- `event.action` is `allowed`, `blocked` or `cautioned`. A blocked upload can still carry a request size, which would count data that never left.
 
 ## Suppression
 Suppress by `user.name`, `destination.domain` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Uploads continue across buckets.

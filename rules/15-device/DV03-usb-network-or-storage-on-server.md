@@ -33,7 +33,7 @@ FROM logs-system.security*, logs-windows.forwarded*
        os = TO_LOWER(COALESCE(host.os.name, ""))
 | WHERE os LIKE "*server*"
   AND cls IN ("net", "diskdrive", "scsiadapter", "wpd", "bluetooth", "modem", "cdrom", "volume", "smartcardreader")
-  AND (dev LIKE """usb\\*""" OR dev LIKE "*usbstor*" OR dev LIKE """bth*""" OR dev LIKE """swd\\wpdbusenum\\*""")
+  AND (dev LIKE """usb\\*""" OR dev LIKE "*usbstor*" OR dev LIKE """bth*""")
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), classes = VALUES(cls),
         devices = VALUES(device.model.name), device_ids = VALUES(device.id),
         users = VALUES(winlog.event_data.SubjectUserName)
@@ -44,12 +44,15 @@ Run every 10 minutes with a 30-minute lookback. One insertion creates several de
 
 `Volume` and `CDROM` are included because a USB stick also creates a volume (its ID contains `USBSTOR#`), and some USB devices present a virtual CD with drivers or tools. `SCSIAdapter` catches fast USB SSDs, which attach as USB Attached SCSI (UAS): the adapter has a `USB\` ID even though the disk behind it shows a `SCSI\` one.
 
+There is no `SWD\WPDBUSENUM\` match. A phone's portable device carries a `USB\` or `BTHENUM\` ID, and a USB stick's portable-device entry contains `USBSTOR`, so both are already caught. The remaining `SWD\WPDBUSENUM\` entries are for other removable volumes, including hot-pluggable virtual disks on VMware, which have no USB link.
+
 ## Suppression
 Suppress by `host_key` for 6h. Alerts missing a key field are not suppressed. A server that just had a device plugged in is already under investigation, so further insertions in the same window are covered by the first alert.
 
 ## Known false positives / exclusions
 - **Licence dongles and HSM or token readers** on specific application servers. They are usually `hidclass` or `usb` class, which the rule doesn't watch. If one shows up as `smartcardreader`, exclude that device ID on that host.
 - **Physical servers being built** with a USB installer. Exclude hosts while their build ticket is open.
+- **RDP USB redirection** (RemoteFX) on Remote Desktop session hosts. A user's redirected USB device appears on the server with a `USB\` ID. Exclude session hosts that allow it, or turn the redirection off by policy.
 - **USB passthrough to a VM** (a dongle mapped through vSphere or Hyper-V). It looks exactly like a real insertion. Confirm with the virtualisation team, then exclude that device ID in the WHERE.
 
 ## Triage
