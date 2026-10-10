@@ -21,7 +21,7 @@ Falcon has dedicated events for task and service registration, which is cleaner 
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action IN ("ScheduledTaskRegistered", "ScheduledTaskModified", "ServiceStarted", "ServiceCreated", "NewServiceCreated")
 | EVAL payload = TO_LOWER(TO_STRING(COALESCE(process.command_line, registry.data.strings, file.path)))
-| WHERE payload LIKE "*\\temp\\*" OR payload LIKE "*\\appdata\\*" OR payload LIKE "*\\programdata\\*" OR payload LIKE "*\\users\\public\\*" OR payload LIKE "*\\downloads\\*"
+| WHERE payload LIKE """*\\temp\\*""" OR payload LIKE """*\\appdata\\*""" OR payload LIKE """*\\programdata\\*""" OR payload LIKE """*\\users\\public\\*""" OR payload LIKE """*\\downloads\\*"""
      OR payload LIKE "*powershell*" OR payload LIKE "*mshta*" OR payload LIKE "*rundll32*" OR payload LIKE "*regsvr32*" OR payload LIKE "*wscript*" OR payload LIKE "*cscript*" OR payload LIKE "*bitsadmin*"
      OR payload LIKE "*-enc*" OR payload LIKE "*frombase64*" OR payload LIKE "*http*" OR payload LIKE "*.hta*" OR payload LIKE "*cmd /c*"
 | KEEP @timestamp, host.name, user.name, event.action, payload, process.parent.name

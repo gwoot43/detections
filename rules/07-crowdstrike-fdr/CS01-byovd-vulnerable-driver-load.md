@@ -24,12 +24,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
        h = TO_LOWER(TO_STRING(COALESCE(file.hash.sha256, process.hash.sha256)))
 | WHERE
      // driver from a user-writable path is almost always BYOVD
-     (img LIKE "*\\temp\\*" OR img LIKE "*\\users\\*" OR img LIKE "*\\programdata\\*" OR img LIKE "*\\appdata\\*" OR img LIKE "*\\downloads\\*" OR img LIKE "*\\perflogs\\*" OR img LIKE "*\\windows\\temp\\*")
+     (img LIKE """*\\temp\\*""" OR img LIKE """*\\users\\*""" OR img LIKE """*\\programdata\\*""" OR img LIKE """*\\appdata\\*""" OR img LIKE """*\\downloads\\*""" OR img LIKE """*\\perflogs\\*""" OR img LIKE """*\\windows\\temp\\*""")
      // known vulnerable driver names (extend from loldrivers.io)
-  OR img LIKE "*\\iqvw64.sys" OR img LIKE "*\\rtcore64.sys" OR img LIKE "*\\dbutil_2_3.sys" OR img LIKE "*\\gdrv.sys"
-  OR img LIKE "*\\aswarpot.sys" OR img LIKE "*\\procexp*.sys" OR img LIKE "*\\truesight.sys" OR img LIKE "*\\viragt64.sys"
-  OR img LIKE "*\\wnbios*.sys" OR img LIKE "*\\mhyprot*.sys" OR img LIKE "*\\zam*.sys" OR img LIKE "*\\kprocesshacker.sys"
-  OR img LIKE "*\\nscm.sys" OR img LIKE "*\\nsecsoft*.sys"
+  OR img LIKE """*\\iqvw64.sys""" OR img LIKE """*\\rtcore64.sys""" OR img LIKE """*\\dbutil_2_3.sys""" OR img LIKE """*\\gdrv.sys"""
+  OR img LIKE """*\\aswarpot.sys""" OR img LIKE """*\\procexp*.sys""" OR img LIKE """*\\truesight.sys""" OR img LIKE """*\\viragt64.sys"""
+  OR img LIKE """*\\wnbios*.sys""" OR img LIKE """*\\mhyprot*.sys""" OR img LIKE """*\\zam*.sys""" OR img LIKE """*\\kprocesshacker.sys"""
+  OR img LIKE """*\\nscm.sys""" OR img LIKE """*\\nsecsoft*.sys"""
      // or a hash on your vulnerable-driver value list
   OR h IN ("PUT_LOLDRIVERS_HASHES_HERE")
 | KEEP @timestamp, host.name, user.name, img, h, process.name, process.command_line

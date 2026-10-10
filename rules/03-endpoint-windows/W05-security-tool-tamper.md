@@ -31,7 +31,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   OR cmd LIKE "*csuninstalltool*"
   OR (pname == "msiexec.exe" AND cmd LIKE "*/x*" AND cmd LIKE "*falcon*")
   OR (pname == "bcdedit.exe" AND cmd LIKE "*safeboot*")
-  OR (pname == "sc.exe" AND cmd LIKE "*create*" AND cmd LIKE "*type= kernel*" AND (cmd LIKE "*\\temp\\*" OR cmd LIKE "*\\users\\*" OR cmd LIKE "*\\programdata\\*"))
+  OR (pname == "sc.exe" AND cmd LIKE "*create*" AND cmd LIKE "*type= kernel*" AND (cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\users\\*""" OR cmd LIKE """*\\programdata\\*"""))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256
 ```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.

@@ -29,7 +29,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname IN ("plink.exe", "ssh.exe") AND (cmd LIKE "* -r *" OR cmd LIKE "* -d *"))
    OR cmd LIKE "*tunnel --accept-server-license-terms*" OR cmd LIKE "*devtunnels*"
 // remove your own approved tool from the list, then keep this guard for install path
-| WHERE NOT (exe LIKE "c:\\program files\\your-approved-rmm\\*")
+| WHERE NOT (exe LIKE """c:\\program files\\your-approved-rmm\\*""")
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256
 ```
 `quickassist.exe` and `teamviewer.exe` will be noisy if IT uses them. Decide once, then either remove them or restrict to launches under user-writable paths.

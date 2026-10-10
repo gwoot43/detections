@@ -26,7 +26,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "reg.exe" AND cmd LIKE "*fdenytsconnections*")
    OR (pname == "netsh.exe" AND cmd LIKE "*advfirewall*" AND cmd LIKE "*off*")
    OR (pname IN ("powershell.exe", "pwsh.exe") AND cmd LIKE "*set-netfirewallprofile*" AND cmd LIKE "*enabled false*")
-   OR (pname == "reg.exe" AND cmd LIKE "*specialaccounts\\userlist*")
+   OR (pname == "reg.exe" AND cmd LIKE """*specialaccounts\\userlist*""")
 | WHERE NOT (parent IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe"))
 | KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
 ```

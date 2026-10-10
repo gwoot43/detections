@@ -25,11 +25,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
        f = TO_LOWER(TO_STRING(COALESCE(file.path, "")))
 | WHERE
      (event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegistryOperationDetectInfo")
-      AND k LIKE "*\\clsid\\*inprocserver32*" AND k LIKE "hkey_users*"
-      AND (v LIKE "*\\appdata\\*" OR v LIKE "*\\temp\\*" OR v LIKE "*\\programdata\\*" OR v LIKE "*\\users\\public\\*"))
-  OR (f LIKE "*\\microsoft\\word\\startup\\*" OR f LIKE "*\\microsoft\\excel\\xlstart\\*"
-      OR f LIKE "*\\microsoft\\addins\\*" OR f LIKE "*\\word\\startup\\*"
-      OR f LIKE "*\\template\\normal.dotm" OR f LIKE "*\\microsoft\\templates\\normal.dotm")
+      AND k LIKE """*\\clsid\\*inprocserver32*""" AND k LIKE "hkey_users*"
+      AND (v LIKE """*\\appdata\\*""" OR v LIKE """*\\temp\\*""" OR v LIKE """*\\programdata\\*""" OR v LIKE """*\\users\\public\\*"""))
+  OR (f LIKE """*\\microsoft\\word\\startup\\*""" OR f LIKE """*\\microsoft\\excel\\xlstart\\*"""
+      OR f LIKE """*\\microsoft\\addins\\*""" OR f LIKE """*\\word\\startup\\*"""
+      OR f LIKE """*\\template\\normal.dotm""" OR f LIKE """*\\microsoft\\templates\\normal.dotm""")
 | KEEP @timestamp, host.name, user.name, event.action, k, v, f, process.name, process.command_line
 ```
 

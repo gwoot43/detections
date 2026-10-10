@@ -22,7 +22,7 @@ FROM logs-crowdstrike.fdr-*
 | WHERE @timestamp > NOW() - 30 minutes AND host.os.type == "windows"
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")), act = event.action
 | EVAL stage = CASE(
-      (cmd LIKE "*set-mppreference*disable*" OR cmd LIKE "*sc *stop*" AND (cmd LIKE "*windefend*" OR cmd LIKE "*csfalcon*")) OR act == "DriverLoad" AND TO_LOWER(TO_STRING(file.path)) LIKE "*\\temp\\*", "defense_disable",
+      (cmd LIKE "*set-mppreference*disable*" OR cmd LIKE "*sc *stop*" AND (cmd LIKE "*windefend*" OR cmd LIKE "*csfalcon*")) OR act == "DriverLoad" AND TO_LOWER(TO_STRING(file.path)) LIKE """*\\temp\\*""", "defense_disable",
       (pname == "vssadmin.exe" AND cmd LIKE "*delete shadows*") OR (pname == "wbadmin.exe" AND cmd LIKE "*delete*") OR (pname == "bcdedit.exe" AND cmd LIKE "*recoveryenabled no*"), "backup_destroy",
       (pname == "cipher.exe" AND cmd LIKE "*/w*") OR cmd LIKE "*vssadmin*resize*", "impact_prep",
       NULL)

@@ -27,11 +27,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "regsvr32.exe"   AND (cmd LIKE "*scrobj*" OR cmd LIKE "*/i:http*" OR cmd LIKE "*.sct*"))
    OR (pname == "msiexec.exe"    AND cmd LIKE "*http*" AND (cmd LIKE "*/i*" OR cmd LIKE "*/q*"))
    OR (pname == "rundll32.exe"   AND (cmd LIKE "*javascript:*" OR cmd LIKE "*url.dll*openurl*" OR cmd LIKE "*http*"))
-   OR (pname IN ("curl.exe", "wget.exe") AND (cmd LIKE "*-o *" OR cmd LIKE "*--output*") AND (cmd LIKE "*.exe*" OR cmd LIKE "*.dll*" OR cmd LIKE "*.ps1*" OR cmd LIKE "*.bat*" OR cmd LIKE "*.hta*" OR cmd LIKE "*\\temp\\*" OR cmd LIKE "*\\public\\*"))
+   OR (pname IN ("curl.exe", "wget.exe") AND (cmd LIKE "*-o *" OR cmd LIKE "*--output*") AND (cmd LIKE "*.exe*" OR cmd LIKE "*.dll*" OR cmd LIKE "*.ps1*" OR cmd LIKE "*.bat*" OR cmd LIKE "*.hta*" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\public\\*"""))
    OR (pname IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*downloadstring*" OR cmd LIKE "*downloadfile*" OR cmd LIKE "*net.webclient*" OR cmd LIKE "*start-bitstransfer*"
                                                    OR (cmd LIKE "*iex*" AND (cmd LIKE "*http*" OR cmd LIKE "*frombase64*"))
                                                    OR cmd LIKE "*-encodedcommand*" OR cmd LIKE "* -enc *" OR cmd LIKE "* -ec *"))
-   OR (pname IN ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe") AND (cmd LIKE "*http*" OR cmd LIKE "*\\temp\\*" OR cmd LIKE "*\\appdata\\*"))
+   OR (pname IN ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe") AND (cmd LIKE "*http*" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\appdata\\*"""))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 

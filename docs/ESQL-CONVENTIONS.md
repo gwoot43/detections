@@ -102,3 +102,18 @@ suppression:
 7. **Read the suppressed count.** A second action by the same attacker on the same entity inside the window folds into the open alert. A count that keeps climbing is a signal in its own right.
 
 Alert suppression for ES|QL rules is available in current Elastic releases. Confirm your version supports it before relying on it.
+
+## Backslashes in LIKE and RLIKE
+
+ES|QL processes a backslash twice: once in the string literal, then again as the `LIKE` escape character. A pattern written as `"*\\temp\\*"` reaches `LIKE` as `*\temp\*`, where `\t` means a literal `t` and `\*` a literal asterisk, so it never matches a path.
+
+Use triple-quoted strings for patterns that match Windows paths. Triple-quoted strings skip string escaping, so the pattern text reaches `LIKE` unchanged and `\\` matches one backslash:
+
+```
+| WHERE process.executable LIKE """*\\temp\\*"""         // matches ...\temp\...
+| WHERE cmd LIKE """*\\\\*"""                                // matches a UNC prefix \\
+```
+
+The equivalent in a normal string is four backslashes per backslash in the data (`"*\\\\temp\\\\*"`), which is what Elastic's own rules use. A backslash before a quote in a normal string (`"\""`) is ordinary string escaping and needs no change.
+
+`RLIKE` uses Lucene regular expressions. They match the whole string implicitly and have no `^` or `$` anchors, which are read as literal characters. Use `.*` at either end instead, and `\\.` in a normal string for a literal dot.

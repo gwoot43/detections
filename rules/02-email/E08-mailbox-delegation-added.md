@@ -26,7 +26,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
        actor = TO_LOWER(o365.audit.UserId)
 | WHERE (p LIKE "*fullaccess*" OR p LIKE "*sendas*" OR p LIKE "*owner*" OR p LIKE "*editor*")
   AND NOT (actor IN ("svc-exchange-automation@yourdomain.com"))
-  AND NOT (p LIKE "*\"user\", \"value\": \"nt authority\\self*")
+  AND NOT (p LIKE "*\"user\", \"value\": \"nt authority\\\\self*")
 | KEEP @timestamp, actor, target, event.action, o365.audit.ClientIP, p
 ```
 Raise to high when `target` is on the VIP list from E03.

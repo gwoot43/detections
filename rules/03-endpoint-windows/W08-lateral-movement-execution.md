@@ -27,7 +27,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR child IN ("psexesvc.exe", "paexec.exe", "remcomsvc.exe")
    OR (child == "wmic.exe" AND cmd LIKE "*/node:*" AND cmd LIKE "*process call create*")
    OR (child == "schtasks.exe" AND cmd LIKE "*/s *" AND cmd LIKE "*/create*")
-   OR (child == "sc.exe" AND cmd LIKE "*\\\\*" AND (cmd LIKE "*create*" OR cmd LIKE "*start*"))
+   OR (child == "sc.exe" AND cmd LIKE """*\\\\*""" AND (cmd LIKE "*create*" OR cmd LIKE "*start*"))
    OR (child IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*invoke-command*-computername*" OR cmd LIKE "*enter-pssession*"))
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line
 ```

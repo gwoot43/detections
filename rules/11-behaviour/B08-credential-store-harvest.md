@@ -23,13 +23,13 @@ FROM logs-crowdstrike.fdr-*
 | WHERE event.category == "file" AND TO_LOWER(event.action) RLIKE ".*(open|read).*" AND file.path IS NOT NULL
 | EVAL p = TO_LOWER(file.path)
 | EVAL store = CASE(
-    p LIKE "*\\login data*" OR p LIKE "*\\cookies*" OR p LIKE "*\\web data*" OR p RLIKE ".*/(cookies|logins)\\.(sqlite|json)", "browser",
-    p LIKE "*\\.ssh\\*" OR p LIKE "*/.ssh/*" OR p RLIKE ".*id_(rsa|ecdsa|ed25519).*", "ssh",
-    p LIKE "*\\.aws\\credentials*" OR p LIKE "*/.aws/credentials*" OR p LIKE "*\\.azure\\*" OR p LIKE "*/.config/gcloud/*", "cloud",
-    p LIKE "*\\.kube\\config*" OR p LIKE "*/.kube/config*", "kube",
-    p RLIKE ".*\\.(kdbx|keychain|key|pem|ppk|ovpn)$", "vault_or_key",
-    p LIKE "*\\appdata\\*\\key4.db" OR p LIKE "*/.mozilla/*key*.db" OR p LIKE "*logins.json*", "firefox",
-    p LIKE "*\\credentials\\*" OR p LIKE "*\\vault\\*" OR p LIKE "*\\protect\\*", "windows_cred",
+    p LIKE """*\\login data*""" OR p LIKE """*\\cookies*""" OR p LIKE """*\\web data*""" OR p RLIKE ".*/(cookies|logins)\\.(sqlite|json)", "browser",
+    p LIKE """*\\.ssh\\*""" OR p LIKE "*/.ssh/*" OR p RLIKE ".*id_(rsa|ecdsa|ed25519).*", "ssh",
+    p LIKE """*\\.aws\\credentials*""" OR p LIKE "*/.aws/credentials*" OR p LIKE """*\\.azure\\*""" OR p LIKE "*/.config/gcloud/*", "cloud",
+    p LIKE """*\\.kube\\config*""" OR p LIKE "*/.kube/config*", "kube",
+    p RLIKE ".*\\.(kdbx|keychain|key|pem|ppk|ovpn)", "vault_or_key",
+    p LIKE """*\\appdata\\*\\key4.db""" OR p LIKE "*/.mozilla/*key*.db" OR p LIKE "*logins.json*", "firefox",
+    p LIKE """*\\credentials\\*""" OR p LIKE """*\\vault\\*""" OR p LIKE """*\\protect\\*""", "windows_cred",
     NULL)
 | WHERE store IS NOT NULL
 | STATS store_types = COUNT_DISTINCT(store),

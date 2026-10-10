@@ -24,9 +24,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
        parent = TO_LOWER(process.parent.name), vol = TO_LOWER(TO_STRING(COALESCE(process.working_directory, "")))
 // Falcon exposes the mounted image path via the volume device; match execution from a non-system drive letter by a loader/script host
 | WHERE (pname IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe", "hh.exe")
-         OR exe LIKE "*.lnk" OR exe LIKE "*.iso\\*" OR exe LIKE "*.img\\*")
+         OR exe LIKE "*.lnk" OR exe LIKE """*.iso\\*""" OR exe LIKE """*.img\\*""")
   AND parent IN ("explorer.exe", "isoburn.exe")
-  AND NOT (exe LIKE "c:\\*")            // executed from a drive other than C: (a mounted image gets D:, E:, ...)
+  AND NOT (exe LIKE """c:\\*""")            // executed from a drive other than C: (a mounted image gets D:, E:, ...)
   AND exe != ""
 | KEEP @timestamp, host.name, user.name, parent, pname, exe, process.command_line
 ```

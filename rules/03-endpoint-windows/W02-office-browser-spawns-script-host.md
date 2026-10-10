@@ -31,7 +31,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
                 "curl.exe", "wget.exe", "schtasks.exe", "wmic.exe", "cmstp.exe", "forfiles.exe", "hh.exe")
 // explorer.exe as parent is only interesting when the child runs from a download/temp/archive path or carries a URL
 | WHERE parent != "explorer.exe"
-   OR cmd LIKE "*\\downloads\\*" OR cmd LIKE "*\\temp\\*" OR cmd LIKE "*\\appdata\\local\\*" OR cmd LIKE "*http*" OR cmd LIKE "*\\7z*" OR cmd LIKE "*\\rar$*"
+   OR cmd LIKE """*\\downloads\\*""" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\appdata\\local\\*""" OR cmd LIKE "*http*" OR cmd LIKE """*\\7z*""" OR cmd LIKE """*\\rar$*"""
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line
 ```
 

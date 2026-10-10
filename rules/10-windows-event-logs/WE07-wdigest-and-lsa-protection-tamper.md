@@ -22,13 +22,13 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegistryOperationDetectInfo") AND host.os.type == "windows"
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
        v = TO_LOWER(TO_STRING(COALESCE(registry.data.strings, registry.value)))
-| WHERE (k LIKE "*securityproviders\\wdigest\\uselogoncredential*" AND v LIKE "*1*")
-   OR (k LIKE "*control\\lsa\\runasppl*" AND (v LIKE "*0*"))
-   OR (k LIKE "*lsa\\lsacfgflags*" AND v LIKE "*0*")
+| WHERE (k LIKE """*securityproviders\\wdigest\\uselogoncredential*""" AND v LIKE "*1*")
+   OR (k LIKE """*control\\lsa\\runasppl*""" AND (v LIKE "*0*"))
+   OR (k LIKE """*lsa\\lsacfgflags*""" AND v LIKE "*0*")
    OR (k LIKE "*deviceguard*" AND k LIKE "*lsacfg*" AND v LIKE "*0*")
-   OR (k LIKE "*control\\lsa\\disablerestrictedadmin*" AND v LIKE "*0*")
-   OR (k LIKE "*control\\lsa\\restrictedadmin*" AND v LIKE "*0*")
-   OR (k LIKE "*wow6432node*securityproviders\\wdigest\\uselogoncredential*" AND v LIKE "*1*")
+   OR (k LIKE """*control\\lsa\\disablerestrictedadmin*""" AND v LIKE "*0*")
+   OR (k LIKE """*control\\lsa\\restrictedadmin*""" AND v LIKE "*0*")
+   OR (k LIKE """*wow6432node*securityproviders\\wdigest\\uselogoncredential*""" AND v LIKE "*1*")
 | KEEP @timestamp, host.name, user.name, k, v, process.name, process.command_line
 ```
 This is a registry rule, so it runs on FDR, not the Windows Security channel. It belongs with the credential-access group but is grouped here because it is the registry twin of the event-log credential signals.

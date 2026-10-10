@@ -22,7 +22,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action IN ("SuspiciousCreateThread", "CreateRemoteThread", "InjectedThread", "ProcessInjection", "ReflectiveDotnetModuleLoad")
 | EVAL src = TO_LOWER(TO_STRING(COALESCE(process.executable, process.name))),
        tgt = TO_LOWER(TO_STRING(COALESCE(process.target.name, registry.value)))
-| WHERE (src LIKE "*\\temp\\*" OR src LIKE "*\\appdata\\*" OR src LIKE "*\\programdata\\*" OR src LIKE "*\\users\\public\\*" OR src LIKE "*\\downloads\\*")
+| WHERE (src LIKE """*\\temp\\*""" OR src LIKE """*\\appdata\\*""" OR src LIKE """*\\programdata\\*""" OR src LIKE """*\\users\\public\\*""" OR src LIKE """*\\downloads\\*""")
      OR tgt IN ("explorer.exe", "svchost.exe", "rundll32.exe", "notepad.exe", "werfault.exe", "dllhost.exe", "regsvr32.exe", "spoolsv.exe", "msbuild.exe")
 | KEEP @timestamp, host.name, user.name, src, tgt, process.command_line
 ```

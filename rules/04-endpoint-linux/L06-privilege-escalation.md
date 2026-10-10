@@ -21,7 +21,7 @@ GTFOBins escalation shapes, `sudo` run with the CVE-2021-3156 or CVE-2023-22809 
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name), parent = TO_LOWER(process.parent.name)
-| WHERE (pname == "sudo" AND (cmd LIKE "*sudoedit*-*" OR cmd LIKE "*\\*" OR cmd LIKE "*editor=*"))
+| WHERE (pname == "sudo" AND (cmd LIKE "*sudoedit*-*" OR cmd LIKE """*\\*""" OR cmd LIKE "*editor=*"))
    OR (parent IN ("sudo", "pkexec") AND pname IN ("sh", "bash", "dash", "python", "python3", "perl", "find", "vim", "vi", "nmap", "awk", "gdb", "tar", "zip", "less", "more", "man", "env") AND (cmd LIKE "*-c *" OR cmd LIKE "*exec*" OR cmd LIKE "*!sh*" OR cmd LIKE "*--interactive*" OR cmd LIKE "*/bin/sh*" OR cmd LIKE "*checkpoint=*"))
    OR (pname == "pkexec" AND parent NOT IN ("gnome-shell", "gdm", "systemd", "gnome-session-binary"))
    OR (cmd LIKE "*chmod*4755*" OR cmd LIKE "*chmod*u+s*" OR cmd LIKE "*chmod*2755*")

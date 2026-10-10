@@ -22,10 +22,10 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action IN ("AsepValueUpdate", "RegistryOperationDetectInfo") AND host.os.type == "windows"
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
        v = TO_LOWER(TO_STRING(COALESCE(registry.data.strings, registry.value)))
-| WHERE (k LIKE "*currentversion\\run*" OR k LIKE "*currentversion\\runonce*" OR k LIKE "*\\services\\*"
+| WHERE (k LIKE """*currentversion\\run*""" OR k LIKE """*currentversion\\runonce*""" OR k LIKE """*\\services\\*"""
         OR k LIKE "*winlogon*" OR k LIKE "*userinit*" OR k LIKE "*shell*" OR k LIKE "*image file execution options*"
-        OR k LIKE "*currentversion\\policies\\explorer\\run*" OR k LIKE "*appinit_dlls*" OR k LIKE "*\\ctrl+*")
-  AND (v LIKE "*\\temp\\*" OR v LIKE "*\\appdata\\*" OR v LIKE "*\\programdata\\*" OR v LIKE "*\\users\\public\\*" OR v LIKE "*\\downloads\\*"
+        OR k LIKE """*currentversion\\policies\\explorer\\run*""" OR k LIKE "*appinit_dlls*" OR k LIKE """*\\ctrl+*""")
+  AND (v LIKE """*\\temp\\*""" OR v LIKE """*\\appdata\\*""" OR v LIKE """*\\programdata\\*""" OR v LIKE """*\\users\\public\\*""" OR v LIKE """*\\downloads\\*"""
         OR v LIKE "*powershell*" OR v LIKE "*mshta*" OR v LIKE "*rundll32*" OR v LIKE "*regsvr32*" OR v LIKE "*wscript*" OR v LIKE "*cscript*"
         OR v LIKE "*-enc*" OR v LIKE "*frombase64*" OR v LIKE "*http*" OR v LIKE "*cmd /c*" OR v LIKE "*.hta*")
 | KEEP @timestamp, host.name, user.name, k, v, process.name, process.command_line

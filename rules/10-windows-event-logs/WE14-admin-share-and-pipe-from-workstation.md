@@ -23,8 +23,8 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 | EVAL share = TO_LOWER(TO_STRING(winlog.event_data.ShareName)),
        rel = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.RelativeTargetName), "")),
        acct = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, ""))
-| WHERE share LIKE "*\\admin$" OR share LIKE "*\\c$"
-     OR (share LIKE "*\\ipc$" AND rel IN ("svcctl", "atsvc", "winreg"))
+| WHERE share LIKE """*\\admin$""" OR share LIKE """*\\c$"""
+     OR (share LIKE """*\\ipc$""" AND rel IN ("svcctl", "atsvc", "winreg"))
 | WHERE CIDR_MATCH(source.ip, "10.20.0.0/16")          // workstation subnets
   AND NOT (acct LIKE "*$")                              // machine accounts
 | KEEP @timestamp, host.name, source.ip, acct, share, rel

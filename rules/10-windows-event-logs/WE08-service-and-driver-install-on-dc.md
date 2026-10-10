@@ -24,8 +24,8 @@ FROM logs-windows.system-*, logs-windows.security-* METADATA _id, _index, _versi
        img = TO_LOWER(TO_STRING(COALESCE(winlog.event_data.ImagePath, winlog.event_data.ServiceFileName, ""))),
        stype = TO_LOWER(TO_STRING(COALESCE(winlog.event_data.ServiceType, "")))
 | WHERE
-     img LIKE "*\\temp\\*" OR img LIKE "*\\users\\*" OR img LIKE "*\\programdata\\*" OR img LIKE "*\\appdata\\*" OR img LIKE "*\\perflogs\\*" OR img LIKE "*\\windows\\temp\\*"
-  OR img LIKE "*powershell*" OR img LIKE "*cmd*/c*" OR img LIKE "*-enc*" OR img LIKE "*rundll32*" OR img LIKE "*mshta*" OR img LIKE "*\\admin$\\*"
+     img LIKE """*\\temp\\*""" OR img LIKE """*\\users\\*""" OR img LIKE """*\\programdata\\*""" OR img LIKE """*\\appdata\\*""" OR img LIKE """*\\perflogs\\*""" OR img LIKE """*\\windows\\temp\\*"""
+  OR img LIKE "*powershell*" OR img LIKE "*cmd*/c*" OR img LIKE "*-enc*" OR img LIKE "*rundll32*" OR img LIKE "*mshta*" OR img LIKE """*\\admin$\\*"""
   OR svc IN ("psexesvc", "paexec", "remcomsvc", "csexecsvc")
   OR stype LIKE "*kernel*"
   OR (host.name LIKE "dc*" OR host.name LIKE "*-dc*")   // any new service on a DC is worth review
