@@ -50,7 +50,7 @@ FROM logs-azure.aadgraphactivitylogs-*
     BY user.id
 | WHERE distinct_endpoints >= 5
 ```
-The path is lower-cased before matching because `LIKE` is case-sensitive and clients differ in how they case collection names. The rule window replaces a one-minute `BUCKET`: a dump that straddles a minute boundary split into two buckets of four collections each and never fired.
+The path is lower-cased before matching because `LIKE` is case-sensitive and clients differ in how they case collection names. The rule window replaces a one-minute `BUCKET`: a dump that straddles a minute boundary splits into two buckets of a few collections each and never fires.
 
 This log source is not collected by default. Enable the `AzureADGraphActivityLogs` diagnostic setting on Entra ID and add the dataset to the Azure integration. The same idea applies to Microsoft Graph activity logs if ROADtools moves off AAD Graph.
 

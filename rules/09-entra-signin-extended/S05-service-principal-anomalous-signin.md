@@ -57,6 +57,7 @@ Suppress by `sp` for 24h. Alerts missing a key field are not suppressed. Aggrega
 ## Known false positives / exclusions
 - A pipeline moved to new build agents or a new cloud. It shows as one new network the day of the change. Confirm against the change record.
 - A service principal used from both a cloud subscription and an on-prem build agent by design is fine once both networks are in the 7-day baseline.
+- A forgotten deployment still using a rotated secret fails from its own network every day and keeps the guessing branch firing. Find and remove it: an old secret sitting in a config somewhere is the same exposure an attacker would use.
 
 ## Triage
 - Rotate the SP credential, review C04 for who added it, and check the SP's permissions for what the attacker could reach. Revoking the credential invalidates tokens at expiry only; also review the SP's recent Graph and ARM activity.
