@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: critical
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1003.006]
 data_source: Windows Security event 4662 from domain controllers
 suppression:
@@ -21,7 +21,7 @@ Audit Directory Service Access must be enabled on DCs with the default SACL on t
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4662"
 | EVAL props = TO_LOWER(TO_STRING(winlog.event_data.Properties)),
        subject = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name))

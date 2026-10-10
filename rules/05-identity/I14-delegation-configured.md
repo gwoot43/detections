@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1134.001, T1098]
 data_source: Windows Security event 5136 from domain controllers
 suppression:
@@ -24,7 +24,7 @@ One rule covers all four, so this is the single delegation-configuration detecti
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "5136"
 | EVAL attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),
        dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),

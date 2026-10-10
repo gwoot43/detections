@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: medium
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1021.002, T1569.002, T1053.005]
 data_source: Windows Security events 5140 and 5145
 suppression:
@@ -18,7 +18,7 @@ Remote administration reaches a host through `ADMIN$`, `C$`, or the service cont
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("5140", "5145")
 | EVAL share = TO_LOWER(TO_STRING(winlog.event_data.ShareName)),
        rel = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.RelativeTargetName), "")),

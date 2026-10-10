@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: medium
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1134, T1078.002, T1068]
 data_source: Windows Security events 4672 (special privileges) and 4673/4674 (privileged service)
 suppression:
@@ -18,7 +18,7 @@ Event 4672 fires when an account logs on with admin-equivalent privileges (SeDeb
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4672"
 | EVAL acct = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
        privs = TO_LOWER(TO_STRING(winlog.event_data.PrivilegeList))

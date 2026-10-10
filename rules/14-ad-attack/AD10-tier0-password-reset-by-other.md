@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 10
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098]
 data_source: Windows Security event 4724 from domain controllers
 suppression:
@@ -19,7 +19,7 @@ An attacker with reset-password rights over a privileged account does not need i
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4724"
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
        target = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),

@@ -6,7 +6,7 @@ status: todo
 severity: critical
 rank: 1
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1207]
 data_source: Windows Security events 5137 (object created) and 5136 (object modified) from domain controllers
 suppression:
@@ -22,7 +22,7 @@ A domain controller exists in Active Directory as a server object and an NTDS Se
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("5137", "5136")
 | EVAL cls = TO_LOWER(TO_STRING(winlog.event_data.ObjectClass)),
        dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),

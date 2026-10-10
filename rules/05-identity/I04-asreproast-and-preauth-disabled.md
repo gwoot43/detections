@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1558.004, T1098]
 data_source: Windows Security events 4768 and 4738 from domain controllers
 suppression: none
@@ -15,7 +15,7 @@ Two linked signals. A burst of AS-REQ (4768) responses with RC4 for accounts tha
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4738"
 | EVAL flags = TO_LOWER(TO_STRING(winlog.event_data.UserAccountControl)),
        target = TO_LOWER(winlog.event_data.TargetUserName),
@@ -26,7 +26,7 @@ FROM logs-windows.security-* METADATA _id, _index, _version
 ```
 Companion roasting-burst query:
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4768" AND TO_LOWER(TO_STRING(winlog.event_data.TicketEncryptionType)) IN ("0x17", "23")
 | STATS accts = COUNT_DISTINCT(winlog.event_data.TargetUserName), src = VALUES(source.ip)
     BY source.ip, BUCKET(@timestamp, 10 minutes)

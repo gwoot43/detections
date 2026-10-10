@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1021.002, T1550.002, T1078]
 data_source: Windows Security event 4624 (logon type 3)
 suppression:
@@ -19,7 +19,7 @@ The authentication side of a lateral sweep. CrackMapExec, NetExec, Impacket and 
 ## Query
 Run every 10 minutes with a 15-minute lookback.
 ```esql
-FROM logs-windows.security-*
+FROM logs-system.security*, logs-windows.forwarded*
 | WHERE event.code == "4624" AND TO_STRING(winlog.event_data.LogonType) == "3"
 | EVAL acct = TO_LOWER(winlog.event_data.TargetUserName), src = TO_STRING(winlog.event_data.IpAddress)
 | WHERE NOT (acct LIKE "*$") AND acct NOT IN ("anonymous logon", "")

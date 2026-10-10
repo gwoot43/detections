@@ -6,7 +6,7 @@ status: todo
 severity: critical
 rank: 5
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1078.002, T1068, T1136.002]
 data_source: Windows Security events 4781, 4742 and 4741 from domain controllers
 suppression:
@@ -25,7 +25,7 @@ Severity is critical for the first three and medium for the last.
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("4781", "4742", "4741")
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
        old_name = TO_LOWER(COALESCE(winlog.event_data.OldTargetUserName, "")),

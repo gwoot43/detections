@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1484.001, T1078.002]
 data_source: Windows Security event 5136 (directory object modified) from domain controllers
 suppression:
@@ -18,7 +18,7 @@ GPO is a domain-wide code-execution and configuration channel. Attackers edit a 
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "5136"
 | EVAL cls = TO_LOWER(TO_STRING(winlog.event_data.ObjectClass)),
        dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),

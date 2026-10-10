@@ -10,8 +10,10 @@ All rules use the Microsoft 365 Unified Audit Log, the Windows Defender operatio
 | CP02 | Quarantine release of malicious mail, or release at volume |
 | CP03 | Tenant Allow/Block List allow entry added (whitelisting attacker infrastructure) |
 | CP04 | CrowdStrike sensor in Reduced Functionality Mode or no longer reporting |
-| CP05 | Microsoft Defender health degraded or the MDE sensor (Sense) not running |
+| CP05 | Microsoft Defender engine, platform or signature failure, or the Defender AV or MDE (Sense) service stopped and stayed down |
+| CP06 | Microsoft Defender protection weakened: real-time protection off, exclusion added, ASR or network protection off, tamper attempt blocked |
 
 Data-source notes:
 - **CP04** reads RFM state straight from FDR: `OsVersionInfo` and `SensorMetadataUpdate` carry it as `crowdstrike.RFMState`, and heartbeats show whether the sensor is still alive. No API feed is needed.
-- **CP05** needs the Windows Defender operational channel and the System channel shipped by the Elastic Windows integration; confirm the event codes your Defender build emits.
+- **CP05** and **CP06** need the **Windows Defender** stream turned on in the Elastic Windows integration (it ships disabled), which writes to `logs-windows.windows_defender-*`. CP05 also reads the System channel (`logs-system.system-*`). Both rules parse the rendered `message`, so they don't depend on event data fields that are only mapped after the first matching event.
+- **CP06** sees the *result* of a Defender change however it was made. W05 sees the *command* when Falcon catches it. Detections and Exploit Guard blocks are in WE10.

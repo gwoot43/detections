@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1187, T1557.001]
 data_source: Windows Security event 4624 on member servers
 suppression:
@@ -18,7 +18,7 @@ Domain controllers normally authenticate to member servers with Kerberos. An NTL
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4624"
 | EVAL acct = TO_LOWER(winlog.event_data.TargetUserName),
        ap = TO_LOWER(TO_STRING(winlog.event_data.AuthenticationPackageName)),

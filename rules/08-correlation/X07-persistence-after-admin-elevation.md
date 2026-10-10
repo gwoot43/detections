@@ -5,7 +5,7 @@ category: correlation
 status: todo
 severity: critical
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1078.002]
 data_source: Windows Security events, joining a Tier-0 elevation (I02/I06) to a persistence write (I11-I14, WE03)
 suppression:
@@ -18,7 +18,7 @@ Any one directory persistence write (I11-I14, WE03) is already high fidelity. Li
 
 ## Query (pattern)
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE @timestamp > NOW() - 1 hour AND event.code == "5136"
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
        attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),

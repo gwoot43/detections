@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: critical
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1078.002]
 data_source: Windows Security events 4728/4732/4756 (and removals 4729/4733/4757)
 suppression: none
@@ -15,7 +15,7 @@ Additions to Domain Admins, Enterprise Admins, Schema Admins, Administrators, an
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("4728", "4732", "4756", "4729", "4733", "4757")
 | EVAL grp = TO_LOWER(winlog.event_data.TargetUserName),
        actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name)),

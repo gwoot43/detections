@@ -5,9 +5,9 @@ category: network
 status: todo
 severity: medium
 language: esql
-index: logs-zscaler.zia_web-*
+index: logs-zscaler_zia.web-*
 mitre: [T1567, T1048, T1041]
-data_source: Zscaler Internet Access web logs
+data_source: Zscaler Internet Access web logs (Elastic zscaler_zia integration, web data stream)
 suppression:
   fields: [user.name, destination.domain]
   duration: 24h
@@ -18,17 +18,23 @@ Data theft over web shows up as an unusually large upload to a destination the u
 
 ## Query
 ```esql
-FROM logs-zscaler.zia_web-*
-| EVAL up = TO_LONG(COALESCE(zscaler.zia.request_size, http.request.bytes, source.bytes)),
-       cat = TO_LOWER(TO_STRING(COALESCE(zscaler.zia.url_category, rule.category)))
+FROM logs-zscaler_zia.web-*
+| EVAL up = TO_LONG(http.request.bytes),
+       cat = TO_LOWER(TO_STRING(zscaler_zia.web.url.category.sub))
 | WHERE up IS NOT NULL
 | STATS bytes_up = SUM(up), hits = COUNT(*), cats = VALUES(cat)
     BY user.name, destination.domain, BUCKET(@timestamp, 1 hour)
 | WHERE bytes_up >= 524288000            // 500 MB/hour to one destination; tune to your baseline
-| WHERE (MV_CONCAT(cats, ",") LIKE "*file*share*" OR MV_CONCAT(cats, ",") LIKE "*personal storage*"
-        OR MV_CONCAT(cats, ",") LIKE "*paste*" OR MV_CONCAT(cats, ",") LIKE "*newly*registered*"
-        OR MV_CONCAT(cats, ",") LIKE "*uncategor*")
+| EVAL catlist = MV_CONCAT(cats, ",")
+// URL category names are best guesses: verify value in Discover
+| WHERE (catlist LIKE "*file*shar*" OR catlist LIKE "*file host*" OR catlist LIKE "*personal*storage*"
+        OR catlist LIKE "*paste*" OR catlist LIKE "*newly*registered*" OR catlist LIKE "*uncategor*"
+        OR catlist LIKE "*miscellaneous*" OR catlist LIKE "*unknown*")
 ```
+Field notes for the Elastic Zscaler ZIA integration (`zscaler_zia.web`):
+- `http.request.bytes` is Zscaler's request size (`reqsize`). The raw copy `zscaler_zia.web.request.size` is removed at ingest unless you enable duplicate custom fields.
+- `cat` is the URL category (`zscaler_zia.web.url.category.sub`). The integration's test samples include "Cloud Storage" and "Collaboration".
+- `user.name` is the part of the Zscaler login before the @. The full login is in `user.email`.
 
 ## Suppression
 Suppress by `user.name`, `destination.domain` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Uploads continue across buckets.

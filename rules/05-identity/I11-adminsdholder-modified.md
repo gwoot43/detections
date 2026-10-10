@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: critical
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1078.002]
 data_source: Windows Security event 5136 (directory object modified) from domain controllers
 suppression:
@@ -18,7 +18,7 @@ The permissions on the AdminSDHolder object are copied onto every protected acco
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "5136"
 | EVAL dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),
        attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),

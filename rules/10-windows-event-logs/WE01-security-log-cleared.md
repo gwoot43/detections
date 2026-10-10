@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: critical
 language: esql
-index: logs-windows.security-*, logs-system.system-*
+index: logs-system.security*, logs-windows.forwarded*, logs-system.system-*
 mitre: [T1070.001]
 data_source: Windows Security event 1102, System event 104
 suppression:
@@ -18,7 +18,7 @@ Event 1102 is written only when someone clears the Security log; 104 is the same
 
 ## Query
 ```esql
-FROM logs-windows.security-*, logs-system.system-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-system.system-* METADATA _id, _index, _version
 | WHERE (event.code == "1102" AND winlog.channel == "Security")
      OR (event.code == "104" AND winlog.provider_name == "Microsoft-Windows-Eventlog")
 | KEEP @timestamp, host.name, event.code, winlog.event_data.SubjectUserName, winlog.event_data.SubjectDomainName, winlog.event_data.Channel, winlog.channel
@@ -33,7 +33,7 @@ Prefer enriching for analyst context over a hard filter: `host.name` and a proce
 ### Option A - LOOKUP JOIN against a maintained imaging-host list (Elastic 9.x GA; tech preview in late 8.x)
 Keep an index in `lookup` index mode, e.g. `imaging_hosts`, with `host.name` and `build_state`, populated by your provisioning pipeline (MDT / Autopilot / SCCM task sequence).
 ```esql
-FROM logs-windows.security-*, logs-system.system-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-system.system-* METADATA _id, _index, _version
 | WHERE (event.code == "1102" AND winlog.channel == "Security")
      OR (event.code == "104" AND winlog.provider_name == "Microsoft-Windows-Eventlog")
 | LOOKUP JOIN imaging_hosts ON host.name
@@ -47,7 +47,7 @@ FROM logs-windows.security-*, logs-system.system-* METADATA _id, _index, _versio
 ### Option B - ENRICH (works on older versions; no LOOKUP JOIN needed)
 Create and execute an enrich policy `imaging_policy` keyed on `host.name` over your imaging-host source index, then re-execute it on a schedule (the policy is a point-in-time snapshot).
 ```esql
-FROM logs-windows.security-*, logs-system.system-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-system.system-* METADATA _id, _index, _version
 | WHERE (event.code == "1102" AND winlog.channel == "Security")
      OR (event.code == "104" AND winlog.provider_name == "Microsoft-Windows-Eventlog")
 | ENRICH imaging_policy ON host.name WITH build_state

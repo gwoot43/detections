@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1649]
 data_source: Windows Security events 4886/4887 (CA) and 4768 (certificate logon) from CA and DCs
 suppression:
@@ -18,7 +18,7 @@ Certificate-based attacks (Certipy, Certify) request a certificate on a vulnerab
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("4886", "4887", "4888")     // cert request received / approved / denied
 | EVAL requester = TO_LOWER(COALESCE(winlog.event_data.Requester, winlog.event_data.SubjectUserName)),
        subject = TO_LOWER(TO_STRING(winlog.event_data.Subject)),

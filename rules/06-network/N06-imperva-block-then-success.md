@@ -5,9 +5,9 @@ category: network
 status: todo
 severity: high
 language: esql
-index: logs-imperva.waf-*
+index: logs-imperva_cloud_waf.event-*
 mitre: [T1190, T1595.002]
-data_source: Imperva WAF security and access events
+data_source: Imperva Cloud WAF security and access events (Elastic imperva_cloud_waf integration, event data stream)
 suppression:
   fields: [source.ip, url.domain]
   duration: 1h
@@ -18,18 +18,21 @@ An attacker probes, gets blocked many times, then finds a request the WAF allows
 
 ## Query
 ```esql
-FROM logs-imperva.waf-*
-| EVAL act = TO_LOWER(TO_STRING(COALESCE(imperva.action, event.action, rule.action))),
-       code = TO_INTEGER(COALESCE(http.response.status_code, imperva.response_code)),
-       blocked = CASE(act IN ("block", "blocked", "deny", "denied", "drop"), 1, 0),
-       success = CASE(code >= 200 AND code < 300, 1, 0)
+FROM logs-imperva_cloud_waf.event-*
+| EVAL act = TO_LOWER(TO_STRING(event.action)),
+       code = TO_INTEGER(http.response.status_code),
+       blocked = CASE(act LIKE "req-blocked*", 1, 0),   // value unverified: Imperva REQ_BLOCKED* lowercased, "_" -> "-"
+       success = CASE(act == "req-passed" AND code >= 200 AND code < 300, 1, 0)
 | STATS blocks = SUM(blocked), successes = SUM(success),
         first_block = MIN(CASE(blocked == 1, @timestamp, NULL)),
         first_success = MIN(CASE(success == 1, @timestamp, NULL)),
+        last_success = MAX(CASE(success == 1, @timestamp, NULL)),
         paths = VALUES(url.path), methods = VALUES(http.request.method)
     BY source.ip, url.domain, BUCKET(@timestamp, 15 minutes)
-| WHERE blocks >= 20 AND successes >= 1 AND first_block <= first_success
+// a success at any point after the first block, not only the earliest success
+| WHERE blocks >= 20 AND successes >= 1 AND first_block <= last_success
 ```
+Field notes: `event.action` is Imperva's `act` value, lowercased with `_` replaced by `-`. A passed request is `req-passed`. `http.response.status_code` comes from Imperva's response-code field (`cn1`). The success side only works if Imperva's SIEM log configuration sends access events (CEF name "Normal") as well as security events. If it sends only security events, no 2xx requests reach Elastic.
 
 ## Suppression
 Suppress by `source.ip`, `url.domain` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert.

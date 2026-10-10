@@ -6,7 +6,7 @@ status: todo
 severity: medium
 rank: 12
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1557]
 data_source: Windows Security event 5137 from domain controllers
 suppression:
@@ -22,7 +22,7 @@ Needs a SACL auditing object creation on the DNS application partitions (DomainD
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "5137"
 | EVAL cls = TO_LOWER(TO_STRING(winlog.event_data.ObjectClass)),
        dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),

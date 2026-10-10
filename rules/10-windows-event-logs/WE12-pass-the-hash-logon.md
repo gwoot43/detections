@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1550.002]
 data_source: Windows Security event 4624
 suppression:
@@ -18,7 +18,7 @@ A 4624 with logon type 9 (new credentials), logon process `seclogo` and package 
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4624"
 | EVAL lt = TO_STRING(winlog.event_data.LogonType),
        lp = TO_LOWER(TRIM(TO_STRING(winlog.event_data.LogonProcessName))),

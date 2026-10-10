@@ -36,7 +36,7 @@ Escalate to critical when `succeeded_users` is non-empty in the same bucket: tha
 
 ## Query (on-prem 4625)
 ```esql
-FROM logs-windows.security-*
+FROM logs-system.security*, logs-windows.forwarded*
 | WHERE event.code == "4625"
 | STATS failed_users = COUNT_DISTINCT(TO_LOWER(winlog.event_data.TargetUserName))
     BY source.ip, BUCKET(@timestamp, 30 minutes)

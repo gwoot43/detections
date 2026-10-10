@@ -5,7 +5,7 @@ category: identity
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1078.002, T1021]
 data_source: Windows Security event 4624
 suppression:
@@ -18,7 +18,7 @@ Tier-0 accounts should log on only to domain controllers and privileged access w
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4624"
 | EVAL acct = TO_LOWER(winlog.event_data.TargetUserName),
        logon_type = TO_STRING(winlog.event_data.LogonType),

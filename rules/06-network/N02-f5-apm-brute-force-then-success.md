@@ -16,6 +16,15 @@ suppression:
 ## Why this is high fidelity
 Internet-facing VPN portals are sprayed constantly. The alert is not the failures, it is a source or a targeted account that fails repeatedly and then succeeds, or one source failing against many accounts (spray) with any success in the window.
 
+## Prerequisite
+The stock Elastic F5 BIG-IP integration (`f5_bigip`, data stream `logs-f5_bigip.log-*`) cannot feed this query as written:
+- It parses APM only from F5 Telemetry Streaming JSON (`telemetryEventCategory: APM`). APM syslog lines such as "Access policy result: Network_Access" are not parsed. They fail the JSON step, so the document gets `event.kind: pipeline_error` and the raw line is kept only in `event.original`. There is no `message` field.
+- APM events have no username field.
+- The client IP and the policy result are on separate records. Request records carry the client IP (`source.ip`, with GeoIP in `source.geo` and `source.as`). Session records carry `f5_bigip.log.session.id`, `f5_bigip.log.access.profile` and the result in `f5_bigip.log.access.policy_result` (for example `Logon_Deny`).
+- The integration never sets `event.outcome` on APM events.
+
+This rule needs a custom ingest pipeline (`logs-f5_bigip.log@custom`, which can parse `event.original`) or a custom syslog integration. That parser has to put the session ID, user, client IP and policy result on each APM event. The index and field names in the query are the target names for that parser: `logs-f5.apm-*`, `f5.apm.result`, `f5.apm.username`/`user.name`, `event.outcome` and `source.ip`. If you use the `@custom` pipeline, the data stays in `logs-f5_bigip.log-*`, so change the `FROM` line to match.
+
 ## Query
 ```esql
 FROM logs-f5.apm-*

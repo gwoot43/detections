@@ -16,6 +16,15 @@ suppression:
 ## Why this is high fidelity
 If your APM access policy enforces MFA, every allowed session should show the MFA agent step succeeding. A session that reaches "allow" without the MFA policy item, or where the MFA step is skipped by a fallback branch, is a policy gap or an attacker who found the branch that bypasses it.
 
+## Prerequisite
+The stock Elastic F5 BIG-IP integration (`f5_bigip`, data stream `logs-f5_bigip.log-*`) cannot feed this query as written:
+- It parses APM only from F5 Telemetry Streaming JSON (`telemetryEventCategory: APM`). APM syslog lines such as "Access policy result: Network_Access" are not parsed. They fail the JSON step, so the document gets `event.kind: pipeline_error` and the raw line is kept only in `event.original`. There is no `message` field.
+- APM events have no username field.
+- The client IP and the policy result are on separate records. Request records carry the client IP (`source.ip`, with GeoIP in `source.geo` and `source.as`). Session records carry `f5_bigip.log.session.id`, `f5_bigip.log.access.profile` and the result in `f5_bigip.log.access.policy_result` (for example `Logon_Deny`).
+- The integration never sets `event.outcome` on APM events.
+
+This rule needs a custom ingest pipeline (`logs-f5_bigip.log@custom`, which can parse `event.original`) or a custom syslog integration. That parser has to put the session ID, user, client IP and policy result on each APM event, and also carry the access-policy item (agent) names from the APM/VPE log lines. The index and field names in the query are the target names for that parser: `logs-f5.apm-*`, `f5.apm.result`, `f5.apm.agent`, `f5.apm.policy_result`, `message`, `user.name`, `event.outcome` and `source.ip`. If you use the `@custom` pipeline, the data stays in `logs-f5_bigip.log-*`, so change the `FROM` line to match.
+
 ## Query
 ```esql
 FROM logs-f5.apm-* METADATA _id, _index, _version

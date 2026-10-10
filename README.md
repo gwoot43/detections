@@ -5,24 +5,26 @@ Starter detection content for a new detection & response function. Stack: **Crow
 ## Layout
 ```
 rules/
-  01-cloud/            C01-C11   Azure & Entra activity/identity-plane
-  02-email/            E01-E10   Mimecast + O365 / Defender for Office
-  03-endpoint-windows/ W01-W10   CrowdStrike FDR (Windows)
-  04-endpoint-linux/   L01-L10   CrowdStrike FDR (Linux)
-  05-identity/         I01-I10   Active Directory + authentication (hybrid)
-  06-network/          N01-N10   F5 APM, Imperva WAF, Zscaler
-  07-crowdstrike-fdr/  CS01-CS08 Falcon sensor-native telemetry (bonus)
-  08-correlation/      X01-X05   cross-source chains (highest value)
-  09-entra-signin-extended/ S01-S10  additional high-fidelity Entra sign-on signals
-  10-windows-event-logs/    WE01-WE10 Windows Security/System event-code detections
+  01-cloud/                 C01-C13   Azure & Entra activity/identity-plane
+  02-email/                 E01-E14   Mimecast + O365 / Defender for Office
+  03-endpoint-windows/      W01-W14   CrowdStrike FDR (Windows) + Defender for Endpoint alerts
+  04-endpoint-linux/        L01-L12   CrowdStrike FDR (Linux)
+  05-identity/              I01-I14   Active Directory + authentication (hybrid)
+  06-network/               N01-N10   F5 APM, Imperva WAF, Zscaler
+  07-crowdstrike-fdr/       CS01-CS08 Falcon sensor-native telemetry
+  08-correlation/           X01-X07   cross-source chains (highest value)
+  09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
+  10-windows-event-logs/    WE01-WE15 Windows Security/System/Defender event-code detections
   11-behaviour/             B01-B09   behavioural (what a tool does, not its name)
   12-insider/               IN01-IN09 insider risk (SharePoint/OneDrive/Confluence/mail)
-  13-controlplane/          CP01-CP05 weakening/blinding of security controls (Defender, EDR)
+  13-controlplane/          CP01-CP06 weakening/blinding of security controls (Defender, EDR)
   14-ad-attack/             AD01-AD13 Active Directory attack paths, ranked by criticality
+  15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
+  16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
-  ESQL-CONVENTIONS.md            METADATA _id/_index/_version, LOOKUP JOIN vs ENRICH, transforms
+  ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping
 ```
 
 Each rule file is self-contained: front-matter (id, severity, MITRE, data source), a "why this is high fidelity" note, the ES|QL/EQL query, known false positives and exclusions, triage steps, and a test method.
@@ -35,7 +37,7 @@ Each rule file is self-contained: front-matter (id, severity, MITRE, data source
 5. **Vendor alerts are inputs, not the whole story.** CS04 routes Falcon detections in on day one; the custom rules cover what the vendors cannot see (non-endpoint sources and cross-source chains).
 
 ## Field-name caveat
-Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final.
+Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names; the mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).
 
 ## Getting started
 See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + visibility protection + shared lookups), then Identity/Cloud P1, then Endpoint P1, then Email/Network P1, then the correlation rules.
@@ -147,7 +149,7 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | WE07 | T1112, T1003.001, T1562.001, T1547.002, T1547.005, T1556.002 | Credential Access / Defense Impairment / Persistence |
 | WE08 | T1543.003, T1569.002, T1068 | Persistence / Execution |
 | WE09 | T1003.003 | Credential Access |
-| WE10 | T1562.001, T1059, T1204 | Defense Impairment / Execution |
+| WE10 | T1204, T1059, T1003.001, T1055, T1071, T1505.003, T1068 | Execution / Credential Access / Command and Control |
 | I11 | T1098, T1078.002 | (see rule) |
 | I12 | T1556, T1098 | (see rule) |
 | I13 | T1558.003, T1098 | (see rule) |
@@ -190,7 +192,8 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | CP02 | T1562, T1566 | Defense Impairment |
 | CP03 | T1562.001, T1556 | Defense Impairment |
 | CP04 | T1562.001, T1562.008 | Defense Impairment |
-| CP05 | T1562.001, T1562.008 | Defense Impairment |
+| CP05 | T1562.001, T1489 | Defense Impairment / Impact |
+| CP06 | T1562.001, T1685, T1112 | Defense Impairment |
 | AD01 | T1207 | Stealth |
 | AD02 | T1098, T1003.006 | Persistence / Credential Access |
 | AD03 | T1649, T1552.004 | Credential Access |
@@ -208,4 +211,17 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | E13 | T1566.001, T1566.002 | Initial Access |
 | E14 | T1566.001, T1566.002 | Initial Access |
 
-Total: 170 detections across 14 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+| W14 | (various, from Defender for Endpoint) | (various) |
+| S22 | T1078.004, T1550.001, T1098.005 | Initial Access / Lateral Movement / Persistence |
+| S23 | T1550.001, T1528, T1539 | Lateral Movement / Credential Access |
+| DV01 | T1052.001, T1074.001 | Exfiltration / Collection |
+| DV02 | T1200, T1059.001, T1059.003 | Initial Access / Execution |
+| DV03 | T1200, T1052.001, T1011 | Initial Access / Exfiltration |
+| DV04 | T1553.006, T1542, T1014, T1562 | Defense Impairment / Persistence / Stealth |
+| DV05 | T1200, T1052.001 | Initial Access / Exfiltration |
+| D01 | T1558.003, T1558.004, T1078.002, T1110, T1552.001, T1003.001 | Credential Access |
+| D02 | T1078.004, T1110.003, T1528, T1552.001 | Credential Access / Initial Access |
+| D03 | T1213.002, T1552.001, T1083 | Collection / Credential Access / Discovery |
+| D04 | T1018, T1046, T1021, T1135 | Discovery / Lateral Movement |
+
+Total: 176 detections across 16 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).

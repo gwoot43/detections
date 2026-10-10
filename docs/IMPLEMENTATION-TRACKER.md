@@ -14,6 +14,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 
 ## Phase 0 — do these first (days, not weeks)
 - [ ] **CS04** Route Falcon high/critical detections into Elastic as alerts _(P0, instant endpoint coverage)_ · `suppress: host.name, technique / 1h`
+- [ ] **W14** Route Defender for Endpoint high-severity alerts into Elastic _(P0, second EDR opinion)_ · `suppress: event.id / 24h`
 - [ ] **CS05** Falcon sensor uninstalled/stopped/silent host _(P0, protect visibility)_ · `suppress: host.name / 24h`
 - [ ] **C09** Azure logging / Defender for Cloud disabled _(P0, protect visibility)_ · `suppress: none`
 - [ ] **E10** Mimecast protection policy weakened or bypass created _(P0, protect visibility)_ · `suppress: mimecast.user, atype / 1h`
@@ -81,10 +82,10 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **I10** MFA method registered / auth policy weakened _(P1)_ · `suppress: target, op / 1h`
 
 ## Network (F5 APM, Imperva WAF, Zscaler)
-- [ ] **N01** F5 APM VPN impossible travel _(P1)_ · `suppress: usr / 24h`
-- [ ] **N02** F5 APM brute force then success _(P1)_ · `suppress: source.ip / 4h`
-- [ ] **N03** F5 APM session without expected MFA _(P2)_ · `suppress: user.name, source.ip / 24h`
-- [ ] **N04** F5 APM/TMOS admin or policy change _(P2)_ · `suppress: usr / 1h`
+- [ ] **N01** F5 APM VPN impossible travel **(blocked: needs a custom F5 APM parser, see the rule's Prerequisite)** _(P1)_ · `suppress: usr / 24h`
+- [ ] **N02** F5 APM brute force then success **(blocked: needs a custom F5 APM parser, see the rule's Prerequisite)** _(P1)_ · `suppress: source.ip / 4h`
+- [ ] **N03** F5 APM session without expected MFA **(blocked: needs a custom F5 APM parser, see the rule's Prerequisite)** _(P2)_ · `suppress: user.name, source.ip / 24h`
+- [ ] **N04** F5 APM/TMOS admin or policy change **(blocked: needs a custom F5 APM parser, see the rule's Prerequisite)** _(P2)_ · `suppress: usr / 1h`
 - [ ] **N05** Imperva high-severity attack not blocked _(P1)_ · `suppress: source.ip, url.domain / 1h`
 - [ ] **N06** Imperva block-then-success (bypass) _(P1)_ · `suppress: source.ip, url.domain / 1h`
 - [ ] **N07** Zscaler C2 / malware callback _(P1)_ · `suppress: source.ip, destination.domain / 24h`
@@ -125,7 +126,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **WE07** WDigest / LSA protection / LSA packages / DSRM logon behaviour (registry) _(P1)_ · `suppress: host.name, k / 24h`
 - [ ] **WE08** New service / kernel driver on DC or server (7045/4697) _(P1)_ · `suppress: host.name, svc / 24h`
 - [ ] **WE09** NTDS.dit / shadow copy / ntdsutil on a DC (4656/4663) _(P1, critical)_ · `suppress: host.name / 1h`
-- [ ] **WE10** Defender detection / protection disabled (1116/5001) _(P1)_ · `suppress: host.name, threat / 24h`
+- [ ] **WE10** Defender malware detection, high-signal ASR block (1121), non-browser network protection block (1126) _(P1; enable the Windows Defender stream first)_ · `suppress: host.name, feature, signal / 24h`
 
 ## Correlation (build after the single-source rules feeding them are live)
 - [ ] **X01** Phish click -> endpoint alert (same user) _(P1, critical)_ · `suppress: usr, host.name / 24h`
@@ -175,6 +176,10 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **S20** Broker refresh token to device registration to PRT chain _(P1, critical)_ · `suppress: uid / 24h`
 - [ ] **S21** ROADrecon enumeration through Azure AD Graph _(P2, high; needs AAD Graph activity logs)_ · `suppress: user.id / 1h`
 
+## Entra token and device abuse
+- [ ] **S22** Several different people signing in from one Entra device _(P2, medium/high)_ · `suppress: device_id / 24h`
+- [ ] **S23** Refresh-token sign-in from a network never used interactively _(P2, medium; 7-day lookback, check query cost)_ · `suppress: upn, asn / 24h`
+
 
 ## Behaviour-based (rules/11-behaviour) — tune thresholds on 2 weeks of data
 - [ ] **B01** Horizontal network scan _(high)_ · `suppress: host.name, process.name / 1h`
@@ -204,7 +209,8 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CP02** Quarantine release of malicious mail / release at volume _(high)_ · `suppress: usr / 6h`
 - [ ] **CP03** Tenant allow-list allow entry added _(high)_ · `suppress: usr / 6h`
 - [ ] **CP04** CrowdStrike stuck in RFM, or in RFM and not reporting _(high)_ · `suppress: host.id / 24h`
-- [ ] **CP05** Defender health degraded / MDE sensor not running _(high)_ · `suppress: host.name, event.code / 12h`
+- [ ] **CP05** Defender engine/platform/signature failure, or Defender AV / MDE service stopped and stayed down _(high)_ · `suppress: host.name, component, problem / 24h`
+- [ ] **CP06** Defender protection weakened: real-time off, exclusion added, ASR/network protection off, tamper attempt (5007/5001/5013) _(high)_ · `suppress: setting, change / 24h`
 - [ ] **E12** ZAP disabled in a protection policy _(high)_ · `suppress: usr, event.action / 6h`
 - [ ] **E13** ZAP remediation across many recipients (wave) _(medium)_ · `suppress: campaign / 12h`
 - [ ] **E14** Malicious after delivery but still in inbox (ZAP miss) _(high)_ · `suppress: usr / 6h`
@@ -225,6 +231,24 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **AD12** ADIDNS wildcard / WPAD record by a user _(rank 12, medium; needs DNS partition SACL)_ · `suppress: op_id / 1h`
 - [ ] **AD13** RDP session hijack via tscon _(rank 13, medium)_ · `suppress: host.name / 1h`
 
+## Device and hardware (rules/15-device) — enable Audit PNP Activity first
+- [ ] **DV02** New keyboard then shell from Explorer within 90s (keystroke injection) _(rank 1, high)_ · `suppress: host_key / 1h`
+- [ ] **DV03** USB/Bluetooth NIC, storage or phone on a server or DC _(rank 2, high)_ · `suppress: host_key / 6h`
+- [ ] **DV04** Boot integrity weakened: test signing, integrity checks off, kernel debug _(rank 2, high)_ · `suppress: host_key, finding / 24h`
+- [ ] **DV01** Bulk copy of documents/archives to removable media _(rank 3, medium)_ · `suppress: host.name / 12h`
+- [ ] **DV05** Device installation blocked by policy (NIC/keyboard, server, repeated) _(rank 4, medium; needs a device restriction policy)_ · `suppress: host_key, subject_user / 12h`
+
+## Deception (rules/16-deception) — follow the README setup guide; real values only in the deployed rules
+- [ ] Phase 0: sign-off, restricted deception register, log sources confirmed
+- [ ] Phase 1: honey accounts created (kerberoast SPN, AS-REP, description bait), honey service principal
+- [ ] Phase 2: credential lures placed (SharePoint, Confluence, NETLOGON script, canarytokens)
+- [ ] Phase 3: decoy host and DNS names (optional)
+- [ ] **D01** Honey AD account touched (kerberoast, AS-REP, any auth) _(rank 1, critical)_ · `suppress: honey_account, trap / 1h`
+- [ ] **D02** Honey Entra user or service principal sign-in attempt _(rank 1, critical)_ · `suppress: honey_identity, source.ip / 1h`
+- [ ] **D03** Decoy SharePoint file or Confluence page opened _(rank 2, critical)_ · `suppress: usr, file.name / 4h`
+- [ ] **D04** Decoy host name looked up or decoy IP connected to _(rank 2, critical)_ · `suppress: host.name, decoy / 4h`
+- [ ] Phase 5: every trap fired from a lab host and the alert confirmed
+
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
 2. Identity + Cloud P1 (I01, I02, I05, I07, I08, C01-C05, C11) — these catch the attacks you are most likely to face first.
@@ -232,3 +256,4 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 4. Email P1 (E01, E02, E04-E07) and Network P1 (N01, N02, N05-N07).
 5. Correlation (X-series) once their inputs exist. These are your best signals; they just need the feeders first.
 6. Remaining P2 rules for depth.
+7. Deception (D01-D04) before any red-team engagement. It takes a few days and has almost no false positives.

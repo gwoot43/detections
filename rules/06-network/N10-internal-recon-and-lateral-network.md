@@ -5,9 +5,9 @@ category: network
 status: todo
 severity: medium
 language: esql
-index: logs-*
+index: logs-zscaler_zia.firewall-*, logs-imperva_cloud_waf.event-*
 mitre: [T1595.001, T1046, T1210]
-data_source: F5/Imperva edge logs and internal firewall/flow logs
+data_source: Zscaler ZIA firewall logs (internal branch; add internal firewall/flow logs) and Imperva Cloud WAF events (edge branch)
 suppression:
   fields: [src]
   duration: 1h
@@ -16,23 +16,29 @@ suppression:
 ## Why this is high fidelity
 Two branches. External: a single source touching many distinct URIs or hostnames on the edge in a short window is reconnaissance ahead of exploitation. Internal: one internal host connecting to many distinct internal hosts on the same port in a short window is lateral scanning, which precedes lateral movement (W08).
 
-## Query (internal fan-out; adjust index to your firewall/flow data)
+## Query (internal fan-out)
 ```esql
-FROM logs-*
-| WHERE event.category == "network" AND destination.ip IS NOT NULL AND network.direction IN ("internal", "ingress", "egress")
-| EVAL src = source.ip
+FROM logs-zscaler_zia.firewall-*   // ZIA only logs traffic forwarded to Zscaler: add your internal firewall/flow data streams here
+| WHERE event.category == "network" AND destination.ip IS NOT NULL
+| EVAL src = source.ip,
+       // Zscaler firewall appends both the client-side and server-side destination port (cdport, sdport),
+       // so destination.port can be multi-valued; take one value so each connection is counted once
+       dport = MV_MIN(destination.port)
 // keep RFC1918 to RFC1918 only
 | WHERE CIDR_MATCH(source.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
   AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
-| STATS dst_hosts = COUNT_DISTINCT(destination.ip), ports = VALUES(destination.port), conns = COUNT(*)
-    BY src, destination.port, BUCKET(@timestamp, 10 minutes)
+| STATS dst_hosts = COUNT_DISTINCT(destination.ip), conns = COUNT(*)
+    BY src, dport, BUCKET(@timestamp, 10 minutes)
 | WHERE dst_hosts >= 50
 ```
+There is no `network.direction` filter. None of the Zscaler ZIA data streams set `network.direction`, so filtering on it dropped every event. The RFC1918-to-RFC1918 `CIDR_MATCH` is what scopes the query to internal traffic.
+
 External edge branch:
 ```esql
-FROM logs-imperva.waf-*
+FROM logs-imperva_cloud_waf.event-*
+| EVAL src = source.ip
 | STATS uris = COUNT_DISTINCT(url.path), hosts = COUNT_DISTINCT(url.domain), hits = COUNT(*)
-    BY source.ip, BUCKET(@timestamp, 5 minutes)
+    BY src, BUCKET(@timestamp, 5 minutes)
 | WHERE hits >= 200 AND uris >= 100
 ```
 

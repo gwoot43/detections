@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 8
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1558.001]
 data_source: Windows Security events 4768, 4769 and 4770 from all domain controllers
 suppression:
@@ -23,7 +23,7 @@ A forged TGT is created offline with the stolen krbtgt key, so the domain contro
 ## Query
 Run hourly with an 11-hour lookback.
 ```esql
-FROM logs-windows.security-*
+FROM logs-system.security*, logs-windows.forwarded*
 | WHERE event.code IN ("4768", "4769", "4770")
 | EVAL acct = TO_LOWER(MV_FIRST(SPLIT(COALESCE(TO_STRING(winlog.event_data.TargetUserName), ""), "@"))),
        transited = COALESCE(TO_STRING(winlog.event_data.TransitedServices), "-"),

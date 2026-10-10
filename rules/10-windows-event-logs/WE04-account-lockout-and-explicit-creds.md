@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: medium
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1110, T1078, T1550.002]
 data_source: Windows Security events 4740 (lockout) and 4648 (explicit credentials)
 suppression:
@@ -18,7 +18,7 @@ Two signals. A burst of 4740 lockouts across many accounts is a spray hitting th
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("4740", "4648")
 | EVAL locked = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),
        actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),

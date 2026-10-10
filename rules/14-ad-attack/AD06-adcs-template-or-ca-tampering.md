@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 6
 language: esql
-index: logs-windows.security-*, logs-crowdstrike.fdr-*
+index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
 mitre: [T1649, T1484]
 data_source: Windows Security 5136 (DCs) and AD CS audit events (CA), CrowdStrike FDR process and registry events
 suppression:
@@ -23,7 +23,7 @@ I09 catches a certificate being issued for someone else. This catches the config
 
 ## Query
 ```esql
-FROM logs-windows.security-*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | EVAL cls = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.ObjectClass), "")),
        attr = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.AttributeLDAPDisplayName), "")),
        cl = TO_LOWER(COALESCE(process.command_line, "")),

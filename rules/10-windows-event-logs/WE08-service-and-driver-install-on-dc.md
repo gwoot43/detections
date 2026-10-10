@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: high
 language: esql
-index: logs-windows.system-*, logs-windows.security-*
+index: logs-system.system-*, logs-system.security*, logs-windows.forwarded*
 mitre: [T1543.003, T1569.002, T1068]
 data_source: Windows System event 7045 (service installed) and Security event 4697
 suppression:
@@ -18,7 +18,7 @@ Event 7045 records a new service. On domain controllers and Tier-0 servers, new 
 
 ## Query
 ```esql
-FROM logs-windows.system-*, logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.system-*, logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("7045", "4697")
 | EVAL svc = TO_LOWER(TO_STRING(COALESCE(winlog.event_data.ServiceName, ""))),
        img = TO_LOWER(TO_STRING(COALESCE(winlog.event_data.ImagePath, winlog.event_data.ServiceFileName, ""))),

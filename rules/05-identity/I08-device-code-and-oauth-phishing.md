@@ -22,14 +22,13 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | WHERE event.dataset == "azure.signinlogs"
 | EVAL proto = TO_LOWER(TO_STRING(azure.signinlogs.properties.authentication_protocol)),
        grant = TO_LOWER(TO_STRING(azure.signinlogs.properties.incoming_token_type)),
-       flow = TO_LOWER(TO_STRING(azure.signinlogs.properties.original_transfer_method)),
        app = TO_LOWER(TO_STRING(azure.signinlogs.properties.app_display_name)),
        outcome = TO_STRING(azure.signinlogs.properties.status.error_code)
-| WHERE (proto == "devicecode" OR grant LIKE "*devicecode*" OR flow LIKE "*devicecode*")
+| WHERE (proto == "devicecode" OR grant LIKE "*devicecode*")
 | WHERE outcome == "0"
 | KEEP @timestamp, user.name, app, source.ip, source.geo.country_iso_code, source.as.organization.name, proto, grant
 ```
-If the device-code fields are not populated in your integration version, detect the pattern instead: an authorization request (error 50199 / 70016 device-code pending) followed by a success for the same user from a different IP within 15 minutes.
+Entra's `originalTransferMethod` (`deviceCodeFlow`) is not used: the Elastic Azure integration does not define `azure.signinlogs.properties.original_transfer_method` (it is in neither the field list nor the ingest pipeline), and an ES|QL query fails if it names a field that is not mapped. If the device-code fields are not populated in your integration version, detect the pattern instead: an authorization request (error 50199 / 70016 device-code pending) followed by a success for the same user from a different IP within 15 minutes.
 
 ## Suppression
 Suppress by `user.name`, `source.ip` for 24h. Alerts missing a key field are not suppressed. A phished token keeps refreshing from the same IP. A new IP still alerts.
@@ -47,14 +46,14 @@ Run `az login --use-device-code` from a lab machine and confirm it appears.
 When a device-code sign-in fires, pivot to the user's web traffic around the sign-in time to see the lure. The victim visits `microsoft.com/devicelogin` (a legitimate Microsoft URL) and enters the attacker's code, so the visit itself is not malicious; the value is the timing and the referrer, which points back to the phishing page.
 
 ```esql
-FROM logs-proxy-*
-| WHERE user.name == "<user>"
+FROM logs-zscaler_zia.web-*
+| WHERE user.email == "<upn>"
   AND @timestamp >= "<signin - 15m>" AND @timestamp <= "<signin + 2m>"
 | WHERE (url.domain IN ("microsoft.com", "www.microsoft.com", "login.microsoftonline.com",
-                        "aka.ms", "login.microsoft.com", "microsoft.com")
+                        "aka.ms", "login.microsoft.com")
          OR url.domain LIKE "*.microsoftonline.com")
   AND (url.path LIKE "*devicelogin*" OR url.path LIKE "*deviceauth*" OR url.path LIKE "*/device*")
-| KEEP @timestamp, url.domain, url.path, http.request.referrer
+| KEEP @timestamp, user.email, url.domain, url.path, http.request.referrer, zscaler_zia.web.ssl_decrypted
 | SORT @timestamp ASC
 ```
 
@@ -63,4 +62,7 @@ Syntax notes:
 - `IN ("microsoft.com")` does **not** match `login.microsoft.com`. To catch subdomains, add a `LIKE "*.microsoftonline.com"` branch (shown) or list each host explicitly.
 - `microsoft.com/devicelogin` is the path `devicelogin` on domain `microsoft.com`, so the `url.path LIKE "*devicelogin*"` filter already covers it; you do not need a separate domain entry for the path.
 - The `http.request.referrer` is the payoff: if it is an external or newly registered domain rather than an Outlook/Teams deep link, that referrer is the phishing page. Block it and sweep other users for visits to it.
-- Replace `logs-proxy-*` with your Zscaler index (`logs-zscaler.zia_web-*`); the field names align with N07-N09.
+- The index is the Elastic Zscaler ZIA web data stream, `logs-zscaler_zia.web-*`.
+- Match the user on `user.email`, not `user.name`. In this integration `user.email` is the full Zscaler login, while `user.name` is only the part before the @. Entra `user.name` is the full UPN. Paste the UPN from the sign-in alert as `<upn>`, and confirm that your Zscaler login is the UPN and not an alias.
+- `url.path` is probably only filled in when Zscaler inspected the TLS session (unverified). If `zscaler_zia.web.ssl_decrypted` is "No" for Microsoft login traffic and the path is empty, drop the `url.path` filter and rely on the timing.
+- Zscaler records `http.request.referrer` without the scheme, for example `contoso-docs.example/share`.

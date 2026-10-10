@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 9
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1003, T1552]
 data_source: Windows Security event 4662 from domain controllers
 suppression:
@@ -25,7 +25,7 @@ Get-ADObject -SearchBase (Get-ADRootDSE).schemaNamingContext -Filter "lDAPDispla
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4662"
 | EVAL props = TO_LOWER(TO_STRING(winlog.event_data.Properties)),
        actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, ""))

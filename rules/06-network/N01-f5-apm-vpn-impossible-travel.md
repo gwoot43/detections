@@ -16,6 +16,15 @@ suppression:
 ## Why this is high fidelity
 APM is your VPN, so a successful session is remote access to the corporate network. One user succeeding from two countries inside a few hours, or from a country the workforce is not in, is stolen credentials or a stolen session. Because APM is VPN-only, the legitimate population is your own staff and their known locations.
 
+## Prerequisite
+The stock Elastic F5 BIG-IP integration (`f5_bigip`, data stream `logs-f5_bigip.log-*`) cannot feed this query as written:
+- It parses APM only from F5 Telemetry Streaming JSON (`telemetryEventCategory: APM`). APM syslog lines such as "Access policy result: Network_Access" are not parsed. They fail the JSON step, so the document gets `event.kind: pipeline_error` and the raw line is kept only in `event.original`. There is no `message` field.
+- APM events have no username field.
+- The client IP and the policy result are on separate records. Request records carry the client IP (`source.ip`, with GeoIP in `source.geo` and `source.as`). Session records carry `f5_bigip.log.session.id`, `f5_bigip.log.access.profile` and the result in `f5_bigip.log.access.policy_result` (for example `Logon_Deny`).
+- The integration never sets `event.outcome` on APM events.
+
+This rule needs a custom ingest pipeline (`logs-f5_bigip.log@custom`, which can parse `event.original`) or a custom syslog integration. That parser has to put the session ID, user, client IP and policy result on each APM event. The index and field names in the query are the target names for that parser: `logs-f5.apm-*`, `f5.apm.result`, `f5.apm.username`/`user.name`, `event.outcome` and `source.ip`, with GeoIP filling `source.geo.*` and `source.as.*`. If you use the `@custom` pipeline, the data stays in `logs-f5_bigip.log-*`, so change the `FROM` line to match.
+
 ## Query
 ```esql
 FROM logs-f5.apm-*

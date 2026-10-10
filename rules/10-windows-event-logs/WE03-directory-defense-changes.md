@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: critical
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1484.001, T1134.005, T1098]
 data_source: Windows Security events 4706/4716 (trusts), 4765/4766 (SID History), 4794 (DSRM)
 suppression: none
@@ -15,7 +15,7 @@ Each of these is a rare, high-impact directory change with no routine business c
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("4706", "4707", "4716", "4765", "4766", "4794")
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name)),
        target = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, ""))

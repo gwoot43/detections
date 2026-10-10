@@ -18,7 +18,7 @@ eDiscovery and content search let a privileged user search and export anyone's m
 
 ## Query
 ```esql
-FROM logs-o365.audit-*
+FROM logs-o365.audit-* METADATA _id, _index, _version
 | WHERE event.dataset == "o365.audit"
   AND (o365.audit.Workload IN ("SecurityComplianceCenter", "Purview") OR event.action LIKE "Search*")
   AND event.action IN ("SearchCreated", "SearchStarted", "SearchExported", "SearchExportDownloaded",

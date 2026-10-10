@@ -2,10 +2,33 @@
 
 Reference for the recurring ES|QL patterns across the rule files. Rules link here instead of re-explaining.
 
+## Index patterns
+
+Every rule targets the data stream that Elastic's own integration writes to (`logs-<package>.<data_stream>-<namespace>`). If you ship a source another way, change the `FROM` line and the `index:` front-matter together.
+
+| Source | Integration (data stream) | Pattern used |
+|---|---|---|
+| Windows Security channel | System (`security`); Windows (`forwarded`) for WEF collectors | `logs-system.security*, logs-windows.forwarded*` |
+| Windows System channel | System (`system`) | `logs-system.system-*` |
+| Defender AV Operational channel | Windows (`windows_defender`) | `logs-windows.windows_defender-*` |
+| Defender for Endpoint alerts | M365 Defender (`alert`) | `logs-m365_defender.alert-*` |
+| CrowdStrike FDR | CrowdStrike (`fdr`) | `logs-crowdstrike.fdr-*` |
+| Entra sign-in and audit, Azure activity | Azure (`signinlogs`, `auditlogs`, `activitylogs`) | `logs-azure.<stream>-*` |
+| O365 unified audit | O365 (`audit`) | `logs-o365.audit-*` |
+| Zscaler ZIA web, firewall | Zscaler ZIA (`web`, `firewall`) | `logs-zscaler_zia.web-*`, `logs-zscaler_zia.firewall-*` |
+| Imperva Cloud WAF | Imperva Cloud WAF (`event`) | `logs-imperva_cloud_waf.event-*` |
+| F5 BIG-IP (incl. APM) | F5 BIG-IP (`log`) | `logs-f5_bigip.log-*`. APM is only parsed from Telemetry Streaming JSON, so see the N01-N04 prerequisites |
+
+There is **no `windows.security` data stream**. Windows Security events land in `logs-system.security-*` when the Elastic Agent System integration collects them locally, or in `logs-windows.forwarded-*` when a collector reads the Forwarded Events channel. Elastic's prebuilt rules query both (`logs-system.security*, logs-windows.forwarded*, winlogbeat-*`). Add `winlogbeat-*` if any of your hosts still ship with Winlogbeat.
+
+A wildcard pattern that matches no index is not an error in ES|QL, so listing both is safe. A concrete index name with no wildcard that does not exist fails the query.
+
+Channels that the integrations do not collect by default (Partition/Diagnostic, DriverFrameworks-UserMode, Code Integrity) need a custom Windows event log input in the agent policy. The device rules in `rules/15-device/` list each one.
+
 ## `METADATA _id, _index, _version`
 
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 ```
 
 `METADATA` exposes three document-level fields as columns you can use downstream:

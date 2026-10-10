@@ -16,6 +16,14 @@ suppression:
 ## Why this is high fidelity
 Changing an APM access policy, adding a local admin, or modifying an iRule on the VPN edge is a small set of actions by a small set of engineers. An unexpected one is either an attacker weakening the edge or an unmanaged change on a critical device.
 
+## Prerequisite
+The stock Elastic F5 BIG-IP integration (`f5_bigip`, data stream `logs-f5_bigip.log-*`) cannot feed this query as written:
+- It has no audit data stream. It only parses F5 Telemetry Streaming JSON for LTM, AFM, APM, ASM, AVR, system and iHealth, plus ASM CEF. APM, for example, is parsed only from Telemetry Streaming JSON.
+- Syslog lines are not parsed, whether they are TMOS/mcpd/tmsh audit lines or APM lines. They fail the JSON step, so the document gets `event.kind: pipeline_error` and the raw line is kept only in `event.original`. There is no `message` field and no user field.
+- On APM events there is no username field, and the client IP and policy result are on separate records.
+
+This rule needs a custom ingest pipeline (`logs-f5_bigip.log@custom`, which can parse `event.original`) or a custom syslog integration. That parser has to extract the audit message, the acting user, the client IP and the host. For APM lines it also has to extract the session ID, user, client IP and policy result. The index and field names in the query are the target names for that parser: `logs-f5.audit-*`, `message`, `f5.audit.user`/`user.name`, `source.ip` and `host.name`. If you use the `@custom` pipeline, the data stays in `logs-f5_bigip.log-*`, so change the `FROM` line to match.
+
 ## Query
 ```esql
 FROM logs-f5.audit-* METADATA _id, _index, _version

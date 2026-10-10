@@ -6,7 +6,7 @@ status: todo
 severity: critical
 rank: 4
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1555, T1003]
 data_source: Windows Security event 4662 on domain controllers
 suppression:
@@ -22,7 +22,7 @@ The domain DPAPI backup key, stored as an LSA secret on every domain controller,
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "4662"
 | EVAL otype = TO_LOWER(TO_STRING(winlog.event_data.ObjectType)),
        oname = TO_LOWER(TO_STRING(winlog.event_data.ObjectName)),

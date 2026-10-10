@@ -6,7 +6,7 @@ status: todo
 severity: critical
 rank: 2
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1003.006]
 data_source: Windows Security event 5136 from domain controllers
 suppression:
@@ -21,7 +21,7 @@ The logged value is the whole new security descriptor, which already includes th
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code == "5136"
 | EVAL cls = TO_LOWER(TO_STRING(winlog.event_data.ObjectClass)),
        attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),

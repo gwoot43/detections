@@ -29,7 +29,7 @@ FROM logs-o365.audit-*
         downloads = COUNT(*),
         sites = COUNT_DISTINCT(o365.audit.SiteUrl),
         client_ips = VALUES(o365.audit.ClientIP),
-        sample = VALUES(o365.audit.SourceFileName)
+        sample = VALUES(file.name)
     BY usr, BUCKET(@timestamp, 1 hour)
 | WHERE files >= 200
 ```

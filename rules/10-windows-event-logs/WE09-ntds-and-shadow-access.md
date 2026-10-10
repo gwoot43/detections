@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*, logs-windows.security-*
+index: logs-crowdstrike.fdr-*, logs-system.security*, logs-windows.forwarded*
 mitre: [T1003.003]
 data_source: CrowdStrike FDR ProcessRollup2 (DCs) and Windows Security 4656/4663 on NTDS
 suppression:

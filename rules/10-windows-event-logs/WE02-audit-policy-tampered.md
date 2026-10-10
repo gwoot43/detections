@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: high
 language: esql
-index: logs-windows.security-*
+index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1562.002]
 data_source: Windows Security events 4719, 4817, 4912
 suppression:
@@ -18,7 +18,7 @@ Audit policy normally changes only when Group Policy applies, which is logged un
 
 ## Query
 ```esql
-FROM logs-windows.security-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
 | WHERE event.code IN ("4719", "4817", "4912")
 | EVAL subject = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, ""))
 | WHERE subject != "system" AND subject != "" AND NOT (subject LIKE "*$")
