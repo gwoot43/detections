@@ -54,4 +54,4 @@ Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. E
 - Isolate every host showing branch B. Identify the ransom note filename from VALUES and sweep the fleet for it. Check W05/W06 equivalents and initial access.
 
 ## Test
-Branch A: run the Atomic Red Team T1486 (Linux) test against a disposable lab directory.
+Branch A: on a lab host, use `find -exec` to encrypt the files in a disposable test directory with `openssl enc`, then delete the directory.
