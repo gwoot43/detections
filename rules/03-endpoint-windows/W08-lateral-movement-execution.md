@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1021.002, T1047, T1021.006, T1021.003, T1053.005, T1569.002]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -30,11 +30,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (child == "wmic.exe" AND cmd LIKE "*/node:*" AND cmd LIKE "*process call create*")
    OR (child == "schtasks.exe" AND cmd LIKE "*/s *" AND cmd LIKE "*/create*")
    OR (child == "sc.exe" AND cmd LIKE """*\\\\*""" AND (cmd LIKE "*create*" OR cmd LIKE "*start*"))
-| KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Remote execution tools spawn many processes per session on the destination.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Remote execution tools spawn many processes per session on the destination. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - Configuration management and monitoring agents using WMI, and Ansible or other WinRM-driven tooling under `wsmprovhost.exe`. Exclude by the child's exact command line or the service account, not by parent.

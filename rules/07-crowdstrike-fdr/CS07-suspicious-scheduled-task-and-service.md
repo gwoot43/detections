@@ -9,32 +9,39 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1053.005, T1543.003]
 data_source: CrowdStrike FDR ScheduledTaskRegistered / ServiceStarted events
 suppression:
-  fields: [host.name, payload]
+  fields: [host.id, payload]
   duration: 24h
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Falcon has dedicated events for task and service registration, which is cleaner than parsing `schtasks.exe` command lines. The payload path and command decide fidelity: a task or service running from a user-writable path, a script host, or an encoded command is persistence.
+Falcon has dedicated events for task registration and for service starts requested through the service manager, which is cleaner than parsing `schtasks.exe` command lines. The payload decides fidelity: a task or service running from a user-writable path, an HTML application, an encoded or Base64 command, or a script host fetching a URL is persistence.
+
+Task events carry the action in `crowdstrike.TaskExecCommand` and `crowdstrike.TaskExecArguments`, not in `process.command_line`. Plain `powershell` or `cmd /c` in a task is not enough on its own; vendor and admin tasks use both every day. Defender's platform folder and OneDrive's per-user updater are excluded because they re-register their tasks on every update.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("ScheduledTaskRegistered", "ScheduledTaskModified", "ServiceStarted", "ServiceCreated", "NewServiceCreated")
-| EVAL payload = TO_LOWER(TO_STRING(COALESCE(process.command_line, registry.data.strings, file.path)))
-| WHERE payload LIKE """*\\temp\\*""" OR payload LIKE """*\\appdata\\*""" OR payload LIKE """*\\programdata\\*""" OR payload LIKE """*\\users\\public\\*""" OR payload LIKE """*\\downloads\\*"""
-     OR payload LIKE "*powershell*" OR payload LIKE "*mshta*" OR payload LIKE "*rundll32*" OR payload LIKE "*regsvr32*" OR payload LIKE "*wscript*" OR payload LIKE "*cscript*" OR payload LIKE "*bitsadmin*"
-     OR payload LIKE "*-enc*" OR payload LIKE "*frombase64*" OR payload LIKE "*http*" OR payload LIKE "*.hta*" OR payload LIKE "*cmd /c*"
-| KEEP @timestamp, host.name, user.name, event.action, payload, process.parent.name
+| WHERE event.action IN ("ScheduledTaskRegistered", "ScheduledTaskModified", "ServiceStarted") AND host.os.type == "windows"
+| EVAL payload = TO_LOWER(CASE(event.action LIKE "ScheduledTask*",
+                               CONCAT(COALESCE(crowdstrike.TaskExecCommand, ""), " ", COALESCE(crowdstrike.TaskExecArguments, "")),
+                               COALESCE(process.command_line, "")))
+| EVAL script_host = payload LIKE "*powershell*" OR payload LIKE "*pwsh*" OR payload LIKE "*wscript*" OR payload LIKE "*cscript*"
+                     OR payload LIKE "*rundll32*" OR payload LIKE "*regsvr32*" OR payload LIKE "*certutil*" OR payload LIKE "*bitsadmin*" OR payload LIKE "*curl*"
+| WHERE (payload LIKE """*\\temp\\*""" OR payload LIKE """*\\appdata\\*""" OR payload LIKE """*\\programdata\\*""" OR payload LIKE """*\\users\\public\\*""" OR payload LIKE """*\\downloads\\*""")
+     OR payload LIKE "*mshta*" OR payload LIKE "*.hta*" OR payload LIKE "*frombase64*"
+     OR (script_host AND (payload LIKE "*http*" OR payload LIKE "* -enc*" OR payload LIKE "* -e *" OR payload LIKE "*hidden*"))
+| WHERE NOT (payload LIKE """*\\programdata\\microsoft\\windows defender\\platform\\*""" OR payload LIKE """*\\appdata\\local\\microsoft\\onedrive\\*""")
+| KEEP @timestamp, host.id, host.name, user.name, event.action, crowdstrike.TaskName, process.title, payload
 ```
 
 ## Suppression
-Suppress by `host.name`, `payload` for 24h. Alerts missing a key field are not suppressed. Tasks and services re-register on update.
+Suppress by `host.id`, `payload` for 24h. Alerts missing a key field are not suppressed. Tasks and services re-register on update. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Software updaters that register tasks in `Program Files`. The payload filter targets user-writable and script paths, excluding most. Exclude specific vendor tasks by name.
+- Software updaters that register tasks in `Program Files`. The payload filter targets user-writable and script paths, excluding most. Per-user updaters that run from `%LOCALAPPDATA%` (browsers installed per user, Zoom, Slack) are the main remaining noise; exclude their exact path or `crowdstrike.TaskName`.
 
 ## Triage
-- Read the task/service action, find the payload, remove it, and check for the same payload on other hosts (fleet sweep).
+- Read the task action (`payload`, and the full `crowdstrike.TaskXml` in Discover) or the service (`process.title` is its name), find the payload, remove it, and check for the same payload on other hosts (fleet sweep).
 
 ## Test
-`schtasks /create /tn t /tr "powershell -w hidden -enc ..." /sc minute` on a lab host.
+Register a scheduled task on a lab host whose action runs a script from `%TEMP%`, confirm the alert, then delete the task.

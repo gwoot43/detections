@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1219, T1572, T1090, T1105]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, pname]
+  fields: [host.id, pname]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -32,12 +32,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 // remove your own approved tool from the list, then keep this guard for its install path.
 // FDR records executables as \Device\HarddiskVolumeN\..., never C:\..., so match from the folder down.
 | WHERE NOT (exe LIKE """*\\program files\\your-approved-rmm\\*""")
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256
 ```
 `quickassist.exe` and `teamviewer.exe` will be noisy if IT uses them. Decide once, then either remove them or restrict to launches under user-writable paths.
 
 ## Suppression
-Suppress by `host.name`, `pname` for 24h. Alerts missing a key field are not suppressed. Remote access agents restart constantly.
+Suppress by `host.id`, `pname` for 24h. Alerts missing a key field are not suppressed. Remote access agents restart constantly. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Your own RMM, VPN client and sanctioned developer tunnelling. Remove from the list rather than exclude.

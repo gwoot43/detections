@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1505.003, T1190, T1059.004]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name, parent]
+  fields: [host.id, parent]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -38,11 +38,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
             OR (shell_child AND (cmd LIKE "*/dev/tcp/*" OR cmd LIKE "*whoami*" OR cmd LIKE "*base64 -d*"
                                  OR cmd LIKE "*| sh*" OR cmd LIKE "*|sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|bash*"))))
 // add exact benign command lines found while baselining, e.g. | WHERE NOT (cmd IN ("sh -c /usr/bin/convert ..."))
-| KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
 ## Suppression
-Suppress by `host.name`, `parent` for 1h. Alerts missing a key field are not suppressed. Each webshell command is a new process. One alert per compromised service, with the count showing activity.
+Suppress by `host.id`, `parent` for 1h. Alerts missing a key field are not suppressed. Each webshell command is a new process. One alert per compromised service, with the count showing activity. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Web apps that call `sh -c` for image conversion or git. Baseline for two weeks and exclude by exact command line. A web server spawning `sh -c` with `curl` or `/dev/tcp` is never legitimate.

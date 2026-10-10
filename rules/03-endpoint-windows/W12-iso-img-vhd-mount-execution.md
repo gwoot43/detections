@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1553.005, T1204.002]
 data_source: CrowdStrike FDR process events
 suppression:
-  fields: [host.name, exe]
+  fields: [host.id, exe]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -28,11 +28,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   AND (exe LIKE """\\device\\cdrom*"""
        OR (pname IN ("wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
            AND cmd RLIKE """.*[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ].*)?"""))
-| KEEP @timestamp, host.name, user.name, parent, pname, exe, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, parent, pname, exe, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `exe` for 1h. Alerts missing a key field are not suppressed. One mount can launch several processes.
+Suppress by `host.id`, `exe` for 1h. Alerts missing a key field are not suppressed. One mount can launch several processes. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - IT running `setup.exe` from mounted install media. Exclude by the admin account or the imaging hosts, not by file name.

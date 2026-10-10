@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1105, T1218.005, T1218.010, T1197, T1059.001, T1218.007]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, pname]
+  fields: [host.id, pname]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -37,11 +37,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    // .NET LOLBINs loading from user-writable paths; installers (msiexec) and Visual Studio run these legitimately
    OR (pname IN ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe") AND (cmd LIKE "*http*" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\appdata\\*""")
        AND parent NOT IN ("msiexec.exe", "devenv.exe"))
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `pname` for 1h. Alerts missing a key field are not suppressed. Download cradles often retry or loop.
+Suppress by `host.id`, `pname` for 1h. Alerts missing a key field are not suppressed. Download cradles often retry or loop. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Software deployment calling `msiexec /i https://…` from SYSTEM under the deployment agent parent. Exclude by parent process.

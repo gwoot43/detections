@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1003.001]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, process.name]
+  fields: [host.id, process.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -28,11 +28,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*lsass*" AND (pname IN ("procdump.exe", "procdump64.exe", "rundll32.exe", "createdump.exe", "sqldumper.exe", "adplus.exe", "rdrleakdiag.exe")
                                OR cmd LIKE "* -ma *" OR cmd LIKE "*.dmp*"))
    OR cmd LIKE "*sekurlsa*" OR cmd LIKE "*lsadump*"
-| KEEP @timestamp, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256
 ```
 
 ## Suppression
-Suppress by `host.name`, `process.name` for 1h. Alerts missing a key field are not suppressed. Attackers retry dumping after Falcon blocks them. Each different tool still alerts.
+Suppress by `host.id`, `process.name` for 1h. Alerts missing a key field are not suppressed. Attackers retry dumping after Falcon blocks them. Each different tool still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Microsoft support engineers running `procdump` on LSASS during a case. Ticket-gated, not excluded.

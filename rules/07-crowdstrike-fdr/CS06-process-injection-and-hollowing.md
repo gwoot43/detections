@@ -7,35 +7,43 @@ severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1055, T1055.012, T1620]
-data_source: CrowdStrike FDR injection / thread-creation detect events
+data_source: CrowdStrike FDR ReflectiveDotnetModuleLoad and DllInjection events
 suppression:
-  fields: [host.name, src]
+  fields: [host.id, src]
   duration: 1h
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Falcon emits dedicated telemetry for cross-process injection and suspicious remote thread creation. The high-fidelity slice is injection where the source is an unsigned or user-path binary and the target is a trusted process (explorer, svchost, a browser), which is classic hollowing and defense evasion.
+Falcon emits dedicated telemetry for in-memory .NET assembly loads and DLL injection. The high-fidelity slice is a .NET assembly loaded from memory into a native Windows process that never hosts .NET (the sacrificial process of `execute-assembly` in Cobalt Strike, Sliver and similar), and a DLL injected from a user-writable path.
+
+In FDR, `InjectedThread`, `ProcessInjection` and `RemoteThreadCreate` carry only process IDs, with no image name or path for either side, so they cannot be filtered here without a join. Falcon's own injection detections reach Elastic through CS04. `SuspiciousCreateThread` and `CreateRemoteThread` are not FDR event names.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("SuspiciousCreateThread", "CreateRemoteThread", "InjectedThread", "ProcessInjection", "ReflectiveDotnetModuleLoad")
-| EVAL src = TO_LOWER(TO_STRING(COALESCE(process.executable, process.name))),
-       tgt = TO_LOWER(TO_STRING(COALESCE(process.target.name, registry.value)))
-| WHERE (src LIKE """*\\temp\\*""" OR src LIKE """*\\appdata\\*""" OR src LIKE """*\\programdata\\*""" OR src LIKE """*\\users\\public\\*""" OR src LIKE """*\\downloads\\*""")
-     OR tgt IN ("explorer.exe", "svchost.exe", "rundll32.exe", "notepad.exe", "werfault.exe", "dllhost.exe", "regsvr32.exe", "spoolsv.exe", "msbuild.exe")
-| KEEP @timestamp, host.name, user.name, src, tgt, process.command_line
+| WHERE host.os.type == "windows" AND event.action IN ("ReflectiveDotnetModuleLoad", "DllInjection")
+// ReflectiveDotnetModuleLoad: crowdstrike.ImageFileName is the process the assembly was loaded into
+// DllInjection: crowdstrike.InjectedDll is the injected module; process.entity_id is the target, ContextProcessId the source
+| EVAL img = TO_LOWER(COALESCE(crowdstrike.ImageFileName, "")),
+       dll = TO_LOWER(COALESCE(crowdstrike.InjectedDll, "")),
+       host_proc = MV_LAST(SPLIT(img, "\\")),
+       src = CASE(event.action == "DllInjection", dll, img)
+| WHERE (event.action == "ReflectiveDotnetModuleLoad"
+         AND host_proc IN ("explorer.exe", "svchost.exe", "rundll32.exe", "regsvr32.exe", "notepad.exe", "werfault.exe", "dllhost.exe", "spoolsv.exe", "gpupdate.exe", "searchprotocolhost.exe", "wuauclt.exe"))
+   OR (event.action == "DllInjection"
+       AND (dll LIKE """*\\temp\\*""" OR dll LIKE """*\\appdata\\*""" OR dll LIKE """*\\programdata\\*""" OR dll LIKE """*\\users\\public\\*""" OR dll LIKE """*\\downloads\\*"""))
+| KEEP @timestamp, host.id, host.name, event.action, src, crowdstrike.AssemblyName, crowdstrike.ModuleILPath, process.entity_id, crowdstrike.ContextProcessId
 ```
-Event names vary by FDR schema version; run `STATS COUNT(*) BY event.action` filtered to injection-related actions and map the ones your feed produces.
+`msbuild.exe` is not on the list: it compiles inline tasks in memory by design (W04 covers its abuse). PowerShell is not either: `Add-Type` loads assemblies from memory all the time.
 
 ## Suppression
-Suppress by `host.name`, `src` for 1h. Alerts missing a key field are not suppressed. Injection repeats while the loader runs.
+Suppress by `host.id`, `src` for 1h. Alerts missing a key field are not suppressed. Injection repeats while the loader runs. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Legitimate software using injection (some AV, accessibility tools, screen recorders, EDR itself). Baseline and exclude by the signed source binary's hash.
+- Legitimate software that injects a DLL from a per-user install folder (screen-sharing and accessibility tools under `%APPDATA%`). Baseline and exclude by the exact DLL path.
 
 ## Triage
-- Correlate with W01 (if the target is lsass), network callbacks and the source binary's origin. An unsigned source injecting into svchost is malware.
+- Find the processes behind the IDs: the target is the ProcessRollup2 with the same `process.entity_id`, the source the one whose `process.entity_id` equals `crowdstrike.ContextProcessId`. An in-memory assembly in `rundll32.exe` or `notepad.exe` is a post-exploitation framework; check its network callbacks (B06) and the parent that launched the sacrificial process.
 
 ## Test
-Atomic Red Team T1055.012 (process hollowing) on a lab host.
+Run the Atomic Red Team T1055 injection tests on a lab host and confirm which of them FDR records as `DllInjection` or `ReflectiveDotnetModuleLoad`.

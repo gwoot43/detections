@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1204.004, T1059.001, T1105]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -34,12 +34,13 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
     // FileFix: a run of spaces before a "#" comment, or a fake file path after it, hides the command in the address bar
     OR cmd LIKE "*   #*" OR cmd LIKE """*# c:\\*"""
   )
-| KEEP @timestamp, host.name, user.name, parent, child, process.command_line
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line
 ```
 The same technique also leaves `RunMRU` and `TypedPaths` registry values containing `powershell`, `mshta` or `http`. Those keys are not ASEPs, so CS02 does not watch them; add a registry branch only if your FDR feed records them.
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. One pasted command produces a chain of child processes.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. One pasted command produces a chain of child processes. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - Developers pasting `iwr` one-liners. Rare enough to ask.

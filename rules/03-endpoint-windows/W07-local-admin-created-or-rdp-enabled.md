@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1136.001, T1098, T1021.001, T1562.004]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -31,11 +31,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 // net.exe re-launches itself as net1.exe; keep only the net.exe event
 | WHERE NOT (pname == "net1.exe" AND parent == "net.exe")
 | WHERE parent NOT IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe")
-| KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Account creation, group add and RDP enable usually come together.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Account creation, group add and RDP enable usually come together. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - Imaging and onboarding scripts. SCCM and Intune agents are excluded by parent; add your imaging tool's parent the same way.

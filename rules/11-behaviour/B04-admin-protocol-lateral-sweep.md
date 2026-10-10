@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1021, T1570]
 data_source: CrowdStrike FDR network connection events
 suppression:
-  fields: [host.name, process.name]
+  fields: [host.id, process.name]
   duration: 2h
   missing_fields: do_not_suppress
 ---
@@ -20,21 +20,24 @@ When an operator moves laterally at scale with CrackMapExec, NetExec, Impacket o
 Run every 10 minutes with a 15-minute lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.category == "network" AND network.direction IN ("egress", "outbound")
+| WHERE event.action == "NetworkConnectIP4"
   AND host.os.type == "windows" AND destination.ip IS NOT NULL
   AND destination.port IN (5985, 5986, 3389, 135, 445)
   AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+| EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown"))
+// exclude admin jump hosts, patch and management servers here, e.g. AND host.name NOT IN ("jump01", "sccm01")
 | STATS targets = COUNT_DISTINCT(destination.ip),
         winrm = COUNT_DISTINCT(CASE(destination.port IN (5985, 5986), destination.ip, NULL)),
         rdp = COUNT_DISTINCT(CASE(destination.port == 3389, destination.ip, NULL)),
-        conns = COUNT(*)
-    BY host.name, process.name, user.name, BUCKET(@timestamp, 10 minutes)
+        conns = COUNT(*),
+        host.name = VALUES(host.name)
+    BY host.id, process.name, BUCKET(@timestamp, 10 minutes)
 | WHERE targets >= 15
 ```
-Keep the source scoped to workstations if your servers legitimately fan out; add `AND host.name LIKE "ws-*"` or exclude server names inline.
+Keep the source scoped to workstations if your servers legitimately fan out; exclude server names inline. FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown` and the row covers every process on the host.
 
 ## Suppression
-Suppress by `host.name`, `process.name` for 2h. Alerts missing a key field are not suppressed. Aggregating rule. A sweep spans buckets; a new source still alerts.
+Suppress by `host.id`, `process.name` for 2h. Alerts missing a key field are not suppressed. Aggregating rule. A sweep spans buckets; a new source still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 
 ## Known false positives / exclusions
 - Admin jump hosts and management servers that administer many machines. Exclude them inline by host name.

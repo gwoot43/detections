@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1070.002, T1070.003, T1070.006, T1562.001, T1222.002]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -38,11 +38,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname IN ("systemctl", "service") AND (cmd LIKE "*stop*" OR cmd LIKE "*disable*" OR cmd LIKE "*mask*") AND (cmd LIKE "*auditd*" OR cmd LIKE "*syslog*"))
    OR (pname == "auditctl" AND cmd LIKE "*-e 0*")
    OR (cmd LIKE "*chattr*" AND (cmd LIKE "*+i*" OR cmd LIKE "*-a*") AND (cmd LIKE "*/var/log*" OR cmd LIKE "*history*"))
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Log wiping runs as a burst of commands.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Log wiping runs as a burst of commands. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Log rotation runs as `logrotate`, not `rm`, and is not matched. Custom clean-up jobs that delete rotated auth logs (`/var/log/secure-2026…`) should be excluded by exact command line.

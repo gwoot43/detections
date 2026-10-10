@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1562.001, T1685, T1068]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -33,12 +33,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   OR (pname == "msiexec.exe" AND cmd LIKE "*/x*" AND cmd LIKE "*falcon*")
   OR (pname == "bcdedit.exe" AND cmd LIKE "*/set*safeboot*")
   OR (pname == "sc.exe" AND cmd LIKE "*create*" AND cmd LIKE "*type=*kernel*" AND (cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\users\\*""" OR cmd LIKE """*\\programdata\\*"""))
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256
 ```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
 
 ## Suppression
-Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Tamper scripts issue many commands in seconds. One alert per host is the triage unit, and other hosts still alert.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Tamper scripts issue many commands in seconds. One alert per host is the triage unit, and other hosts still alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Configuration management adding Defender exclusions under the CM agent parent. Exclude by parent and exact exclusion path, never by parent alone: attackers who own SCCM or Intune push exactly this.

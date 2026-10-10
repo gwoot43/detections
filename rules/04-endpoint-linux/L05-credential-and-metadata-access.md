@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1003.008, T1552.004, T1552.005, T1552.001]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -31,11 +31,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    // credential files read by copy, dump or transfer tools; kubectl, aws and gcloud read them as normal use
    OR (pname IN ("cat", "less", "more", "head", "tail", "cp", "scp", "curl", "wget", "base64", "xxd", "tar", "zip", "nc", "ncat")
        AND (cmd LIKE "*.aws/credentials*" OR cmd LIKE "*.kube/config*" OR cmd LIKE "*.docker/config.json*" OR cmd LIKE "*gcloud*credentials*"))
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Credential harvesting runs as a burst of reads and searches.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Credential harvesting runs as a burst of reads and searches. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - Backup and compliance scanners reading credential stores. Exclude by the scanner's service account.

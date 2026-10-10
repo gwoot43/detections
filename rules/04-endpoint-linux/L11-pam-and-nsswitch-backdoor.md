@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1556.003, T1543]
 data_source: CrowdStrike FDR file and process events (Linux)
 suppression:
-  fields: [host.name, f]
+  fields: [host.id, f]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -35,11 +35,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
        AND (cmd LIKE "*/etc/pam.d/*" OR cmd LIKE "*pam_*.so*" OR cmd LIKE "*nsswitch.conf*")
        AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*tee*" OR cmd LIKE "*sed -i*" OR cmd LIKE "*cp *" OR cmd LIKE "*mv *" OR pname IN ("vi", "vim", "nano"))
        AND parent NOT IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "authselect", "pam-auth-update"))
-| KEEP @timestamp, host.name, user.name, event.action, parent, pname, process.command_line, f
+| KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f
 ```
 
 ## Suppression
-Suppress by `host.name`, `f` for 1h. Alerts missing a key field are not suppressed. One edit can produce several file events; a different file or host still alerts.
+Suppress by `host.id`, `f` for 1h. Alerts missing a key field are not suppressed. One edit can produce several file events; a different file or host still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Package updates and configuration management, excluded by writer name on file events and by parent on process events. Add your deployment user if it edits PAM over SSH, keyed by user plus source host.

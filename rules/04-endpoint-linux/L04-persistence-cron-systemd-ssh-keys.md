@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1053.003, T1543.002, T1546.004, T1098.004]
 data_source: CrowdStrike FDR ProcessRollup2 and CriticalFileModified (Linux)
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -40,11 +40,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
      ))
 // CriticalFileModified has no parent, so this only filters the process branch
 | WHERE parent NOT IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor")
-| KEEP @timestamp, host.name, user.name, event.action, parent, pname, process.command_line, f
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Persistence is usually set up with several commands at once.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Persistence is usually set up with several commands at once. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - Config management and cloud-init, excluded by parent above. Add your deployment user if it writes cron over SSH, then exclude by user plus source host.

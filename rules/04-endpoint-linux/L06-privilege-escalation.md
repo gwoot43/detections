@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1548.001, T1548.003, T1068]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -39,11 +39,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "find" AND cmd LIKE "*-perm*" AND (cmd LIKE "*4000*" OR cmd LIKE "*-u=s*") AND user.id != "0")
    OR (pname == "unshare" AND cmd LIKE "*-r*" AND cmd LIKE "*bash*")
    OR (cmd LIKE "*capsh*" AND cmd LIKE "*--gid=0*" AND cmd LIKE "*--uid=0*")
-| KEEP @timestamp, host.name, user.name, user.id, parent, pname, process.command_line
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, user.id, parent, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Escalation attempts are retried.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Escalation attempts are retried. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - Admins using `sudo vim` or `sudo less` legitimately. The GTFOBins branch requires the escape sequence in the command line, which reduces this. Baseline the admin population.

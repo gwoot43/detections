@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1105, T1059.004, T1140]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id, user.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -28,11 +28,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*&& chmod +x*" AND cmd LIKE "*&& ./*" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*"))
 // developer machines; host names are matched lowercased
 | WHERE NOT (h LIKE "dev-*" OR h LIKE "*-laptop*")
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 1h. Alerts missing a key field are not suppressed. Install scripts and loaders retry.
+Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Install scripts and loaders retry. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 
 ## Known false positives / exclusions
 - CI runners and package bootstrap (Docker, rustup, Homebrew). Exclude by the URL, and note that an allowlisted URL is still a supply-chain risk.

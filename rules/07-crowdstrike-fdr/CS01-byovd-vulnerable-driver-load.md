@@ -7,9 +7,9 @@ severity: critical
 language: esql
 index: logs-crowdstrike.fdr-*
 mitre: [T1068, T1211, T1562.001]
-data_source: CrowdStrike FDR DriverLoad / KernelModuleLoad events
+data_source: CrowdStrike FDR DriverLoad events
 suppression:
-  fields: [host.name, img]
+  fields: [host.id, img]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -19,28 +19,33 @@ BYOVD is the dominant EDR-killer delivery method in 2026 (Reynolds, RansomHub, A
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("DriverLoad", "KernelModuleLoad") AND host.os.type == "windows"
-| EVAL img = TO_LOWER(TO_STRING(COALESCE(file.path, process.executable))),
-       h = TO_LOWER(TO_STRING(COALESCE(file.hash.sha256, process.hash.sha256)))
+| WHERE event.action == "DriverLoad" AND host.os.type == "windows"
+// the integration writes the driver to dll.path / dll.hash.sha256 on DriverLoad, not file.* or process.*
+| EVAL img = TO_LOWER(COALESCE(dll.path, "")),
+       h = TO_LOWER(COALESCE(dll.hash.sha256, ""))
 | WHERE
-     // driver from a user-writable path is almost always BYOVD
-     (img LIKE """*\\temp\\*""" OR img LIKE """*\\users\\*""" OR img LIKE """*\\programdata\\*""" OR img LIKE """*\\appdata\\*""" OR img LIKE """*\\downloads\\*""" OR img LIKE """*\\perflogs\\*""" OR img LIKE """*\\windows\\temp\\*""")
+     // driver from a user-writable path is almost always BYOVD; Defender platform updates load drivers from ProgramData
+     ((img LIKE """*\\temp\\*""" OR img LIKE """*\\users\\*""" OR img LIKE """*\\programdata\\*""" OR img LIKE """*\\appdata\\*""" OR img LIKE """*\\downloads\\*""" OR img LIKE """*\\perflogs\\*""")
+      AND NOT img LIKE """*\\programdata\\microsoft\\windows defender\\platform\\*""")
      // known vulnerable driver names (extend from loldrivers.io)
   OR img LIKE """*\\iqvw64.sys""" OR img LIKE """*\\rtcore64.sys""" OR img LIKE """*\\dbutil_2_3.sys""" OR img LIKE """*\\gdrv.sys"""
-  OR img LIKE """*\\aswarpot.sys""" OR img LIKE """*\\procexp*.sys""" OR img LIKE """*\\truesight.sys""" OR img LIKE """*\\viragt64.sys"""
+  OR img LIKE """*\\aswarpot.sys""" OR img LIKE """*\\truesight.sys""" OR img LIKE """*\\viragt64.sys"""
   OR img LIKE """*\\wnbios*.sys""" OR img LIKE """*\\mhyprot*.sys""" OR img LIKE """*\\zam*.sys""" OR img LIKE """*\\kprocesshacker.sys"""
   OR img LIKE """*\\nscm.sys""" OR img LIKE """*\\nsecsoft*.sys"""
      // or a hash on your vulnerable-driver value list
   OR h IN ("PUT_LOLDRIVERS_HASHES_HERE")
-| KEEP @timestamp, host.name, user.name, img, h, process.name, process.command_line
+| KEEP @timestamp, host.id, host.name, img, h, dll.name, dll.code_signature.subject_name, dll.pe.original_file_name
 ```
-Populate the hash branch from a scheduled import of the loldrivers.io hash list into an Elastic value list, and reference it. Names alone miss renamed drivers; hashes catch them.
+Populate the hash branch from a scheduled import of the loldrivers.io hash list. Names alone miss renamed drivers; hashes catch them. Keep the hashes lowercase, since `h` is lowercased.
+
+`procexp*.sys` is not on the name list: Process Explorer loads it from `System32\drivers` every time an admin runs it. A copy loaded from a temp or user folder still matches the path branch.
 
 ## Suppression
-Suppress by `host.name`, `img` for 24h. Alerts missing a key field are not suppressed. Drivers reload at every boot.
+Suppress by `host.id`, `img` for 24h. Alerts missing a key field are not suppressed. Drivers reload at every boot. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Legitimate driver installs from `\Windows\System32\drivers\` under `TrustedInstaller` or a signed installer. The path filter already excludes system paths. Hardware vendor drivers installed at imaging time: exclude by hash of the known-good version.
+- Legitimate driver installs from `\Windows\System32\drivers\` under `TrustedInstaller` or a signed installer. The path filter already excludes system paths. Defender platform drivers under `ProgramData\Microsoft\Windows Defender\Platform` are excluded. Hardware vendor drivers installed at imaging time: exclude by hash of the known-good version.
+- Hardware tools (CPU-Z, HWiNFO, GPU-Z) extract their drivers to `%TEMP%`. Exclude by hash.
 
 ## Triage
 - Isolate immediately and pair with W05 (EDR tamper) and W06 (shadow deletion) on the same host: a vulnerable driver load followed by either is a ransomware detonation in progress.

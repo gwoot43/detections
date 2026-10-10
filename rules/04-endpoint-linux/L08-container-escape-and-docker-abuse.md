@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1611, T1610, T1613]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -31,11 +31,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR cmd LIKE "*/proc/1/root*"
    OR cmd LIKE "*>*/proc/sys/kernel/core_pattern*"
    OR (cmd LIKE "*release_agent*" OR cmd LIKE "*cgroup*notify_on_release*")
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Escape attempts are retried.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Escape attempts are retried. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - CI/CD building images with `--privileged` DinD. Exclude by the build-runner host or user.

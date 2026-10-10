@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1204.002, T1566.001, T1059]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, parent, child]
+  fields: [host.id, parent, child]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -43,11 +43,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (parent == "explorer.exe"
        AND child IN ("wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
        AND (cmd LIKE """*\\downloads\\*""" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\7zo*""" OR cmd LIKE """*\\rar$*"""))
-| KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
 ## Suppression
-Suppress by `host.name`, `parent`, `child` for 1h. Alerts missing a key field are not suppressed. A macro often spawns the same child several times.
+Suppress by `host.id`, `parent`, `child` for 1h. Alerts missing a key field are not suppressed. A macro often spawns the same child several times. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Excel spawning `cmd.exe` for approved macros in finance. Exclude by exact command line after review, never by host.

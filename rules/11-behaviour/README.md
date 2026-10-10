@@ -6,6 +6,8 @@ Design constraints for this folder:
 - **No lookups or custom indexes.** All exclusions are written inline in the query (by host name, process name or account), since there are no enrichment indexes.
 - **Thresholds are starting points.** Every count was chosen to sit above normal activity in a typical estate. Tune each on two weeks of your own data before enabling.
 - **Aggregating rules re-alert.** They carry suppression keyed on the triage entity so overlapping lookbacks do not page twice. See ../../docs/ESQL-CONVENTIONS.md.
+- **Key FDR rules on `host.id`.** It is the Falcon agent ID and is always present. `host.name` and `user.name` are only filled when the CrowdStrike integration's host and user metadata enrichment is on, so they are output columns, not grouping keys. `user.name` is reduced to the bare, lowercased account name before grouping.
+- **FDR connection and file-open events often lack a process name.** It comes from `ContextBaseFileName`, which older sensors do not send. Rules read it as `unknown` (network) or group per process instance with `process.entity_id` (file reads), and name exclusions only apply when the name is present.
 
 | Rule | Behaviour | Tools it catches by behaviour |
 |---|---|---|

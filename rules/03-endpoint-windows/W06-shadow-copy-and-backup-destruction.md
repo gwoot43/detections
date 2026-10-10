@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1490, T1485]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -29,11 +29,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "bcdedit.exe"  AND (cmd LIKE "*recoveryenabled no*" OR cmd LIKE "*bootstatuspolicy ignoreallfailures*"))
    OR (pname == "diskshadow.exe" AND cmd LIKE "*delete shadows*")
    OR (pname == "fsutil.exe" AND cmd LIKE "*usn deletejournal*")
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Ransomware runs several backup-destruction commands in a burst. Every other host still alerts.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Ransomware runs several backup-destruction commands in a burst. Every other host still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Backup software resizing shadow storage under its own service parent. Exclude by parent name and exact command line.

@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1546.015, T1137.006]
 data_source: CrowdStrike FDR registry and file events
 suppression:
-  fields: [host.name, user.name]
+  fields: [host.id]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -36,11 +36,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
            OR f LIKE """*\\microsoft\\addins\\*""" OR f LIKE """*\\microsoft\\templates\\normal.dotm""")
       AND NOT (pname == "winword.exe" AND f LIKE "*normal.dotm")
       AND NOT (pname == "excel.exe" AND f LIKE "*personal.xlsb"))
-| KEEP @timestamp, host.name, user.name, event.action, k, v, f, process.name, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, event.action, k, v, f, process.name, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name`, `user.name` for 24h. Alerts missing a key field are not suppressed. Installers touch these paths repeatedly in one session; a different host or user still alerts.
+Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. Installers touch these paths repeatedly in one session; a different host still alerts. Registry events carry no user, so the user is not a key. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Legitimate Office add-in installers and COM-based software. Baseline for two weeks and exclude by the writing process (`process.name` on file writes) or the specific add-in path.

@@ -9,33 +9,37 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1046, T1018]
 data_source: CrowdStrike FDR network connection events
 suppression:
-  fields: [host.name, process.name]
+  fields: [host.id, process.name]
   duration: 1h
   missing_fields: do_not_suppress
 ---
 ## Why this is behavioural and high fidelity
-This does not look for a tool name. It looks for the shape of scanning: one process on one host opening connections to a large number of distinct destinations in a short window. That shape is the same whether the operator runs nmap, masscan, rustscan, a renamed binary, or a custom script, so renaming the tool does not evade it. Ordinary clients talk to a handful of servers in five minutes, not a hundred.
+This does not look for a tool name. It looks for the shape of scanning: one process on one host opening connections to a large number of distinct internal destinations in a short window. That shape is the same whether the operator runs nmap, masscan, rustscan, a renamed binary, or a custom script, so renaming the tool does not evade it. Ordinary clients talk to a handful of servers in five minutes, not a hundred.
 
 ## Query
 Run every 5 minutes with a 10-minute lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.category == "network" AND network.direction IN ("egress", "outbound")
-  AND destination.ip IS NOT NULL
+| WHERE event.action == "NetworkConnectIP4" AND destination.ip IS NOT NULL
+  // internal targets only: browsers and SaaS clients reach hundreds of internet addresses in minutes
+  AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+| EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown"))
+// exclude vulnerability scanners, discovery and monitoring servers here, e.g. AND host.name NOT IN ("nessus01", "prtg01")
 | STATS dst_hosts = COUNT_DISTINCT(destination.ip),
         dst_ports = COUNT_DISTINCT(destination.port),
         conns = COUNT(*),
-        sample_ports = VALUES(destination.port)
-    BY host.name, process.name, user.name, BUCKET(@timestamp, 5 minutes)
+        sample_ports = VALUES(destination.port),
+        host.name = VALUES(host.name)
+    BY host.id, process.name, BUCKET(@timestamp, 5 minutes)
 | WHERE dst_hosts >= 100
 ```
-Confirm the connection event name your CrowdStrike feed uses (often `NetworkConnectIP4`) and that `network.direction` is populated; if not, filter on the connect `event.action` instead. Tune the threshold to your largest legitimate fan-out.
+FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown` and the row covers every process on the host. Tune the threshold to your largest legitimate internal fan-out.
 
 ## Suppression
-Suppress by `host.name`, `process.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. A scan spans several buckets, and a different host or process still alerts.
+Suppress by `host.id`, `process.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. A scan spans several buckets, and a different host or process still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 
 ## Known false positives / exclusions
-- Vulnerability scanners, asset discovery and monitoring. These are few and named; exclude them by `host.name` and `process.name` written inline in the WHERE clause, not a lookup.
+- Vulnerability scanners, asset discovery and monitoring. These are few and named; exclude them by host and `process.name` written inline in the WHERE clause, not a lookup.
 - Load balancers, proxies and backup servers that fan out by design. Exclude those hosts the same way.
 
 ## Triage

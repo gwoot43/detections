@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1486, T1485, T1490]
 data_source: CrowdStrike FDR (Linux) file-write telemetry
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -28,7 +28,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "dd" AND cmd LIKE "*if=/dev/urandom*" AND cmd LIKE "*of=/dev/*" AND NOT cmd LIKE "*of=/dev/null*")
    OR (cmd LIKE "*.vmdk*" AND cmd LIKE "*encrypt*")
    OR cmd LIKE "*esxcli*vm process kill*"
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
 ```
 Branch B (volume-based) needs file-write events. Run it as a second rule once you confirm which `*FileWritten` and `FileRenameInfo` events your Linux sensors send and that they carry the writing process name (newer sensors set `process.name` from `ContextBaseFileName`):
 ```esql
@@ -43,7 +43,7 @@ FROM logs-crowdstrike.fdr-*
 ```
 
 ## Suppression
-Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Encryption produces thousands of events. One alert per host, and every new host still alerts.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Encryption produces thousands of events. One alert per host, and every new host still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Large `dd` disk wipes during decommissioning. Exclude known imaging and decommissioning hosts.

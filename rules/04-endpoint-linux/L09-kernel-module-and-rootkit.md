@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1547.006, T1014, T1205.002]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -30,11 +30,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*/sys/kernel/debug/*" AND (cmd LIKE "*echo*" OR cmd LIKE "*>*"))
    OR (cmd LIKE "*ld_preload*" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*"))
 | WHERE parent NOT IN ("dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd", "cloud-init", "falcon-sensor", "falcond")
-| KEEP @timestamp, host.name, user.name, parent, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line
 ```
 
 ## Suppression
-Suppress by `host.name` for 24h. Alerts missing a key field are not suppressed. Modules reload at every boot.
+Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. Modules reload at every boot. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - DKMS building GPU or VPN modules, and the Falcon sensor loading its own module, are excluded by parent. Hardware agents (`nvidia`, `vmware`) at boot run under `systemd-udevd`, also excluded.

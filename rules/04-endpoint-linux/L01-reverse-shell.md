@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1059.004, T1071]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
-  fields: [host.name]
+  fields: [host.id]
   duration: 1h
   missing_fields: do_not_suppress
 ---
@@ -36,11 +36,11 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*bash -i*" AND cmd LIKE "*>&*")
    OR (cmd LIKE "*sh -i*" AND (cmd LIKE "*<&*" OR cmd LIKE "*>&*"))
    OR (pname == "openssl" AND cmd LIKE "*s_client*" AND (cmd LIKE "*| /bin/sh*" OR cmd LIKE "*| bash*"))
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.parent.entity_id
 ```
 
 ## Suppression
-Suppress by `host.name` for 1h. Alerts missing a key field are not suppressed. Reverse shells reconnect repeatedly.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Reverse shells reconnect repeatedly. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Health checks that use `/dev/tcp` to test a port no longer match unless they also start an interactive shell or duplicate a descriptor onto stdin. If one still does, exclude its exact command line.

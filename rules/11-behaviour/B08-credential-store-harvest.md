@@ -9,7 +9,7 @@ index: logs-crowdstrike.fdr-*
 mitre: [T1555, T1552.001, T1539, T1555.003]
 data_source: CrowdStrike FDR file access events
 suppression:
-  fields: [host.name, process.name]
+  fields: [host.id, process.entity_id]
   duration: 2h
   missing_fields: do_not_suppress
 ---
@@ -20,31 +20,39 @@ Infostealers and credential tools (LaZagne and the broad stealer family, and sec
 Run every 10 minutes with a 15-minute lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.category == "file" AND TO_LOWER(event.action) RLIKE ".*(open|read).*" AND file.path IS NOT NULL
-| EVAL p = TO_LOWER(file.path)
+| WHERE event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL
+| EVAL p = TO_LOWER(file.path),
+       process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown"))
+// browsers read their own and (on import) each other's stores; IDEs read SSH, kube and cloud config together
+| WHERE process.name NOT IN ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "code.exe", "code")
 | EVAL store = CASE(
-    p LIKE """*\\login data*""" OR p LIKE """*\\cookies*""" OR p LIKE """*\\web data*""" OR p RLIKE ".*/(cookies|logins)\\.(sqlite|json)", "browser",
-    p LIKE """*\\.ssh\\*""" OR p LIKE "*/.ssh/*" OR p RLIKE ".*id_(rsa|ecdsa|ed25519).*", "ssh",
-    p LIKE """*\\.aws\\credentials*""" OR p LIKE "*/.aws/credentials*" OR p LIKE """*\\.azure\\*""" OR p LIKE "*/.config/gcloud/*", "cloud",
+    p LIKE """*\\user data\\*\\login data*""" OR p LIKE """*\\user data\\*\\cookies*""" OR p LIKE """*\\user data\\*\\web data*"""
+      OR p LIKE "*/.config/google-chrome/*" OR p LIKE "*/.config/chromium/*", "chromium",
+    p LIKE "*key4.db" OR p LIKE "*logins.json" OR p LIKE "*cookies.sqlite", "firefox",
+    p RLIKE """.*[/\\]id_(rsa|dsa|ecdsa|ed25519)""", "ssh_private_key",
+    p LIKE """*\\.aws\\credentials*""" OR p LIKE "*/.aws/credentials*" OR p LIKE "*msal_token_cache*" OR p LIKE "*accesstokens.json*"
+      OR (p LIKE "*gcloud*" AND (p LIKE "*credentials*" OR p LIKE "*access_tokens*")), "cloud",
     p LIKE """*\\.kube\\config*""" OR p LIKE "*/.kube/config*", "kube",
-    p RLIKE ".*\\.(kdbx|keychain|key|pem|ppk|ovpn)", "vault_or_key",
-    p LIKE """*\\appdata\\*\\key4.db""" OR p LIKE "*/.mozilla/*key*.db" OR p LIKE "*logins.json*", "firefox",
-    p LIKE """*\\credentials\\*""" OR p LIKE """*\\vault\\*""" OR p LIKE """*\\protect\\*""", "windows_cred",
+    p RLIKE """.*\.(kdbx|ppk|ovpn|keychain-db)""", "vault_or_key",
+    p LIKE """*\\microsoft\\credentials\\*""" OR p LIKE """*\\microsoft\\vault\\*""" OR p LIKE """*\\microsoft\\protect\\*""", "windows_cred",
     NULL)
 | WHERE store IS NOT NULL
 | STATS store_types = COUNT_DISTINCT(store),
         files = COUNT_DISTINCT(file.path),
-        stores = VALUES(store)
-    BY host.name, process.name, user.name, BUCKET(@timestamp, 10 minutes)
+        stores = VALUES(store),
+        pname = VALUES(process.name),
+        host.name = VALUES(host.name)
+    BY host.id, process.entity_id, BUCKET(@timestamp, 10 minutes)
 | WHERE store_types >= 3
 ```
+SSH counts only private keys (`id_rsa`, not `id_rsa.pub`, `config` or `known_hosts`), and the key-file type leaves out `.pem` and `.key`, which TLS clients and servers read constantly. Counting per process instance (`process.entity_id`) stops a browser, an SSH client and a cloud CLI on the same host from adding up to three.
 
 ## Suppression
-Suppress by `host.name`, `process.name` for 2h. Alerts missing a key field are not suppressed. Aggregating rule. Harvesting spans buckets; a different process still alerts.
+Suppress by `host.id`, `process.entity_id` for 2h. Alerts missing a key field are not suppressed. Aggregating rule. Harvesting spans buckets; a different process still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Backup and sync agents, and security tools that inventory credentials, read several stores legitimately. These are few and named; exclude them inline by process name.
-- A browser reading its own login data is one store type and does not reach the threshold of three unrelated types.
+- Browsers are excluded by name: they read their own stores and, when importing, other browsers' stores. VS Code is excluded because its extensions read SSH, kube and cloud config in one process. Name exclusions only work when the event carries a process name.
 
 ## Triage
 - A single process reading browser, SSH and cloud credentials in one pass is theft. Identify it, isolate the host, and treat every credential on that host as compromised: rotate SSH keys, cloud credentials and saved passwords for that user.
