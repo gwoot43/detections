@@ -122,7 +122,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **WE04** Lockout storm / explicit-credential fan-out (4740/4648) _(P2)_ · `suppress: host.name / 1h`
 - [ ] **WE05** Sensitive privilege / special logon to non-admin (4672) _(P2)_ · `suppress: acct, host.name / 24h`
 - [ ] **WE06** GPO modified in sensitive OU / default policy (5136) _(P1)_ · `suppress: actor, dn / 1h`
-- [ ] **WE07** WDigest re-enabled / LSA protection disabled (registry) _(P1)_ · `suppress: host.name, k / 24h`
+- [ ] **WE07** WDigest / LSA protection / LSA packages / DSRM logon behaviour (registry) _(P1)_ · `suppress: host.name, k / 24h`
 - [ ] **WE08** New service / kernel driver on DC or server (7045/4697) _(P1)_ · `suppress: host.name, svc / 24h`
 - [ ] **WE09** NTDS.dit / shadow copy / ntdsutil on a DC (4656/4663) _(P1, critical)_ · `suppress: host.name / 1h`
 - [ ] **WE10** Defender detection / protection disabled (1116/5001) _(P1)_ · `suppress: host.name, threat / 24h`
@@ -141,7 +141,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **I11** AdminSDHolder modified _(critical)_ · `suppress: op_id / 1h`
 - [ ] **I12** Shadow credentials (msDS-KeyCredentialLink) _(high)_ · `suppress: op_id / 1h`
 - [ ] **I13** SPN added to a user account _(high)_ · `suppress: op_id / 1h`
-- [ ] **I14** Resource-based constrained delegation write _(high)_ · `suppress: op_id / 1h`
+- [ ] **I14** Delegation configured: unconstrained, constrained, protocol transition, RBCD _(high)_ · `suppress: op_id / 1h`
 - [ ] **WE11** WMI permanent event subscription _(high)_ · `suppress: host.name / 24h`
 - [ ] **WE12** Pass-the-hash logon (type 9 / seclogo) _(high)_ · `suppress: host.name, outbound / 1h`
 - [ ] **WE13** Coerced DC authentication (NTLM) _(high)_ · `suppress: acct, dest / 1h`
@@ -208,6 +208,22 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **E12** ZAP disabled in a protection policy _(high)_ · `suppress: usr, event.action / 6h`
 - [ ] **E13** ZAP remediation across many recipients (wave) _(medium)_ · `suppress: campaign / 12h`
 - [ ] **E14** Malicious after delivery but still in inbox (ZAP miss) _(high)_ · `suppress: usr / 6h`
+
+
+## AD attack (rules/14-ad-attack) — ranked by criticality
+- [ ] **AD01** Rogue DC registration (DCShadow) _(rank 1, critical; needs Sites SACL)_ · `suppress: op_id / 1h`
+- [ ] **AD02** DCSync rights granted on domain root _(rank 2, critical)_ · `suppress: op_id / 1h`
+- [ ] **AD03** CA private key backup or export _(rank 3, critical; needs CA auditing)_ · `suppress: host.name / 6h`
+- [ ] **AD04** Domain DPAPI backup key retrieved _(rank 4, critical)_ · `suppress: host.name, actor / 6h`
+- [ ] **AD05** Computer account DC impersonation / created by user _(rank 5, critical/medium)_ · `suppress: target, finding / 1h`
+- [ ] **AD06** AD CS template / CA config / cert mapping weakened _(rank 6, high)_ · `suppress: host.name, finding / 1h`
+- [ ] **AD07** DNS plugin DLL on a DC (DnsAdmins) _(rank 7, high)_ · `suppress: host.name / 24h`
+- [ ] **AD08** Service tickets with no TGT (golden ticket) _(rank 8, high; needs every DC's logs, tune first)_ · `suppress: acct / 24h`
+- [ ] **AD09** gMSA password read by a user _(rank 9, high; needs gMSA SACL)_ · `suppress: actor / 6h`
+- [ ] **AD10** Tier-0 password reset by another account _(rank 10, high)_ · `suppress: target / 6h`
+- [ ] **AD11** SQL Server / IIS spawning a shell _(rank 11, high)_ · `suppress: host.name, parent / 1h`
+- [ ] **AD12** ADIDNS wildcard / WPAD record by a user _(rank 12, medium; needs DNS partition SACL)_ · `suppress: op_id / 1h`
+- [ ] **AD13** RDP session hijack via tscon _(rank 13, medium)_ · `suppress: host.name / 1h`
 
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.

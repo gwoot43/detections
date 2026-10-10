@@ -18,6 +18,7 @@ rules/
   11-behaviour/             B01-B09   behavioural (what a tool does, not its name)
   12-insider/               IN01-IN09 insider risk (SharePoint/OneDrive/Confluence/mail)
   13-controlplane/          CP01-CP05 weakening/blinding of security controls (Defender, EDR)
+  14-ad-attack/             AD01-AD13 Active Directory attack paths, ranked by criticality
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
@@ -143,14 +144,14 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | WE04 | T1110, T1078, T1550.002 | Credential Access |
 | WE05 | T1134, T1078.002, T1068 | Privilege Escalation |
 | WE06 | T1484.001, T1078.002 | Privilege Escalation |
-| WE07 | T1112, T1003.001, T1562.001 | Credential Access / Defense Impairment |
+| WE07 | T1112, T1003.001, T1562.001, T1547.002, T1547.005, T1556.002 | Credential Access / Defense Impairment / Persistence |
 | WE08 | T1543.003, T1569.002, T1068 | Persistence / Execution |
 | WE09 | T1003.003 | Credential Access |
 | WE10 | T1562.001, T1059, T1204 | Defense Impairment / Execution |
 | I11 | T1098, T1078.002 | (see rule) |
 | I12 | T1556, T1098 | (see rule) |
 | I13 | T1558.003, T1098 | (see rule) |
-| I14 | T1134.001, T1098 | (see rule) |
+| I14 | T1134.001, T1098 | Privilege Escalation / Persistence |
 | WE11 | T1546.003 | (see rule) |
 | WE12 | T1550.002 | (see rule) |
 | WE13 | T1187, T1557.001 | (see rule) |
@@ -190,8 +191,21 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 | CP03 | T1562.001, T1556 | Defense Impairment |
 | CP04 | T1562.001, T1562.008 | Defense Impairment |
 | CP05 | T1562.001, T1562.008 | Defense Impairment |
+| AD01 | T1207 | Stealth |
+| AD02 | T1098, T1003.006 | Persistence / Credential Access |
+| AD03 | T1649, T1552.004 | Credential Access |
+| AD04 | T1555, T1003 | Credential Access |
+| AD05 | T1078.002, T1068, T1136.002 | Privilege Escalation |
+| AD06 | T1649, T1484 | Credential Access / Privilege Escalation |
+| AD07 | T1574, T1068 | Privilege Escalation |
+| AD08 | T1558.001 | Credential Access |
+| AD09 | T1003, T1552 | Credential Access |
+| AD10 | T1098 | Persistence |
+| AD11 | T1505.001, T1505.003, T1190 | Persistence / Initial Access |
+| AD12 | T1557 | Credential Access |
+| AD13 | T1563.002 | Lateral Movement |
 | E12 | T1562.001, T1562.006 | Defense Impairment |
 | E13 | T1566.001, T1566.002 | Initial Access |
 | E14 | T1566.001, T1566.002 | Initial Access |
 
-Total: 157 detections across 13 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
+Total: 170 detections across 14 groups. Import into ATT&CK Navigator for a visual heat map; note the v19 Defense Evasion split (see docs/NEW-TTPS-2026.md).
