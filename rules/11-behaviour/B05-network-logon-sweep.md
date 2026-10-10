@@ -20,16 +20,20 @@ The authentication side of a lateral sweep. CrackMapExec, NetExec, Impacket and 
 Run every 10 minutes with a 15-minute lookback.
 ```esql
 FROM logs-system.security*, logs-windows.forwarded*
-| WHERE event.code == "4624" AND TO_STRING(winlog.event_data.LogonType) == "3"
-| EVAL acct = TO_LOWER(winlog.event_data.TargetUserName), src = TO_STRING(winlog.event_data.IpAddress)
+| WHERE event.code == "4624" AND winlog.event_data.LogonType == "3"
+| EVAL acct = TO_LOWER(winlog.event_data.TargetUserName),
+       // with event forwarding host.name is the collector; the logging machine is in winlog.computer_name
+       host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))
 | WHERE NOT (acct LIKE "*$") AND acct NOT IN ("anonymous logon", "")
-| STATS dest_hosts = COUNT_DISTINCT(host.name),
-        hosts = VALUES(host.name),
-        src_ips = VALUES(src)
+// add service and scanner accounts that legitimately fan out, e.g. AND acct NOT IN ("svc-scanner", "svc-backup")
+| STATS dest_hosts = COUNT_DISTINCT(host_key),
+        hosts = VALUES(host_key),
+        src_ips = VALUES(source.ip),
+        src_workstations = VALUES(source.domain)
     BY acct, BUCKET(@timestamp, 10 minutes)
 | WHERE dest_hosts >= 15
 ```
-This counts the distinct destination hosts (the machines logging the 4624) a single account reached. Exclude service accounts that legitimately fan out by name, inline.
+This counts the distinct destination hosts (the machines logging the 4624) a single account reached. The System integration moves the source address to `source.ip` and the source workstation to `source.domain`. Exclude service accounts that legitimately fan out by name, inline.
 
 ## Suppression
 Suppress by `acct` for 2h. Alerts missing a key field are not suppressed. Aggregating rule. A sweep spans buckets; a different account still alerts.
