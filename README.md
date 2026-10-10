@@ -47,8 +47,9 @@ See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + v
 The coverage map is generated from each rule's `mitre:` front-matter, so it can't drift from the rules:
 
 - **`docs/MITRE-COVERAGE.md`**: kill-chain diagram, coverage by tactic, priority techniques with no rule, and the rules behind each technique.
+- **`tools/attack-coverage-map.html`**: interactive heat map of every technique, shaded by rule count, with click-through to the rules. One self-contained file: download it and open it in a browser, or host it on an internal web server or GitHub Pages.
 - **`docs/attack-navigator-layer.json`**: import into the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) for the standard heat map (score = number of rules).
-- **`tools/mitre_coverage.py`**: regenerates both. Run it after adding or changing a rule.
+- **`tools/mitre_coverage.py`**: regenerates all three. Run it after adding or changing a rule (usage is in the script header). The page layout lives in `tools/attack-coverage-map.template.html`.
 
 Technique IDs follow ATT&CK v19, where Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686.
 

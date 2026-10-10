@@ -4,7 +4,8 @@
 Outputs:
   docs/MITRE-COVERAGE.md            tactic summary, kill-chain diagram, per-technique rule list, gaps
   docs/attack-navigator-layer.json  import into https://mitre-attack.github.io/attack-navigator/
-  --data <file>                     optional JSON used by the interactive heatmap page
+  tools/attack-coverage-map.html    standalone interactive heat map; open it in any browser
+  --data <file>                     optional raw JSON behind the heat map
 
 Usage:
   curl -sSo enterprise-attack.json \
@@ -15,6 +16,7 @@ Revoked technique IDs in a rule (e.g. T1562.001, revoked in v19) are resolved to
 replacement and listed in the report so the rule's front-matter can be updated.
 """
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -127,6 +129,9 @@ def main():
     ap.add_argument("--md", default="docs/MITRE-COVERAGE.md")
     ap.add_argument("--layer", default="docs/attack-navigator-layer.json")
     ap.add_argument("--data", default=None)
+    ap.add_argument("--html", default="tools/attack-coverage-map.html")
+    ap.add_argument("--template", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                       "attack-coverage-map.template.html"))
     a = ap.parse_args()
 
     techniques, revoked_by, tactics, version = load_attack(a.stix)
@@ -240,6 +245,8 @@ def main():
       "Use it to find empty areas, not to claim completeness.\n")
     w(f"**{n_rules} rules · {len(parents_covered)} techniques covered** "
       f"({len(covered)} technique and sub-technique IDs).\n")
+    w("For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub "
+      "first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.\n")
     w("To see it as a heat map, import `docs/attack-navigator-layer.json` into the "
       "[ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) (Open Existing Layer > Upload from local). "
       "The score is the number of rules.\n")
@@ -316,17 +323,33 @@ def main():
     w("")
     open(a.md, "w", encoding="utf-8").write("\n".join(out))
 
+    payload = {"version": version, "generated": datetime.date.today().isoformat(),
+               "rules": {r["id"]: {"name": r["name"], "severity": r["severity"], "folder": r["folder"]}
+                         for r in rules},
+               "matrix": matrix, "priority": priority,
+               "summary": {"rules": n_rules, "techniques": len(parents_covered), "ids": len(covered)}}
     if a.data:
-        json.dump({"version": version, "rules": {r["id"]: {"name": r["name"], "severity": r["severity"],
-                                                            "folder": r["folder"]} for r in rules},
-                   "matrix": matrix, "priority": priority,
-                   "summary": {"rules": n_rules, "techniques": len(parents_covered), "ids": len(covered)}},
-                  open(a.data, "w"))
+        json.dump(payload, open(a.data, "w"))
+    if a.html:
+        write_html(a.template, a.html, payload)
 
     print(f"rules={n_rules} techniques_covered={len(parents_covered)} ids={len(covered)} "
           f"remapped={len([x for x in remaps if x[3].startswith('revoked')])} problems={len(problems)}")
     for rid, old, note in problems:
         print("  problem:", rid, old, note)
+
+
+def write_html(template_path, out_path, payload):
+    """Embed the coverage data in the page template and wrap it as a standalone HTML document."""
+    t = open(template_path, encoding="utf-8").read()
+    data = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
+    t = t.replace("/*__DATA__*/null", data)
+    head, body = t.split("</style>", 1)
+    doc = ("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+           "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+           + head + "</style>\n</head>\n<body>\n" + body.strip() + "\n</body>\n</html>\n")
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+    open(out_path, "w", encoding="utf-8").write(doc)
 
 
 if __name__ == "__main__":

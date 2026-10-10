@@ -6,6 +6,8 @@ Coverage means a rule *targets* the technique, not that every way of doing it is
 
 **170 rules · 103 techniques covered** (189 technique and sub-technique IDs).
 
+For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
+
 To see it as a heat map, import `docs/attack-navigator-layer.json` into the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) (Open Existing Layer > Upload from local). The score is the number of rules.
 
 ## Kill chain at a glance

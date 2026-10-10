@@ -1,0 +1,256 @@
+<title>ATT&amp;CK Coverage Map</title>
+<!-- Template for tools/mitre_coverage.py. The generator replaces the DATA placeholder below with the
+     coverage data and wraps this file in a full HTML document (tools/attack-coverage-map.html). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a working matrix. Summary strip on top, the tactic-by-technique grid as the hero, a detail panel that follows the selection. */
+:root {
+  --bg: #f5f7f9;
+  --surface: #ffffff;
+  --fg: #0f1720;
+  --muted: #566170;
+  --faint: #8a93a0;
+  --line: #dde2e8;
+  --accent: #256abf;
+  --gap: #b4442f;
+  --c0: #edf0f3; --t0: #6d7684;
+  --c1: #cde2fb; --t1: #0b1a2c;
+  --c2: #86b6ef; --t2: #0b1a2c;
+  --c3: #256abf; --t3: #ffffff;
+  --c4: #0d366b; --t4: #ffffff;
+  --sel: #eb6834;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1217; --surface: #161a20; --fg: #e7eaee; --muted: #a2abb7; --faint: #7a8491; --line: #262c34;
+    --accent: #5598e7; --gap: #e0836f;
+    --c0: #1b2027; --t0: #7d8794;
+    --c1: #184f95; --t1: #ffffff;
+    --c2: #256abf; --t2: #ffffff;
+    --c3: #6da7ec; --t3: #08121f;
+    --c4: #b7d3f6; --t4: #08121f;
+    --sel: #f08a5d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1217; --surface: #161a20; --fg: #e7eaee; --muted: #a2abb7; --faint: #7a8491; --line: #262c34;
+  --accent: #5598e7; --gap: #e0836f;
+  --c0: #1b2027; --t0: #7d8794;
+  --c1: #184f95; --t1: #ffffff;
+  --c2: #256abf; --t2: #ffffff;
+  --c3: #6da7ec; --t3: #08121f;
+  --c4: #b7d3f6; --t4: #08121f;
+  --sel: #f08a5d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1600px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 28px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--font-display); font-stretch: 75%; font-weight: 800; font-size: clamp(30px, 4vw, 46px); line-height: 1.02; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-stretch: 85%; font-weight: 700; font-size: 20px; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 70ch; margin: 0; }
+.mono { font-family: var(--font-mono); }
+
+.stats { display: flex; flex-wrap: wrap; gap: 12px 40px; padding-block: 14px; border-block: 1px solid var(--line); }
+.stat { display: grid; gap: 0; min-width: 0; }
+.stat b { font-family: var(--font-display); font-stretch: 75%; font-weight: 700; font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.stat.gapstat b { color: var(--gap); }
+
+.chain { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.tac { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; text-align: left; font: inherit; color: inherit; cursor: pointer; min-width: 0; }
+.tac:hover { border-color: var(--accent); }
+.tac:focus-visible, .cell:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+.tac .name { font-weight: 600; font-size: 13px; line-height: 1.25; }
+.tac .meter { height: 6px; border-radius: 3px; background: var(--c0); overflow: hidden; }
+.tac .meter i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.tac .nums { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.toolbar label { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+.toolbar input[type="search"] { font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); width: 260px; max-width: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-left: auto; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 980px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.scroller { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.matrix { display: grid; grid-auto-flow: column; grid-auto-columns: 148px; gap: 6px; padding: 10px; width: max-content; }
+.col { display: grid; gap: 4px; align-content: start; }
+.colhead { position: sticky; top: 0; background: var(--surface); padding-bottom: 6px; border-bottom: 2px solid var(--fg); margin-bottom: 2px; }
+.colhead .n { font-family: var(--font-display); font-stretch: 85%; font-weight: 700; font-size: 14px; line-height: 1.15; }
+.colhead .c { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.cell { display: grid; gap: 1px; text-align: left; border: 0; border-radius: 4px; padding: 5px 7px; font: inherit; cursor: pointer; min-height: 40px; }
+.cell .id { font-family: var(--font-mono); font-size: 10px; opacity: .8; }
+.cell .nm { font-size: 11.5px; line-height: 1.2; font-weight: 500; }
+.cell .k { font-family: var(--font-mono); font-size: 10px; font-weight: 500; }
+.b0 { background: var(--c0); color: var(--t0); }
+.b1 { background: var(--c1); color: var(--t1); }
+.b2 { background: var(--c2); color: var(--t2); }
+.b3 { background: var(--c3); color: var(--t3); }
+.b4 { background: var(--c4); color: var(--t4); }
+.cell.sel { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sel); }
+.cell.dim { opacity: .25; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); min-width: 0; }
+.panel .tid { font-family: var(--font-mono); color: var(--muted); font-size: 12px; }
+.panel h3 { margin: 0; font-family: var(--font-display); font-stretch: 85%; font-size: 20px; line-height: 1.15; text-wrap: balance; }
+.panel .empty { color: var(--muted); }
+.rulelist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rulelist li { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.rid { font-family: var(--font-mono); font-weight: 500; font-size: 12px; }
+.rname { font-size: 13px; line-height: 1.35; }
+.sev { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.subs { display: grid; gap: 6px; font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 10px; }
+.subs div { display: grid; gap: 1px; }
+.subs .s-rules { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+.gaps { display: grid; gap: 10px; }
+.gapgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.gapitem { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 4px 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); align-items: baseline; }
+.gapitem.miss { border-color: color-mix(in srgb, var(--gap) 55%, var(--line)); }
+.gapitem .gid { font-family: var(--font-mono); font-size: 12px; }
+.gapitem .gn { font-size: 13px; font-weight: 500; }
+.gapitem .gr { grid-column: 2; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.gapitem.miss .gr { color: var(--gap); }
+.note { color: var(--muted); font-size: 12.5px; max-width: 90ch; }
+@media (prefers-reduced-motion: no-preference) { .cell, .tac { transition: box-shadow .12s, border-color .12s, opacity .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow">ATT&amp;CK Enterprise</div>
+    <h1>ATT&amp;CK Coverage Map</h1>
+    <p class="lede">Every technique that applies to a Windows, Linux, Microsoft 365, Entra and Azure estate, grouped by tactic and shaded by how many rules in the detection library map to it. Select a technique to see the rules behind it.</p>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <section aria-label="Coverage by tactic" style="display:grid;gap:10px">
+    <h2>Coverage by tactic</h2>
+    <div class="chain" id="chain"></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-label="Technique matrix">
+    <div class="toolbar">
+      <h2>Technique matrix</h2>
+      <input type="search" id="q" placeholder="Filter by technique or rule ID, e.g. T1003 or W01" aria-label="Filter techniques">
+      <label><input type="checkbox" id="onlycov"> Covered only</label>
+      <div class="legend" aria-label="Legend: number of rules">
+        <span><i class="b0"></i>0</span><span><i class="b1"></i>1</span><span><i class="b2"></i>2</span><span><i class="b3"></i>3–4</span><span><i class="b4"></i>5+ rules</span>
+      </div>
+    </div>
+    <div class="main">
+      <div class="scroller"><div class="matrix" id="matrix" role="grid"></div></div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section class="gaps" aria-label="Priority techniques">
+    <h2>Priority techniques</h2>
+    <p class="note">Techniques seen most often in real intrusions against this kind of estate. Outlined in red: no rule maps to it yet.</p>
+    <div class="gapgrid" id="gaps"></div>
+  </section>
+
+  <p class="note">Coverage means at least one rule targets the technique or one of its sub-techniques. It does not mean every way of doing it is caught. Generated from each rule's <span class="mono">mitre:</span> front-matter by <span class="mono">tools/mitre_coverage.py</span>; revoked ATT&amp;CK IDs are counted under their v19 replacements.</p>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const bin = (n) => (n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : n <= 4 ? 3 : 4);
+let selected = null;
+
+function renderStats() {
+  const s = DATA.summary;
+  const tot = DATA.matrix.reduce((a, m) => a + m.total, 0);
+  const gaps = DATA.priority.filter((p) => !p.rules.length).length;
+  $("#eyebrow").textContent = "ATT&CK Enterprise v" + DATA.version + (DATA.generated ? " · generated " + DATA.generated : "");
+  $("#stats").innerHTML = [
+    ["" + s.rules, "rules in the library"],
+    ["" + s.techniques, "techniques covered"],
+    [s.ids + "", "technique and sub-technique IDs"],
+    [gaps + " / " + DATA.priority.length, "priority techniques with no rule", "gapstat"],
+  ].map(([b, t, c]) => `<div class="stat ${c || ""}"><b>${esc(b)}</b><span>${esc(t)}</span></div>`).join("");
+}
+
+function renderChain() {
+  $("#chain").innerHTML = DATA.matrix.map((m, i) => {
+    const pct = m.total ? Math.round((100 * m.covered) / m.total) : 0;
+    return `<button class="tac" data-col="${i}" aria-label="${esc(m.tactic)}: ${m.covered} of ${m.total} techniques covered">
+      <span class="name">${esc(m.tactic)}</span>
+      <span class="meter"><i style="width:${pct}%"></i></span>
+      <span class="nums">${m.covered}/${m.total} · ${pct}% · ${m.rules.length} rules</span></button>`;
+  }).join("");
+  document.querySelectorAll(".tac").forEach((b) => b.addEventListener("click", () => {
+    const col = document.querySelector(`.col[data-col="${b.dataset.col}"]`);
+    if (col) col.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", inline: "start", block: "nearest" });
+  }));
+}
+
+function renderMatrix() {
+  const q = $("#q").value.trim().toLowerCase();
+  const only = $("#onlycov").checked;
+  $("#matrix").innerHTML = DATA.matrix.map((m, i) => {
+    const cells = m.cells.filter((c) => !only || c.rules.length).map((c) => {
+      const hay = (c.id + " " + c.name + " " + c.rules.join(" ") + " " + c.subs.map((s) => s.id + " " + s.name).join(" ")).toLowerCase();
+      const dim = q && !hay.includes(q) ? " dim" : "";
+      const sel = selected && selected.id === c.id && selected.col === i ? " sel" : "";
+      const k = c.rules.length ? `<span class="k">${c.rules.length} rule${c.rules.length > 1 ? "s" : ""}</span>` : "";
+      return `<button class="cell b${bin(c.rules.length)}${dim}${sel}" data-col="${i}" data-id="${c.id}" title="${esc(c.id + " " + c.name + " — " + c.rules.length + " rule(s)")}">
+        <span class="id">${c.id}</span><span class="nm">${esc(c.name)}</span>${k}</button>`;
+    }).join("");
+    return `<div class="col" data-col="${i}" role="row"><div class="colhead"><div class="n">${esc(m.tactic)}</div><div class="c">${m.covered}/${m.total} covered</div></div>${cells}</div>`;
+  }).join("");
+  document.querySelectorAll(".cell").forEach((b) => b.addEventListener("click", () => {
+    selected = { col: +b.dataset.col, id: b.dataset.id };
+    renderMatrix();
+    renderPanel();
+  }));
+}
+
+function renderPanel() {
+  const p = $("#panel");
+  if (!selected) {
+    const top = DATA.matrix.flatMap((m) => m.cells).sort((a, b) => b.rules.length - a.rules.length)[0];
+    selected = top ? { col: DATA.matrix.findIndex((m) => m.cells.includes(top)), id: top.id } : null;
+    if (!selected) { p.innerHTML = `<p class="empty">Select a technique.</p>`; return; }
+    renderMatrix();
+  }
+  const m = DATA.matrix[selected.col];
+  const c = m.cells.find((x) => x.id === selected.id);
+  const rules = c.rules.map((r) => {
+    const info = DATA.rules[r] || {};
+    return `<li><span class="rid">${esc(r)}</span><span><span class="rname">${esc(info.name || "")}</span><br><span class="sev">${esc(info.severity || "")} · ${esc(info.folder || "")}</span></span></li>`;
+  }).join("");
+  const subs = c.subs.length ? `<div class="subs"><span class="kicker">Sub-techniques covered</span>${c.subs.map((s) =>
+      `<div><span><span class="mono">${s.id}</span> ${esc(s.name)}</span><span class="s-rules">${s.rules.join(", ")}</span></div>`).join("")}</div>` : "";
+  p.innerHTML = `<span class="kicker">${esc(m.tactic)}</span>
+    <div><div class="tid">${c.id}</div><h3>${esc(c.name)}</h3></div>
+    ${c.rules.length ? `<ul class="rulelist">${rules}</ul>` : `<p class="empty">No rule maps to this technique yet.</p>`}
+    ${subs}
+    <a class="tid" href="https://attack.mitre.org/techniques/${c.id.replace(".", "/")}/" target="_blank" rel="noopener">Open ${c.id} on attack.mitre.org</a>`;
+}
+
+function renderGaps() {
+  const items = [...DATA.priority].sort((a, b) => (a.rules.length > 0) - (b.rules.length > 0));
+  $("#gaps").innerHTML = items.map((g) => `<div class="gapitem ${g.rules.length ? "" : "miss"}">
+      <span class="gid">${g.id}</span><span class="gn">${esc(g.name)}</span>
+      <span class="gr">${g.rules.length ? esc(g.rules.join(", ")) : "no rule"}</span></div>`).join("");
+}
+
+renderStats(); renderChain(); renderMatrix(); renderPanel(); renderGaps();
+$("#q").addEventListener("input", renderMatrix);
+$("#onlycov").addEventListener("change", renderMatrix);
+</script>
