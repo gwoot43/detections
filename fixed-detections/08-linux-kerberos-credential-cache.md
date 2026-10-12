@@ -45,34 +45,40 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")),
        pname = MV_LAST(SPLIT(TO_LOWER(COALESCE(process.executable, "")), "/")),
        parent = TO_LOWER(COALESCE(data.ParentBaseFileName, ""))
-| WHERE cmd LIKE "*krb5cc_*" OR cmd LIKE "*.keytab*" OR cmd LIKE "*/var/lib/sss/secrets/*"
-     OR cmd LIKE "*/var/lib/sss/db/ccache_*" OR cmd LIKE "*secrets.ldb*" OR cmd LIKE "*.secrets.mkey*"
-// file-handling tools: copying, encoding or sending a credential file
-| WHERE pname IN ("cp", "mv", "cat", "base64", "xxd", "od", "scp", "rsync", "tar", "zip", "gzip", "dd",
-                  "curl", "wget", "nc", "ncat", "socat", "strings", "tdbdump", "ldbsearch", "ldbdump")
-     OR STARTS_WITH(pname, "python") OR STARTS_WITH(pname, "perl")
-| WHERE NOT parent IN ("sssd", "sssd_be", "sssd_kcm", "adcli", "realm", "certmonger")
-| EVAL finding = CASE(
-    cmd LIKE "*/var/lib/sss/*" OR cmd LIKE "*secrets.ldb*" OR cmd LIKE "*.secrets.mkey*", "sssd credential store accessed",
-    cmd LIKE "*.keytab*", "keytab copied or read",
-    "ticket cache copied or read")
-| KEEP @timestamp, host.id, host.name, user.name, finding, pname, process.command_line, data.ParentBaseFileName
+| WHERE cmd RLIKE """.*(krb5cc_|\.keytab|/var/lib/sss/secrets/|/var/lib/sss/db/ccache_|secrets\.ldb|\.secrets\.mkey).*"""
+  AND NOT pname IN ("kinit", "klist", "kdestroy", "kvno", "kswitch", "ktutil", "adcli", "realm", "msktutil", "net",
+                    "winbindd", "sssd", "sssd_be", "sssd_kcm", "gssproxy", "certmonger", "sss_cache", "sssctl")
+  AND NOT parent IN ("sssd", "sssd_be", "sssd_kcm", "adcli", "realm", "certmonger")
+| KEEP @timestamp, host.id, host.name, user.name, pname, process.command_line, data.ParentBaseFileName
 ```
-Suppress by `host.id`, `finding` for 6h. Severity high.
+Suppress by `host.id`, `pname` for 6h. Severity high.
 
+- **Allowlist, not denylist.** Any process referencing these files alerts unless it's known Kerberos or SSSD tooling.
+- **Null-safe.** `COALESCE` on the command line and executable, so an event with an empty field isn't silently dropped by the `NOT ... IN` checks.
+- **SSSD paths narrowed** to `secrets/` and `db/ccache_*`. The broader `/var/lib/sss/` also matched `pipes/`, `mc/` and `pubconf/`.
 - **No fleet, host or person exclusions.** EC2 hosts are in scope.
-- **Automation that legitimately handles keytabs** (deployment pipelines distributing a service keytab, for example) should be excluded by its exact parent process or command line, not by user name.
-- **If you still want klist visibility,** run it as a weekly hunt, not an alert.
+
+### Build the allowlist before enabling
+Run this over the last 30 days. Anything with steady volume across many hosts (a Java or Kafka service started with `--keytab`, deployment tooling) is a candidate for the `pname` list, or for an exact command-line exclusion if it's a script. Anything rare is what the rule should alert on.
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action == "processrollup2"
+| EVAL cmd = TO_LOWER(COALESCE(process.command_line, ""))
+| WHERE cmd RLIKE """.*(krb5cc_|\.keytab|/var/lib/sss/secrets/|/var/lib/sss/db/ccache_|secrets\.ldb|\.secrets\.mkey).*"""
+| STATS runs = COUNT(*), hosts = COUNT_DISTINCT(host.id), examples = VALUES(process.command_line)
+    BY process.executable, data.ParentBaseFileName
+| SORT runs DESC
+```
 
 ## Before vs after
 
 | | Before | After |
 |---|---|---|
 | Can fire | Probably not (`threat.technique.name` on a process event) | Yes |
-| What it watches | Running `klist` | Copying, encoding or sending ticket caches, keytabs and the SSSD store |
+| What it watches | Running `klist` | Any process touching ticket caches, keytabs or the SSSD store, except known Kerberos tooling |
 | EC2 Linux fleet | Excluded | Included |
 | Person and host exclusions | Yes | None |
-| Size | ~60 lines with PID linking | ~20 lines |
+| Size | ~60 lines with PID linking | ~12 lines |
 
 ## Test
 On a lab Linux host, run the Atomic Red Team tests for T1558 that copy a ticket cache, then `cp /etc/krb5.keytab /tmp/` as root. Both should alert. Running `klist` on its own should not.

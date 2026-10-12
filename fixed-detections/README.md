@@ -13,7 +13,7 @@ Reviews of eight existing production detections (Kerberoasting, C2 and tunneling
 | 05 | [Browser internal remote-access ports](05-browser-internal-remote-access-ports.md) | Fires, noisy | SMB at one connection; exclusion breaks with a second target | RDP/WinRM on any connection, SMB at 3+ targets; per-event exclusion; 7 browsers |
 | 06 | [Kerberoasting](06-kerberoasting.md) | Fires, only for loud RC4 attacks | Split per DC; fixed 5-minute buckets; RC4 only; 10-service threshold | Per requester across DCs, RC4 tier at 3, any-encryption tier at 15, plus a honey SPN check |
 | 07 | [Kerberos LDAP enumeration (Linux)](07-kerberos-ldap-enumeration.md) | Fires on routine use | Case-sensitive; flags normal `ldapsearch`; misses other tools | Attack-path LDAP filters with any auth, plus AD recon tools by name |
-| 08 | [Linux Kerberos credential cache](08-linux-kerberos-credential-cache.md) | **Almost certainly never fires** | Requires a detection-only field on a process event; excludes all EC2 hosts; watches benign `klist` | Ticket cache, keytab and SSSD store being copied, encoded or sent; no fleet or person exclusions |
+| 08 | [Linux Kerberos credential cache](08-linux-kerberos-credential-cache.md) | **Almost certainly never fires** | Requires a detection-only field on a process event; excludes all EC2 hosts; watches benign `klist` | Any process touching ticket caches, keytabs or the SSSD store, except known Kerberos tooling; no fleet or person exclusions |
 
 ## Patterns that broke several rules
 - **`LIKE` without `*`** is an exact match in ES|QL (02).
