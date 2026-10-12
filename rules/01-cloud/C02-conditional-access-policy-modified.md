@@ -35,7 +35,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
        actor_sp = COALESCE(azure.auditlogs.properties.initiated_by.app.servicePrincipalId, "")
 // exclude your IaC / policy-as-code service principal by object ID (display names can be copied)
 | WHERE actor_sp NOT IN ("00000000-0000-0000-0000-000000000000")
-| KEEP @timestamp, azure.auditlogs.operation_name, actor, `azure.auditlogs.properties.target_resources.0.display_name`, source.ip
+| KEEP @timestamp, azure.auditlogs.operation_name, actor, `azure.auditlogs.properties.target_resources.0.display_name`, source.ip, _id, _version, _index
 ```
 
 ## Suppression

@@ -31,7 +31,7 @@ FROM logs-mimecast.ttp_url_logs-* METADATA _id, _index, _version
            AND (NOT user_override IN ("none", "n/a", "") OR awareness == "continue")))
   AND NOT usr IN ("soc-sandbox@yourdomain.com")                                        // analyst test mailboxes
 | KEEP @timestamp, usr, url.original, result, action, user_override, awareness, email.from.address, email.subject,
-       email.direction, rule.name, mimecast.category
+       email.direction, rule.name, mimecast.category, _id, _version, _index
 ```
 The click-through values (`mimecast.userOverride`, and `event.action` "Continue" on a block or warning page) are not in the package samples; confirm them on one real click-through. The same click definition drives X01. The integration renames most URL log fields: `url` to `url.original`, `userEmailAddress` to `user.email`, `fromUserEmailAddress` to `email.from.address`, `subject` to `email.subject`, `route` to `email.direction`, `ttpDefinition` to `rule.name`, `userAwarenessAction` to `event.action`. The old `mimecast.*` names are empty.
 

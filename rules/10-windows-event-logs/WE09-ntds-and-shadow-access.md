@@ -30,7 +30,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname IN ("cmd.exe", "powershell.exe", "pwsh.exe", "robocopy.exe", "xcopy.exe", "esentutl.exe")
        AND cmd LIKE "*harddiskvolumeshadowcopy*")   // copying files (ntds.dit, the SYSTEM hive) out of a shadow copy
    OR (pname == "reg.exe" AND cmd LIKE "*save*" AND (cmd LIKE """*hklm\\system*""" OR cmd LIKE """*hklm\\sam*""" OR cmd LIKE """*hklm\\security*"""))
-| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 Companion via the Security channel: 4656/4663 (object access) on the `ntds.dit` file by a process other than `lsass.exe` or the backup agent, if you audit that file's SACL.
 

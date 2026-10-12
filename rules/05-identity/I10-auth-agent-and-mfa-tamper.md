@@ -30,7 +30,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
     OR op LIKE "*security defaults*"
   )
 | KEEP @timestamp, op, actor, target, source.ip,
-       azure.auditlogs.properties.additional_details.key, azure.auditlogs.properties.additional_details.value
+       azure.auditlogs.properties.additional_details.key, azure.auditlogs.properties.additional_details.value, _id, _version, _index
 ```
 The high-fidelity version joins this to I07: an MFA method registered within an hour of a high-risk sign-in for the same user. Run as a correlation rule once both are live.
 

@@ -44,7 +44,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        from_host = COALESCE(winlog.event_data.WorkstationName, winlog.event_data.Workstation, ""),
        result = COALESCE(winlog.event_data.Status, winlog.event_data.FailureReason, event.outcome)
 | KEEP @timestamp, honey_account, trap, requester, from_ip, from_host, result, event.code,
-       winlog.event_data.TicketEncryptionType, winlog.event_data.LogonType, winlog.computer_name
+       winlog.event_data.TicketEncryptionType, winlog.event_data.LogonType, winlog.computer_name, _id, _version, _index
 ```
 
 **Reading `trap` and `honey_account` together:**

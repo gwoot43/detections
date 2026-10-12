@@ -28,7 +28,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   AND (exe LIKE """\\device\\cdrom*"""
        OR (pname IN ("wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
            AND cmd RLIKE """.*[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ].*)?"""))
-| KEEP @timestamp, host.id, host.name, user.name, parent, pname, exe, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, parent, pname, exe, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

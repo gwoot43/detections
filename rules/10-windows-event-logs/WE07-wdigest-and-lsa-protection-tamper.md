@@ -40,7 +40,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR k LIKE """*control\\lsa\\osconfig\\security packages"""
    OR k LIKE """*control\\lsa\\authentication packages"""
    OR k LIKE """*control\\lsa\\notification packages"""
-| KEEP @timestamp, host.name, user.name, k, num, v, process.name, process.command_line
+| KEEP @timestamp, host.name, user.name, k, num, v, process.name, process.command_line, _id, _version, _index
 ```
 Value checks are exact, so a hardening write (for example `RunAsPPL` set to 1 by Group Policy) does not match. `crowdstrike.RegNumericValue` is not in the integration's predefined fields; the query fails with "Unknown column" until an FDR registry event carrying it has been indexed. Confirm the field name in your FDR data first.
 

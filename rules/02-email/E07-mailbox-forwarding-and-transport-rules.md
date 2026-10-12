@@ -35,7 +35,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
 | WHERE (event.action IN ("Set-Mailbox", "New-TransportRule", "Set-TransportRule") AND external)
      OR event.action == "New-JournalRule"
      OR (event.action == "Set-RemoteDomain" AND auto_forward == "true")
-| KEEP @timestamp, o365.audit.UserId, source.ip, event.action, o365.audit.ObjectId, target, auto_forward
+| KEEP @timestamp, o365.audit.UserId, source.ip, event.action, o365.audit.ObjectId, target, auto_forward, _id, _version, _index
 ```
 Clearing forwarding sends an empty value, which the integration drops, so removals never match.
 

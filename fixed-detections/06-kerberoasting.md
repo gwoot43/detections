@@ -64,7 +64,7 @@ A service account with an SPN that nothing uses, and a long random password. One
 ```esql
 FROM logs-yourorg-microsoft-windows* METADATA _id, _index, _version
 | WHERE event.code == "4769" AND TO_LOWER(winevt.event_data.service_name) == "<honey_service_account>"
-| KEEP @timestamp, user.name, source.ip, host.name, winevt.event_data.ticket_encryption_type, winevt.event_data.status
+| KEEP @timestamp, user.name, source.ip, host.name, winevt.event_data.ticket_encryption_type, winevt.event_data.status, _id, _version, _index
 ```
 
 ## Before vs after

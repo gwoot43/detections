@@ -25,7 +25,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-system.system-* METADA
 | EVAL host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, "."))),
        actor = TO_LOWER(COALESCE(winlog.user_data.SubjectUserName, user.name, "")),
        cleared_log = COALESCE(winlog.user_data.Channel, winlog.channel)
-| KEEP @timestamp, host_key, winlog.computer_name, event.code, actor, winlog.user_data.SubjectDomainName, cleared_log
+| KEEP @timestamp, host_key, winlog.computer_name, event.code, actor, winlog.user_data.SubjectDomainName, cleared_log, _id, _version, _index
 ```
 `METADATA _id, _index, _version` is required plumbing for the detection engine, not detection logic. See docs/ESQL-CONVENTIONS.md. Hosts are keyed on `winlog.computer_name`, because with event forwarding `host.name` is the collector.
 

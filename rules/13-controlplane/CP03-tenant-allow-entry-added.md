@@ -28,7 +28,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
        allow = TO_LOWER(COALESCE(o365.audit.Parameters.Allow, "")) == "true"
                OR TO_LOWER(COALESCE(o365.audit.Parameters.Action, "")) == "allow"
 | WHERE allow
-| KEEP @timestamp, usr, event.action, o365.audit.Parameters.Entries, o365.audit.ObjectId, source.ip
+| KEEP @timestamp, usr, event.action, o365.audit.Parameters.Entries, o365.audit.ObjectId, source.ip, _id, _version, _index
 ```
 `New-TenantAllowBlockListItems` takes `-Allow` or `-Block`; spoof entries take `-Action Allow` or `-Action Block`. Only the allow direction is kept.
 

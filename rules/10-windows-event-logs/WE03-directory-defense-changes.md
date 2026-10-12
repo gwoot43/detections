@@ -20,7 +20,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name)),
        target = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),
        trusted_domain = winlog.event_data.DomainName                      // 4706 only
-| KEEP @timestamp, winlog.computer_name, event.code, actor, target, winlog.event_data.TargetDomainName, trusted_domain, message
+| KEEP @timestamp, winlog.computer_name, event.code, actor, target, winlog.event_data.TargetDomainName, trusted_domain, message, _id, _version, _index
 ```
 
 ## Suppression

@@ -44,6 +44,8 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 - A **non-aggregating** rule (returns individual events, e.g. WE01) needs `_id` and `_index` so each alert points back to the exact source event, and so the engine deduplicates instead of re-alerting on the same document every run. `_version` supports that deduplication.
 - An **aggregating** rule (built on `STATS`) omits it. A `STATS` output row is computed, not a source document, so there is no `_id` to reference. That is why the `STATS`-based rules in this library have no `METADATA` clause.
 
+**Keep the metadata columns in the output.** A `KEEP` that doesn't list `_id, _version, _index` drops them from the result, and the rule loses deduplication just as if `METADATA` were missing: it re-alerts on the same document on every run while it's inside the lookback. Every non-aggregating rule here ends its `KEEP` with `_id, _version, _index`, as Elastic's prebuilt rules do.
+
 If you remove `METADATA` from a non-aggregating rule, the query still runs in Discover, but the rule loses clean alert-to-event linkage and deduplication.
 
 ## No subqueries: use LOOKUP JOIN or ENRICH

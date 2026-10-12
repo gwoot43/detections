@@ -72,7 +72,7 @@ FROM logs-windows.windows_defender-* METADATA _id, _index, _version
                              "msedgewebview2.exe", "searchapp.exe", "searchhost.exe"))
 | EVAL signal = CASE(feature == "antivirus", threat, feature == "asr", asr_name, proc_name)
 | KEEP @timestamp, host.name, winlog.event_data.Detection_User, event.code, feature, signal, threat, sev, action,
-       asr_rule, asr_name, proc, detected_path, message
+       asr_rule, asr_name, proc, detected_path, message, _id, _version, _index
 ```
 
 **How the parsing works.** `GROK` pulls the ASR rule GUID (`ID: <guid>`) and the `Process Name:` line out of the rendered message. GROK patterns match anywhere in the text, and `GREEDYDATA` stops at the end of the line, so each capture is that one value. The `{`-wrapped detection GUID in 1116 events doesn't match `UUID`, so `asr_rule` is only populated on 1121.

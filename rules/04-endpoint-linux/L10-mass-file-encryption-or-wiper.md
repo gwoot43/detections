@@ -28,7 +28,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "dd" AND cmd LIKE "*if=/dev/urandom*" AND cmd LIKE "*of=/dev/*" AND NOT cmd LIKE "*of=/dev/null*")
    OR (cmd LIKE "*.vmdk*" AND cmd LIKE "*encrypt*")
    OR cmd LIKE "*esxcli*vm process kill*"
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 Branch B (volume-based) needs file-write events. Run it as a second rule once you confirm which `*FileWritten` and `FileRenameInfo` events your Linux sensors send and that they carry the writing process name (newer sensors set `process.name` from `ContextBaseFileName`):
 ```esql

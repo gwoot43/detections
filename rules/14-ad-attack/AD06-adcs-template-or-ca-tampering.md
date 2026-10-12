@@ -48,7 +48,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
                       ca_setting_change, "ca_setting_changed",
                       ca_flag_change, "ca_flags_changed",
                       "certificate_mapping_weakened")
-| KEEP @timestamp, h, actor, finding, event.code, winlog.event_data.ObjectDN, attr, process.command_line, registry.path
+| KEEP @timestamp, h, actor, finding, event.code, winlog.event_data.ObjectDN, attr, process.command_line, registry.path, _id, _version, _index
 ```
 Template changes need directory-object auditing on the Certificate Templates container. The CA events need CA auditing for configuration and security changes.
 

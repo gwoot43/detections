@@ -54,7 +54,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
          NULL)
 | WHERE change IS NOT NULL
 | WHERE NOT usr IN ("svc-exo-policy-pipeline@yourdomain.com")   // policy-as-code account, if any
-| KEEP @timestamp, usr, event.action, change, o365.audit.ObjectId, source.ip, zap, phish_zap, spam_zap
+| KEEP @timestamp, usr, event.action, change, o365.audit.ObjectId, source.ip, zap, phish_zap, spam_zap, _id, _version, _index
 ```
 ZAP is read from the anti-malware (`ZapEnabled`) and anti-spam (`PhishZapEnabled`, `SpamZapEnabled`, and the older `ZapEnabled`) policies; `zap`, `phish_zap` and `spam_zap` show which switch was turned off. Anti-phishing and Safe Links policies have no ZAP switch. Allow-list entries are CP03.
 

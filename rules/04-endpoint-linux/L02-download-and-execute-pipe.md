@@ -29,7 +29,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 // developer machines; host names are matched lowercased
 | WHERE NOT (h LIKE "dev-*" OR h LIKE "*-laptop*")
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

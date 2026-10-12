@@ -29,7 +29,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "bcdedit.exe"  AND (cmd LIKE "*recoveryenabled no*" OR cmd LIKE "*bootstatuspolicy ignoreallfailures*"))
    OR (pname == "diskshadow.exe" AND cmd LIKE "*delete shadows*")
    OR (pname == "fsutil.exe" AND cmd LIKE "*usn deletejournal*")
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

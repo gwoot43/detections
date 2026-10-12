@@ -40,7 +40,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "unshare" AND cmd LIKE "*-r*" AND cmd LIKE "*bash*")
    OR (cmd LIKE "*capsh*" AND cmd LIKE "*--gid=0*" AND cmd LIKE "*--uid=0*")
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, user.id, parent, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, user.id, parent, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

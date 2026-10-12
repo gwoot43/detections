@@ -32,7 +32,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
   AND (privs LIKE "*sedebugprivilege*" OR privs LIKE "*setcbprivilege*" OR privs LIKE "*sebackupprivilege*"
        OR privs LIKE "*serestoreprivilege*" OR privs LIKE "*setakeownershipprivilege*" OR privs LIKE "*seloaddriverprivilege*"
        OR privs LIKE "*secreatetokenprivilege*")
-| KEEP @timestamp, host_key, winlog.computer_name, acct, acct_domain, privs
+| KEEP @timestamp, host_key, winlog.computer_name, acct, acct_domain, privs, _id, _version, _index
 ```
 The most reliable version replaces the name patterns with an inline list of the accounts expected to hold these privileges, and alerts on everyone else.
 

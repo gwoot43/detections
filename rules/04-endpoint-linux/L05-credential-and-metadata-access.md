@@ -32,7 +32,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname IN ("cat", "less", "more", "head", "tail", "cp", "scp", "curl", "wget", "base64", "xxd", "tar", "zip", "nc", "ncat")
        AND (cmd LIKE "*.aws/credentials*" OR cmd LIKE "*.kube/config*" OR cmd LIKE "*.docker/config.json*" OR cmd LIKE "*gcloud*credentials*"))
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

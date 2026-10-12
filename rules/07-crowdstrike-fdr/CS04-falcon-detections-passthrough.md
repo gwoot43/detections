@@ -31,7 +31,7 @@ FROM logs-crowdstrike.alert-* METADATA _id, _index, _version
   // the integration re-collects an alert on every update; a closing update must not re-page
   AND status != "closed"
 | KEEP @timestamp, host.name, user.name, product, sev, crowdstrike.alert.display_name, crowdstrike.alert.description, tactic, technique,
-       crowdstrike.alert.pattern_disposition_description, process.name, process.command_line, event.id
+       crowdstrike.alert.pattern_disposition_description, process.name, process.command_line, event.id, _id, _version, _index
 ```
 Also feed medium detections into a lower-priority queue rather than dropping them; they feed the correlation rules (X-series) even when not alertable on their own.
 

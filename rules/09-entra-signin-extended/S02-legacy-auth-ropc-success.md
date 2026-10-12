@@ -28,7 +28,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
                    "outlook anywhere (rpc over http)", "autodiscover", "offline address book")
    OR proto == "ropc"
    OR ua LIKE "bav2ropc*" OR ua LIKE "fasthttp*"
-| KEEP @timestamp, user.name, client, proto, ua, source.ip, source.geo.country_iso_code, source.as.organization.name, azure.signinlogs.properties.app_display_name
+| KEEP @timestamp, user.name, client, proto, ua, source.ip, source.geo.country_iso_code, source.as.organization.name, azure.signinlogs.properties.app_display_name, _id, _version, _index
 ```
 
 ## Suppression

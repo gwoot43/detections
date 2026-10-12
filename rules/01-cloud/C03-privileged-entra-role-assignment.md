@@ -49,7 +49,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 | WHERE role IS NOT NULL
 | KEEP @timestamp, azure.auditlogs.operation_name, role,
        azure.auditlogs.properties.initiated_by.user.userPrincipalName, azure.auditlogs.properties.initiated_by.app.displayName,
-       `azure.auditlogs.properties.target_resources.0.user_principal_name`, source.ip
+       `azure.auditlogs.properties.target_resources.0.user_principal_name`, source.ip, _id, _version, _index
 ```
 A PIM activation is initiated by the `MS-PIM` service principal, so `initiated_by.user` is empty and the member is the person who activated.
 

@@ -31,7 +31,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR cmd LIKE "*/proc/1/root*"
    OR cmd LIKE "*>*/proc/sys/kernel/core_pattern*"
    OR (cmd LIKE "*release_agent*" OR cmd LIKE "*cgroup*notify_on_release*")
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

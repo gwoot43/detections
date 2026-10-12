@@ -24,7 +24,7 @@ FROM logs-windows.* METADATA _id, _index, _version
        host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))   // with event forwarding, host.name is the collector
 | WHERE msg LIKE "*commandlineeventconsumer*" OR msg LIKE "*activescripteventconsumer*"
 | WHERE NOT (msg LIKE "*bvtconsumer*")
-| KEEP @timestamp, host_key, winlog.computer_name, winlog.channel, message
+| KEEP @timestamp, host_key, winlog.computer_name, winlog.channel, message, _id, _version, _index
 ```
 This channel is not collected by default. Collect it with a custom Windows event log input in the agent policy (or forward it with WEF), and check which data stream it lands in. If that is not under `logs-windows.*`, change `FROM` and `index:` together; a wildcard that matches nothing is not an error, so the rule would silently never fire.
 

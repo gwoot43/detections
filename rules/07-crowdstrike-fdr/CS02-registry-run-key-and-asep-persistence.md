@@ -34,7 +34,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   // Defender platform updates rewrite their paths under ProgramData; OneDrive and Teams rewrite their per-user Run values on every update
   AND NOT (v LIKE """*\\programdata\\microsoft\\windows defender\\platform\\*"""
            OR v LIKE """*\\appdata\\local\\microsoft\\onedrive\\*""" OR v LIKE """*\\appdata\\local\\microsoft\\teams\\*""")
-| KEEP @timestamp, host.id, host.name, user.name, k, v, process.name, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, k, v, process.name, process.command_line, _id, _version, _index
 ```
 `image file execution options` with a `debugger` value is the accessibility-tool backdoor (sethc/utilman); keep it high.
 

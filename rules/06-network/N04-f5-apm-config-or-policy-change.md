@@ -32,7 +32,7 @@ FROM logs-f5.audit-* METADATA _id, _index, _version
    OR msg LIKE "*create*user*" OR msg LIKE "*modify*user*" OR msg LIKE "*role*administrator*"
    OR msg LIKE "*irule*" OR msg LIKE "*sys*sshd*" OR msg LIKE "*modify*ltm*" OR msg LIKE "*tmsh*"
 | WHERE NOT (usr IN ("svc-f5-backup", "svc-f5-monitoring"))
-| KEEP @timestamp, host.name, usr, source.ip, message
+| KEEP @timestamp, host.name, usr, source.ip, message, _id, _version, _index
 ```
 
 ## Suppression

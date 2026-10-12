@@ -29,7 +29,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
   AND (usr LIKE "adm-*" OR usr LIKE "*-admin@*" OR usr LIKE "*.adm@*")     // your admin naming convention, or an exact list of role members
   AND (res LIKE "*azure service management*" OR res LIKE "*microsoft graph*" OR res LIKE "*azure portal*"
        OR app LIKE "*azure portal*" OR app LIKE "*entra*" OR app LIKE "*exchange*admin*" OR app LIKE "*security*center*" OR app LIKE "*intune*" OR app LIKE "*azure cli*" OR app LIKE "*azure powershell*")
-| KEEP @timestamp, usr, app, res, req, source.ip, source.geo.country_iso_code, azure.signinlogs.properties.conditional_access_status, azure.signinlogs.properties.device_detail.trust_type
+| KEEP @timestamp, usr, app, res, req, source.ip, source.geo.country_iso_code, azure.signinlogs.properties.conditional_access_status, azure.signinlogs.properties.device_detail.trust_type, _id, _version, _index
 ```
 Only interactive sign-ins are read. Non-interactive token refreshes inherit the MFA of the original sign-in and can be reported as single factor, which would flood the rule. Better than name patterns: replace them with an exact list of the Global Administrator, Privileged Role Administrator, Security Administrator and Exchange Administrator members (`usr IN (...)`) and review the list when C03 fires.
 

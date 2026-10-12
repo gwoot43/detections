@@ -85,7 +85,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     NULL)
 | WHERE finding IS NOT NULL
 | KEEP @timestamp, host.id, host.name, user.name, finding, process.executable, process.command_line,
-       destination.ip, destination.port, data.ContextBaseFileName, data.ParentBaseFileName
+       destination.ip, destination.port, data.ContextBaseFileName, data.ParentBaseFileName, _id, _version, _index
 ```
 Suppress by `host.id`, `finding` for 24h.
 

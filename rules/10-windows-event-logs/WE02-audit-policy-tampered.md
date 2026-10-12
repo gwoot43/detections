@@ -36,7 +36,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
                       "kerberos service ticket operations", "security system extension", "detailed file share",
                       "other object access events", "certification services"))
 | KEEP @timestamp, host_key, winlog.computer_name, event.code, subcat, changes,
-       winlog.event_data.AuditPolicyChangesDescription, subject, winlog.event_data.TargetUserSid
+       winlog.event_data.AuditPolicyChangesDescription, subject, winlog.event_data.TargetUserSid, _id, _version, _index
 ```
 `SubCategory` is the name the integration derives from `SubcategoryGuid`. In `%%8448`, `%` is a literal character, not a wildcard; ES|QL `LIKE` uses only `*` and `?`.
 

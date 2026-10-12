@@ -29,7 +29,7 @@ FROM logs-system.system-*, logs-system.security*, logs-windows.forwarded* METADA
   OR img LIKE "*powershell*" OR img LIKE "*cmd.exe*/c*" OR img LIKE "*cmd /c*" OR img LIKE "*%comspec%*" OR img LIKE "*-enc*"
   OR img LIKE "*rundll32*" OR img LIKE "*mshta*" OR img LIKE """*\\admin$\\*"""
   OR host_key LIKE "dc*" OR host_key LIKE "*-dc*"   // your DC naming: any new service on a DC is worth review
-| KEEP @timestamp, host_key, winlog.computer_name, event.code, svc, img, stype, winlog.event_data.SubjectUserName, winlog.event_data.AccountName
+| KEEP @timestamp, host_key, winlog.computer_name, event.code, svc, img, stype, winlog.event_data.SubjectUserName, winlog.event_data.AccountName, _id, _version, _index
 ```
 `ImagePath` (7045) is not in the integration's predefined fields; it exists once a 7045 has been indexed, which happens within hours on any fleet. `%comspec%` is matched literally: `%` is not a wildcard in ES|QL `LIKE`.
 Split into two rules if the DC branch is too broad: one for DCs (any new service) and one fleet-wide (suspicious path or command only).

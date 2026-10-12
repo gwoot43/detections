@@ -34,7 +34,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
               OR (grp_domain == "builtin" AND on_dc
                   AND grp IN ("administrators", "account operators", "backup operators", "server operators", "print operators"))))
    OR (change == "removed" AND grp == "protected users")
-| KEEP @timestamp, winlog.computer_name, change, grp, member, actor, winlog.event_data.MemberSid
+| KEEP @timestamp, winlog.computer_name, change, grp, member, actor, winlog.event_data.MemberSid, _id, _version, _index
 ```
 Add your own Tier-0 groups by exact name. Set the DC naming in `on_dc`, or the built-in groups never match.
 

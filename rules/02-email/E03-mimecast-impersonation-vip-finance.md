@@ -27,7 +27,7 @@ FROM logs-mimecast.ttp_ip_logs-* METADATA _id, _index, _version
   AND (rcpt IN ("cfo@yourdomain.com", "ceo@yourdomain.com", "ap@yourdomain.com", "payments@yourdomain.com")
        OR rcpt LIKE "*finance*" OR rcpt LIKE "*payroll*" OR rcpt LIKE "*accounts*")
   AND NOT (action LIKE "*bounce*" OR action LIKE "*reject*")    // delivered, tagged or held, not bounced
-| KEEP @timestamp, rcpt, sender, email.subject, ids, action, rule.name, mimecast.taggedMalicious, source.ip
+| KEEP @timestamp, rcpt, sender, email.subject, ids, action, rule.name, mimecast.taggedMalicious, source.ip, _id, _version, _index
 ```
 The integration moves recipient and sender to `email.to.address` and `email.from.address`, `action` to `event.action`, `definition` to `rule.name`, and `senderIpAddress` to `source.ip`. Move the VIP list to an Elastic value list once it is stable.
 

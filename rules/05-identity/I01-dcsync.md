@@ -29,7 +29,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
     OR props LIKE "*89e95b76-444d-4c62-991a-0facbeda640c*"   // DS-Replication-Get-Changes-In-Filtered-Set
 | WHERE NOT (subject LIKE "*$")                                // computer accounts: DCs, and gMSAs such as Entra Cloud Sync's
   AND NOT (subject LIKE "msol_*" OR subject IN ("aadconnect_svc", "svc-aadconnect"))  // your Entra Connect sync account
-| KEEP @timestamp, winlog.computer_name, subject, winlog.event_data.SubjectUserSid, winlog.event_data.ObjectName, props
+| KEEP @timestamp, winlog.computer_name, subject, winlog.event_data.SubjectUserSid, winlog.event_data.ObjectName, props, _id, _version, _index
 ```
 Replace the sync account with your real MSOL_ account name. Get it from Entra Connect.
 

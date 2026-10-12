@@ -30,7 +30,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
   AND acct_domain != dest                                         // local accounts (the built-in local Administrator) are not Tier-0
 // exclude the sanctioned Tier-0 hosts: DCs and PAWs
 | WHERE NOT (dest LIKE "dc*" OR dest LIKE "*-dc*" OR dest LIKE "paw-*" OR dest LIKE "adminws-*")
-| KEEP @timestamp, dest, acct, acct_domain, logon_type, source.ip, source.domain
+| KEEP @timestamp, dest, acct, acct_domain, logon_type, source.ip, source.domain, _id, _version, _index
 ```
 `source.ip` and `source.domain` hold the logon's client address and workstation name; the integration moves them out of `winlog.event_data`.
 Replace the naming conventions with your own, or list the Tier-0 account names inline.

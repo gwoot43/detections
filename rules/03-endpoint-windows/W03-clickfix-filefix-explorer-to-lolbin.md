@@ -42,7 +42,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
         AND (cmd LIKE """*\\downloads\\*""" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\7zo*""" OR cmd LIKE """*\\rar$*"""))
   )
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, _id, _version, _index
 ```
 The same technique also leaves `RunMRU` and `TypedPaths` registry values containing `powershell`, `mshta` or `http`. Those keys are not ASEPs, so CS02 does not watch them; add a registry branch only if your FDR feed records them.
 

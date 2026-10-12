@@ -33,7 +33,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 | WHERE actor_app != "Managed Service Identity"
 // secret-rotation pipeline, by service principal object ID
   AND actor_sp NOT IN ("00000000-0000-0000-0000-000000000000")
-| KEEP @timestamp, azure.auditlogs.operation_name, actor, `azure.auditlogs.properties.target_resources.0.display_name`, source.ip
+| KEEP @timestamp, azure.auditlogs.operation_name, actor, `azure.auditlogs.properties.target_resources.0.display_name`, source.ip, _id, _version, _index
 ```
 Owner changes ("Add owner to application", "Add owner to service principal") are not credential adds and are left out. They are frequent in development tenants and the credential add that usually follows is what this rule catches.
 

@@ -31,7 +31,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
      OR payload LIKE "*mshta*" OR payload LIKE "*.hta*" OR payload LIKE "*frombase64*"
      OR (script_host AND (payload LIKE "*http*" OR payload LIKE "* -enc*" OR payload LIKE "* -e *" OR payload LIKE "*hidden*"))
 | WHERE NOT (payload LIKE """*\\programdata\\microsoft\\windows defender\\platform\\*""" OR payload LIKE """*\\appdata\\local\\microsoft\\onedrive\\*""")
-| KEEP @timestamp, host.id, host.name, user.name, event.action, crowdstrike.TaskName, payload
+| KEEP @timestamp, host.id, host.name, user.name, event.action, crowdstrike.TaskName, payload, _id, _version, _index
 ```
 
 ## Suppression

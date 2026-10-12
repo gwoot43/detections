@@ -49,7 +49,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
   AND NOT pname IN ("kinit", "klist", "kdestroy", "kvno", "kswitch", "ktutil", "adcli", "realm", "msktutil", "net",
                     "winbindd", "sssd", "sssd_be", "sssd_kcm", "gssproxy", "certmonger", "sss_cache", "sssctl")
   AND NOT parent IN ("sssd", "sssd_be", "sssd_kcm", "adcli", "realm", "certmonger")
-| KEEP @timestamp, host.id, host.name, user.name, pname, process.command_line, data.ParentBaseFileName
+| KEEP @timestamp, host.id, host.name, user.name, pname, process.command_line, data.ParentBaseFileName, _id, _version, _index
 ```
 Suppress by `host.id`, `pname` for 6h. Severity high.
 

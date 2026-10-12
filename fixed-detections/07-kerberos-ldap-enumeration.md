@@ -51,7 +51,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     NULL)
 | WHERE finding IS NOT NULL
 | EVAL auth = CASE(cmd LIKE "*gssapi*", "kerberos", cmd LIKE "* -w *" OR cmd LIKE "* -y *", "password", "other")
-| KEEP @timestamp, host.id, host.name, user.name, finding, auth, process.command_line, data.ParentBaseFileName
+| KEEP @timestamp, host.id, host.name, user.name, finding, auth, process.command_line, data.ParentBaseFileName, _id, _version, _index
 ```
 Suppress by `host.id`, `finding` for 6h. Severity high.
 

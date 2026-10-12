@@ -28,7 +28,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
      OR (share LIKE """*\\ipc$""" AND rel IN ("svcctl", "atsvc", "winreg"))
 | WHERE CIDR_MATCH(source.ip, "10.20.0.0/16")          // workstation subnets
   AND NOT (acct LIKE "*$")                              // machine accounts
-| KEEP @timestamp, host_key, winlog.computer_name, source.ip, acct, share, rel
+| KEEP @timestamp, host_key, winlog.computer_name, source.ip, acct, share, rel, _id, _version, _index
 ```
 Needs the "Detailed File Share" audit subcategory, which is high volume. Enable it on servers and domain controllers first.
 

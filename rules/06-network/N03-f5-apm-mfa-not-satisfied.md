@@ -32,7 +32,7 @@ FROM logs-f5.apm-* METADATA _id, _index, _version
 | EVAL agent = TO_LOWER(TO_STRING(COALESCE(f5.apm.agent, f5.apm.policy_result, message)))
 // your MFA policy item name as it appears in the APM log (e.g. "ad_auth_then_radius", "duo", "logon_mfa")
 | WHERE NOT (agent LIKE "*mfa*" OR agent LIKE "*duo*" OR agent LIKE "*radius*" OR agent LIKE "*totp*" OR agent LIKE "*second factor*")
-| KEEP @timestamp, user.name, source.ip, agent, message
+| KEEP @timestamp, user.name, source.ip, agent, message, _id, _version, _index
 ```
 This rule is only as good as your APM logging verbosity. Turn on per-session-variable or VPE logging so the MFA step is visible, then match on the real item name. If you cannot see the step, alert instead on any allowed session whose access policy name is not the MFA-enforcing policy.
 

@@ -42,7 +42,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 // Explorer-launched script hosts and downloaders are W03 (ClickFix/FileFix); one pasted cradle should alert once
 | WHERE NOT (parent == "explorer.exe"
              AND pname IN ("powershell.exe", "pwsh.exe", "mshta.exe", "cmd.exe", "curl.exe", "msiexec.exe", "wscript.exe", "cscript.exe", "bitsadmin.exe", "certutil.exe", "hh.exe"))
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

@@ -30,7 +30,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE (event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate")
          AND regpath LIKE "*services*dns*parameters*serverlevelplugindll*")
      OR (event.action == "ProcessRollup2" AND pname == "dnscmd.exe" AND cl LIKE "*serverlevelplugindll*")
-| KEEP @timestamp, host.name, user.name, event.action, regpath, registry.data.strings, process.command_line, process.parent.name
+| KEEP @timestamp, host.name, user.name, event.action, regpath, registry.data.strings, process.command_line, process.parent.name, _id, _version, _index
 ```
 The DNS Server event log also records the plugin loading (event 770 in the DNS Server channel) if you ship that channel; it is a useful confirmation during triage.
 

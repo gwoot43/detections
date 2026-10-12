@@ -28,7 +28,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*lsass*" AND (pname IN ("procdump.exe", "procdump64.exe", "rundll32.exe", "createdump.exe", "sqldumper.exe", "adplus.exe", "rdrleakdiag.exe")
                                OR cmd LIKE "* -ma *" OR cmd LIKE "*.dmp*"))
    OR cmd LIKE "*sekurlsa*" OR cmd LIKE "*lsadump*"
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256, _id, _version, _index
 ```
 
 ## Suppression

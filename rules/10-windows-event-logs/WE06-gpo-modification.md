@@ -38,7 +38,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
                           OR val LIKE "*c6dc5466-785a-11d2-84d0-00c04fb169f7*")   // software installation
 | WHERE default_policy OR exec_extension
 | WHERE NOT (actor IN ("svc-gpo-automation"))   // your sanctioned GPO tooling account, if any
-| KEEP @timestamp, winlog.computer_name, actor, dn, attr, val, default_policy, exec_extension
+| KEEP @timestamp, winlog.computer_name, actor, dn, attr, val, default_policy, exec_extension, _id, _version, _index
 ```
 5136 needs directory-object auditing with the right SACL on the Policies container. Confirm these events are present before relying on this. The extension list is rewritten only when the set of extensions in a GPO changes, so a GPO that already had scheduled tasks alerts again when another extension is added. The GPT side (SYSVOL file changes to `GptTmpl.inf`, `ScheduledTasks.xml`) is a useful companion via file-integrity monitoring on the DCs.
 

@@ -46,7 +46,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
 // approved SaaS apps: service principal object IDs, never display names
 | WHERE COALESCE(`azure.auditlogs.properties.target_resources.0.id`, "") NOT IN ("00000000-0000-0000-0000-000000000000")
 | KEEP @timestamp, azure.auditlogs.operation_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName,
-       `azure.auditlogs.properties.target_resources.0.display_name`, `azure.auditlogs.properties.target_resources.0.id`, scopes, source.ip
+       `azure.auditlogs.properties.target_resources.0.display_name`, `azure.auditlogs.properties.target_resources.0.id`, scopes, source.ip, _id, _version, _index
 ```
 
 ## Suppression

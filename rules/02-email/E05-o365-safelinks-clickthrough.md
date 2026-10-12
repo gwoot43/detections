@@ -27,7 +27,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
        usr = TO_LOWER(o365.audit.UserId)
 | WHERE click_action IN ("4", "blockpageoverride")                 // clicked through the block page
   AND NOT usr IN ("soc-sandbox@yourdomain.com")                    // analyst test mailboxes
-| KEEP @timestamp, usr, o365.audit.URL, click_action, o365.audit.SourceId
+| KEEP @timestamp, usr, o365.audit.URL, click_action, o365.audit.SourceId, _id, _version, _index
 ```
 `URLClickAction` 4 is BlockPageOverride. 5 (PendingDetonationPageOverride, clicked through while the URL was still being scanned) is left out: the URL had no malicious verdict yet. `SourceId` is the network message ID of the email, for purging.
 

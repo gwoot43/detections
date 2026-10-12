@@ -23,7 +23,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        target = TO_LOWER(winlog.event_data.TargetUserName),
        actor = TO_LOWER(winlog.event_data.SubjectUserName)
 | WHERE uac_changes LIKE "*2096*"
-| KEEP @timestamp, winlog.computer_name, target, actor, uac_changes, winlog.event_data.NewUacValue
+| KEEP @timestamp, winlog.computer_name, target, actor, uac_changes, winlog.event_data.NewUacValue, _id, _version, _index
 ```
 Companion roasting query:
 ```esql

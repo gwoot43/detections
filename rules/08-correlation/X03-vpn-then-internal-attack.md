@@ -33,7 +33,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE process.name IN ("psexesvc.exe", "wmic.exe", "nltest.exe", "sharphound.exe") OR TO_LOWER(process.command_line) LIKE "*/node:*"
 | LOOKUP JOIN vpn_anomalies_last_4h ON usr
 | WHERE vpn_anomaly_at IS NOT NULL AND @timestamp >= vpn_anomaly_at
-| KEEP @timestamp, usr, host.name, process.name, process.command_line, vpn_src_country, vpn_anomaly_at
+| KEEP @timestamp, usr, host.name, process.name, process.command_line, vpn_src_country, vpn_anomaly_at, _id, _version, _index
 ```
 Build `vpn_anomalies_last_4h` from N01/N02. Or an indicator-match rule keyed on user.
 

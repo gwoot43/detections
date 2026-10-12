@@ -49,7 +49,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
     NULL)
 | WHERE finding IS NOT NULL
 | KEEP @timestamp, host_key, finding, load_options, test_signing, integrity_off, kernel_debug, hv_debug,
-       user.name, process.parent.name, process.command_line
+       user.name, process.parent.name, process.command_line, _id, _version, _index
 ```
 
 **How the parsing works.** 4826 renders each setting as `Name: Yes|No` on its own line. Each `GROK` captures one word after the label. `Load Options` can hold several switches, so it takes the rest of the line (the first match is the general one, which comes before `HyperVisor Load Options`). `Flight Signing` is deliberately ignored, because Windows Insider builds turn it on. The structured `winlog.event_data` copies of these settings stay as raw `%%1842`/`%%1843` codes, which is why the rendered `message` is parsed instead.

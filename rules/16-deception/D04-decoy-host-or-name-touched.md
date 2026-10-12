@@ -38,7 +38,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE decoy IS NOT NULL
 // scanners and monitoring that sweep every IP (placeholders: Falcon agent IDs)
 | WHERE NOT host.id IN ("<vuln_scanner_aid>", "<monitoring_aid>")
-| KEEP @timestamp, host.id, host.name, user.name, decoy, q, dst, destination.port, process.name, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, decoy, q, dst, destination.port, process.name, process.command_line, _id, _version, _index
 ```
 Matching on the **first DNS label** catches both `vault-prod` and `vault-prod.corp.local`. If a decoy name could collide with a real public host name, match on the full name instead.
 

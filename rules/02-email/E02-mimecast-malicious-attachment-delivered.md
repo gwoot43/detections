@@ -26,7 +26,7 @@ FROM logs-mimecast.ttp_ap_logs-* METADATA _id, _index, _version
 | WHERE result IN ("malicious", "unsafe")
   AND (triggered LIKE "none*" OR triggered LIKE "*release*")    // nothing blocked it, or it was released
 | KEEP @timestamp, rcpt, email.from.address, email.subject, email.attachments.file.name,
-       email.attachments.file.mime_type, sha256, result, triggered, rule.name, email.direction
+       email.attachments.file.mime_type, sha256, result, triggered, rule.name, email.direction, _id, _version, _index
 ```
 The integration moves `actionTriggered` to `event.action`, rewritten as lower-case words joined by underscores (`user release, none` becomes `user_release_none`). Recipient, sender, file name, hash, subject and definition move to `email.*` and `rule.name`. A hash that is not 64 characters stays in `mimecast.fileHash`.
 

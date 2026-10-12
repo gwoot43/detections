@@ -30,7 +30,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
        host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))            // with event forwarding, host.name is the collector
 | WHERE otype == "secretobject" AND oname LIKE "*bckupkey*" AND mask == "0x2"   // 0x2 = query secret value
-| KEEP @timestamp, host_key, winlog.computer_name, actor, winlog.event_data.SubjectDomainName, oname, mask
+| KEEP @timestamp, host_key, winlog.computer_name, actor, winlog.event_data.SubjectDomainName, oname, mask, _id, _version, _index
 ```
 
 ## Suppression

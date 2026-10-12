@@ -36,7 +36,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
            OR ua LIKE "Windows-AzureAD-Authentication-Provider*" OR ua LIKE "Java*ThinkPad*")
 | EVAL severity = CASE(resource == "Device Registration Service", "high", "medium")
 | KEEP @timestamp, uid, upn, ua, resource, severity, source.ip, source.as.organization.name, source.geo.country_iso_code,
-       azure.signinlogs.category, azure.signinlogs.properties.incoming_token_type, azure.signinlogs.properties.authentication_protocol
+       azure.signinlogs.category, azure.signinlogs.properties.incoming_token_type, azure.signinlogs.properties.authentication_protocol, _id, _version, _index
 ```
 An operator can set a browser or Windows user agent in roadtx, which this rule then misses. S20 does not depend on the user agent and covers that case.
 

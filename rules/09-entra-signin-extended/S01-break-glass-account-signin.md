@@ -22,7 +22,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | WHERE user.id IN ("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002")
    OR TO_LOWER(user.name) IN ("breakglass1@yourtenant.onmicrosoft.com", "breakglass2@yourtenant.onmicrosoft.com")
 | KEEP @timestamp, user.name, user.id, event.outcome, azure.signinlogs.properties.status.error_code, source.ip, source.geo.country_iso_code,
-       source.as.organization.name, azure.signinlogs.properties.app_display_name, azure.signinlogs.category, user_agent.original
+       source.as.organization.name, azure.signinlogs.properties.app_display_name, azure.signinlogs.category, user_agent.original, _id, _version, _index
 ```
 Replace the object IDs and UPNs with the exact break-glass accounts. The object ID still matches if someone renames the account. Name patterns such as `*emergency*` were removed: they match ordinary shared mailboxes and service accounts, and the exact list already covers the real accounts.
 

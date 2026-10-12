@@ -28,7 +28,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))   // with event forwarding, host.name is the collector
 | WHERE lt == "9" AND lp == "seclogo" AND ap == "negotiate"
 | WHERE host_key NOT IN ("jump01", "paw-01")     // admin jump hosts where runas /netonly is expected
-| KEEP @timestamp, host_key, winlog.computer_name, acct, outbound, winlog.event_data.TargetOutboundDomainName, lt, lp, ap
+| KEEP @timestamp, host_key, winlog.computer_name, acct, outbound, winlog.event_data.TargetOutboundDomainName, lt, lp, ap, _id, _version, _index
 ```
 `TargetOutboundUserName` and `TargetOutboundDomainName` are not in the integration's predefined fields. Every 4624 from Windows 10 / Server 2016 or later carries them, so they are mapped on any current fleet.
 

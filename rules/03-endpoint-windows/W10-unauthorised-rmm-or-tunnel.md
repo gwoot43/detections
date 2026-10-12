@@ -32,7 +32,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 // remove your own approved tool from the list, then keep this guard for its install path.
 // FDR records executables as \Device\HarddiskVolumeN\..., never C:\..., so match from the folder down.
 | WHERE NOT (exe LIKE """*\\program files\\your-approved-rmm\\*""")
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256, _id, _version, _index
 ```
 `quickassist.exe` and `teamviewer.exe` will be noisy if IT uses them. Decide once, then either remove them or restrict to launches under user-writable paths.
 

@@ -34,7 +34,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
   AND NOT actor IN ("svc-exchange-automation@yourdomain.com")                       // service desk automation
   AND NOT grantee == "nt authority\\self"
   AND NOT (event.action LIKE "*FolderPermission" AND folder LIKE """*:\\calendar*""")   // calendar sharing
-| KEEP @timestamp, actor, target, grantee, rights, event.action, source.ip
+| KEEP @timestamp, actor, target, grantee, rights, event.action, source.ip, _id, _version, _index
 ```
 `Add-RecipientPermission` names the grantee in `Trustee`, which is not read here to avoid another dynamic field; `target` and `rights` are enough to triage. Raise to high when `target` is on the VIP list from E03.
 

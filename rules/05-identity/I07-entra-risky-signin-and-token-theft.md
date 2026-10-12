@@ -30,7 +30,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
        OR detail LIKE "*anomaloustoken*" OR detail LIKE "*maliciousipaddress*"
        OR detail LIKE "*impossibletravel*" OR detail LIKE "*tokenissueranomaly*" OR detail LIKE "*passwordspray*")
 | KEEP @timestamp, usr, source.ip, source.geo.country_iso_code, source.as.organization.name,
-       azure.signinlogs.properties.app_display_name, azure.signinlogs.properties.authentication_requirement, risk, detail
+       azure.signinlogs.properties.app_display_name, azure.signinlogs.properties.authentication_requirement, risk, detail, _id, _version, _index
 ```
 
 ## Suppression

@@ -41,7 +41,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 // CriticalFileModified has no parent, so this only filters the process branch
 | WHERE parent NOT IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor")
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f
+| KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f, _id, _version, _index
 ```
 
 ## Suppression

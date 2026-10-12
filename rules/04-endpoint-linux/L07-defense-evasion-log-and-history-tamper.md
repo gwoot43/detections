@@ -38,7 +38,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname IN ("systemctl", "service") AND (cmd LIKE "*stop*" OR cmd LIKE "*disable*" OR cmd LIKE "*mask*") AND (cmd LIKE "*auditd*" OR cmd LIKE "*syslog*"))
    OR (pname == "auditctl" AND cmd LIKE "*-e 0*")
    OR (cmd LIKE "*chattr*" AND (cmd LIKE "*+i*" OR cmd LIKE "*-a*") AND (cmd LIKE "*/var/log*" OR cmd LIKE "*history*"))
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

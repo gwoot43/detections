@@ -24,7 +24,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        acct = TO_LOWER(winlog.event_data.TargetUserName)
 | WHERE CIDR_MATCH(source.ip, "10.20.0.0/16")          // workstation subnets
   AND (dest LIKE "ws-*" OR dest LIKE "lt-*")             // your workstation naming
-| KEEP @timestamp, dest, acct, source.ip, source.domain
+| KEEP @timestamp, dest, acct, source.ip, source.domain, _id, _version, _index
 ```
 `source.ip` and `source.domain` hold the client address and workstation name; the integration moves them out of `winlog.event_data`.
 

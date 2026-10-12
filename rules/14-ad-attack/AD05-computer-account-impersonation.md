@@ -46,7 +46,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
                       anonymous_change, "anonymous_dc_password_change",
                       "computer_created_by_user"),
        severity = CASE(user_created_computer AND NOT (samaccount_spoof OR dnshostname_spoof OR anonymous_change), "medium", "critical")
-| KEEP @timestamp, winlog.computer_name, actor, target, old_name, new_name, dns, finding, severity
+| KEEP @timestamp, winlog.computer_name, actor, target, old_name, new_name, dns, finding, severity, _id, _version, _index
 ```
 The medium branch is only as clean as the provisioning list. If IT staff join machines with their personal admin accounts, add those accounts, or set the machine-account quota to 0 and delegate joining instead, which removes the attack path as well as the noise.
 

@@ -26,7 +26,7 @@ FROM logs-zscaler_zia.web-* METADATA _id, _index, _version
      OR dom LIKE "*.onion*" OR dom LIKE "*trycloudflare*" OR dom LIKE "*.workers.dev"
      OR (dom LIKE "*ngrok*" AND NOT dom IN ("ngrok.com", "www.ngrok.com", "dashboard.ngrok.com", "download.ngrok.com"))   // vendor site, not a tunnel
      OR dom IN ("dns.google", "cloudflare-dns.com", "mozilla.cloudflare-dns.com", "dns.quad9.net", "doh.opendns.com")
-| KEEP @timestamp, user.name, source.ip, destination.domain, url.full, cat, event.action
+| KEEP @timestamp, user.name, source.ip, destination.domain, url.full, cat, event.action, _id, _version, _index
 ```
 Field notes: `cat` is the Zscaler URL category (`zscaler_zia.web.url.category.sub`). Categories are matched exactly instead of by substring because a substring such as `*tor*` also matches "Cloud Storage". The exact category names above are best guesses: confirm them in Discover. Tor traffic is expected to fall under Zscaler's anonymizer category or the `.onion` domain match. `event.action` is `allowed`, `blocked` or `cautioned`.
 

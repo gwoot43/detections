@@ -35,7 +35,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
        AND (cmd LIKE "*/etc/pam.d/*" OR cmd LIKE "*pam_*.so*" OR cmd LIKE "*nsswitch.conf*")
        AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*tee*" OR cmd LIKE "*sed -i*" OR cmd LIKE "*cp *" OR cmd LIKE "*mv *" OR pname IN ("vi", "vim", "nano"))
        AND parent NOT IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "authselect", "pam-auth-update"))
-| KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f
+| KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f, _id, _version, _index
 ```
 
 ## Suppression

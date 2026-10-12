@@ -34,7 +34,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   OR img LIKE """*\\nscm.sys""" OR img LIKE """*\\nsecsoft*.sys"""
      // or a hash on your vulnerable-driver value list
   OR h IN ("PUT_LOLDRIVERS_HASHES_HERE")
-| KEEP @timestamp, host.id, host.name, img, h, dll.name, dll.code_signature.subject_name, dll.pe.original_file_name
+| KEEP @timestamp, host.id, host.name, img, h, dll.name, dll.code_signature.subject_name, dll.pe.original_file_name, _id, _version, _index
 ```
 Populate the hash branch from a scheduled import of the loldrivers.io hash list. Names alone miss renamed drivers; hashes catch them. Keep the hashes lowercase, since `h` is lowercased.
 

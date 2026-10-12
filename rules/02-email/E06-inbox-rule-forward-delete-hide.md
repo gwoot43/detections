@@ -42,7 +42,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
        odd_name = rule_name RLIKE "[^a-zA-Z0-9]+"                                       // name is only punctuation or spaces
 | WHERE forwards_out OR hides OR odd_name
 | WHERE NOT o365.audit.UserId IN ("svc-mailbox-automation@yourdomain.com")           // service desk automation
-| KEEP @timestamp, o365.audit.UserId, source.ip, event.action, rule_name, forwards_out, hides, odd_name, fwd, folder, words
+| KEEP @timestamp, o365.audit.UserId, source.ip, event.action, rule_name, forwards_out, hides, odd_name, fwd, folder, words, _id, _version, _index
 ```
 Rules created in the Outlook desktop client are logged as `UpdateInboxRules`, with the rule in `OperationProperties` rather than `Parameters`. They are not covered here.
 

@@ -36,7 +36,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
        ua = TO_LOWER(COALESCE(user_agent.original, ""))
 | WHERE NOT (usr IN ("app@sharepoint", "system account", "sharepoint\\system") OR usr LIKE "*@sharepoint")
   AND NOT ua LIKE "*ms-search*" AND NOT ua LIKE "*backup*"
-| KEEP @timestamp, usr, event.action, file.name, url.original, o365.audit.SiteUrl, source.ip, user_agent.original
+| KEEP @timestamp, usr, event.action, file.name, url.original, o365.audit.SiteUrl, source.ip, user_agent.original, _id, _version, _index
 ```
 
 Field notes: the O365 integration moves `Workload` to `event.provider`, the file's full URL (`ObjectId`) to `url.original`, and `ClientIP` to `source.ip`. The `o365.audit.*` copies of those three are empty, so a filter on `o365.audit.Workload` never matches. `file.name` is compared exactly, including case.

@@ -32,7 +32,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT (pname == "net1.exe" AND parent == "net.exe")
 | WHERE parent NOT IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe")
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

@@ -33,7 +33,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   OR (pname IN ("sc.exe", "net.exe", "net1.exe") AND (cmd LIKE "*stop*" OR cmd LIKE "*delete*" OR cmd LIKE "*config*")
       AND (cmd LIKE "*windefend*" OR cmd LIKE "*wdnissvc*" OR cmd LIKE "* sense*"))
   OR (pname == "bcdedit.exe" AND cmd LIKE "*/set*safeboot*")
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256, _id, _version, _index
 ```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
 

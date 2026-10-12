@@ -32,7 +32,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
                 "whoami.exe", "net.exe", "net1.exe", "nltest.exe", "systeminfo.exe", "tasklist.exe", "ipconfig.exe")
 // baseline two weeks, then exclude exact legitimate command lines here
 | WHERE NOT (cl IN ("cmd.exe /c echo ok"))
-| KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line
+| KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line, _id, _version, _index
 ```
 
 ## Suppression

@@ -27,7 +27,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | WHERE lt == "3" AND ap == "ntlm"
   AND acct IN ("dc01$", "dc02$")                                           // your DC machine accounts
   AND (NOT (dest LIKE "dc*") OR NOT CIDR_MATCH(source.ip, "10.0.0.10/32", "10.0.0.11/32"))   // your DC naming and DC IPs
-| KEEP @timestamp, dest, acct, source.ip, source.domain, ap
+| KEEP @timestamp, dest, acct, source.ip, source.domain, ap, _id, _version, _index
 ```
 `source.ip` and `source.domain` hold the client address and workstation name; the integration moves them out of `winlog.event_data`.
 

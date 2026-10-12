@@ -26,7 +26,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | WHERE (usr LIKE "sync_*@*.onmicrosoft.com" OR usr LIKE "connectsyncprovisioning_*")
   AND ec IN ("0", "50074", "50076", "53003")
   AND (source.ip IS NULL OR NOT CIDR_MATCH(source.ip, "203.0.113.10/32", "203.0.113.11/32"))    // Entra Connect server egress IPs
-| KEEP @timestamp, usr, event.outcome, azure.signinlogs.properties.status.error_code, azure.signinlogs.category, source.ip, source.geo.country_iso_code, source.as.organization.name, azure.signinlogs.properties.app_display_name, user_agent.original
+| KEEP @timestamp, usr, event.outcome, azure.signinlogs.properties.status.error_code, azure.signinlogs.category, source.ip, source.geo.country_iso_code, source.as.organization.name, azure.signinlogs.properties.app_display_name, user_agent.original, _id, _version, _index
 ```
 Pair with I06 for the on-prem side: the `MSOL_` account logging on (4624) to any host other than the Entra Connect server.
 

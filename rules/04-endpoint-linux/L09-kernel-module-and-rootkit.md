@@ -30,7 +30,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*/sys/kernel/debug/*" AND (cmd LIKE "*echo*" OR cmd LIKE "*>*"))
    OR (cmd LIKE "*ld_preload*" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*"))
 | WHERE parent NOT IN ("dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd", "cloud-init", "falcon-sensor", "falcond")
-| KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

@@ -27,7 +27,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR event.action IN ("FalconHostFileTamperingInfo", "FalconHostRegTamperingInfo")
    OR (event.action == "SensorTampering" AND tamper_src NOT IN ("/usr/lib/systemd/systemd", "/lib/systemd/systemd"))
    OR (event.action == "ProcessRollup2" AND (cmd LIKE "*csuninstalltool*" OR (pname == "msiexec.exe" AND cmd LIKE "*falcon*" AND cmd LIKE "*/x*")))
-| KEEP @timestamp, host.id, host.name, user.name, event.action, process.name, process.command_line, crowdstrike.SourceImageFileName, crowdstrike.TamperingAction
+| KEEP @timestamp, host.id, host.name, user.name, event.action, process.name, process.command_line, crowdstrike.SourceImageFileName, crowdstrike.TamperingAction, _id, _version, _index
 ```
 Silent-host companion (run daily): compare hosts seen in the last 24h against the asset inventory / AD computer list, and alert on managed hosts that stopped sending FDR while still appearing active in AD authentication (event 4624) or DHCP.
 

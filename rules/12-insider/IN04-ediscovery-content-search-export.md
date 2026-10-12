@@ -23,7 +23,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
                          "ViewedSearchExported", "New-ComplianceSearch", "Start-ComplianceSearch", "New-ComplianceSearchAction")
 | EVAL usr = TO_LOWER(o365.audit.UserId)
 | WHERE NOT usr IN ("svc-ediscovery@yourdomain.com")    // your sanctioned eDiscovery accounts
-| KEEP @timestamp, usr, event.action, event.provider, o365.audit.ObjectId, source.ip
+| KEEP @timestamp, usr, event.action, event.provider, o365.audit.ObjectId, source.ip, _id, _version, _index
 ```
 Keep this as a per-event alert, not a threshold: any search or export outside the sanctioned accounts is worth review. The cmdlet names (`New-ComplianceSearch`, `New-ComplianceSearchAction`) cover searches run from Security & Compliance PowerShell.
 

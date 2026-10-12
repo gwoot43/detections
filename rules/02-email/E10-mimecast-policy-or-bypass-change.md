@@ -26,7 +26,7 @@ FROM logs-mimecast.audit_events-* METADATA _id, _index, _version
 | WHERE info LIKE "*bypass*" OR info LIKE "*permitted sender*"
      OR (protection AND (act LIKE "*delet*" OR act LIKE "*disabl*" OR info LIKE "*disabled*"))
 | WHERE NOT COALESCE(user.email, "") IN ("svc-mimecast-automation@yourdomain.com")          // policy automation, if any
-| KEEP @timestamp, event.action, mimecast.category, user.email, info, client.ip
+| KEEP @timestamp, event.action, mimecast.category, user.email, info, client.ip, _id, _version, _index
 ```
 The integration moves `auditType` to `event.action` (lower case, spaces as hyphens, for example `user-logged-on`), `user` to `user.email`, and the admin's IP to `client.ip`. `mimecast.category` and `mimecast.eventInfo` keep their names.
 

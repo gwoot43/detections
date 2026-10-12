@@ -36,7 +36,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
            OR f LIKE """*\\microsoft\\addins\\*""" OR f LIKE """*\\microsoft\\templates\\normal.dotm""")
       AND NOT (pname == "winword.exe" AND f LIKE "*normal.dotm")
       AND NOT (pname == "excel.exe" AND f LIKE "*personal.xlsb"))
-| KEEP @timestamp, host.id, host.name, user.name, event.action, k, v, f, process.name, process.command_line
+| KEEP @timestamp, host.id, host.name, user.name, event.action, k, v, f, process.name, process.command_line, _id, _version, _index
 ```
 
 ## Suppression

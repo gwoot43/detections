@@ -43,7 +43,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
          NULL)
 | WHERE severity IS NOT NULL
 | KEEP @timestamp, user.name, source.ip, severity, asn, source.geo.country_iso_code, res, azure.signinlogs.properties.app_display_name,
-       azure.signinlogs.properties.device_detail.operating_system, user_agent.original, trust, detail
+       azure.signinlogs.properties.device_detail.operating_system, user_agent.original, trust, detail, _id, _version, _index
 ```
 Grow the ASN list from your own alerts. If you licence Identity Protection, `risk_event_types_v2` containing `anonymizedIPAddress` or `anomalousToken` is a cleaner condition than the ASN list.
 
