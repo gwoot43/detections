@@ -1,65 +1,61 @@
 ---
 id: W04
-name: Windows built-in program run with a URL that few hosts use
+name: LOLBIN download cradle or remote script execution
 category: endpoint-windows
 status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1105, T1218.005, T1218.010, T1218.011, T1197, T1059.001, T1218.007]
+mitre: [T1105, T1218.005, T1218.010, T1218.011, T1197, T1059.001, T1218.007, T1027.010]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
   fields: [host.id, pname]
-  duration: 24h
+  duration: 1h
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Living-off-the-land downloads (`certutil -urlcache`, `bitsadmin /transfer`, `mshta http://`, `regsvr32 /i:http`, `msiexec /i http`, `curl`, PowerShell `DownloadString`) all share one trait: a Windows built-in program with a URL on its command line. The rule matches that trait instead of listing each program and its arguments, so it also catches the ones nobody listed.
+These binary-plus-argument combinations exist to fetch and run remote content and have almost no administrative use on user workstations. Each branch is a known LOLBAS entry. The branches that admin tooling also uses (encoded PowerShell, .NET build and registration tools) exclude the management agents and installers that run them by design.
 
-Admin scripts and installers do the same thing, but they do it on many hosts against the same few domains. Attackers do it on one or two. So the rule counts, across the whole fleet, how many hosts ran the same program against the same domain, and only alerts when it is 3 or fewer.
-
-Two things are left out:
-- `cmd.exe`, because it can't download anything itself. The program it starts carries the URL and is matched instead.
-- `rundll32 url.dll,FileProtocolHandler`, which is how many apps open a link in the browser.
-
-Commands launched by Explorer are W03.
+When the parent is `explorer.exe` and the child is one W03 watches (PowerShell, mshta, cmd, curl, msiexec, the script hosts, BITSAdmin, certutil, hh), the event is left to W03, so a cradle pasted into the Run dialog or address bar fires one rule, not two.
 
 ## Query
-Run hourly with a 24-hour lookback, so "few hosts" means few hosts in the last day.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
-| EVAL pname = TO_LOWER(process.name),
-       parent = TO_LOWER(COALESCE(process.parent.name, "")),
-       path = TO_LOWER(COALESCE(process.executable, "")),
-       cmd = TO_LOWER(COALESCE(process.command_line, ""))
-| WHERE path RLIKE """.*\\windows\\(system32|syswow64)\\.*""" AND cmd LIKE "*http*://*"
-| WHERE parent != "explorer.exe" AND pname != "cmd.exe" AND NOT cmd LIKE "*fileprotocolhandler*"
-| GROK cmd """https?://%{IPORHOST:url_host}"""
-| STATS runs = COUNT(*),
-        first_seen = MIN(@timestamp),
-        last_seen = MAX(@timestamp),
-        host.name = VALUES(host.name),
-        users = VALUES(user.name),
-        parents = VALUES(parent),
-        commands = VALUES(process.command_line)
-    BY host.id, pname, url_host
-| INLINE STATS hosts = COUNT_DISTINCT(host.id) BY pname, url_host
-| WHERE hosts <= 3
-| KEEP host.id, host.name, pname, url_host, hosts, runs, first_seen, last_seen, users, parents, commands
+| EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line), parent = TO_LOWER(COALESCE(process.parent.name, ""))
+| WHERE (pname == "certutil.exe"  AND (cmd LIKE "*urlcache*" OR cmd LIKE "*-decode*" OR cmd LIKE "*-verifyctl*"))
+   OR (pname == "bitsadmin.exe"  AND (cmd LIKE "*transfer*" OR cmd LIKE "*addfile*" OR cmd LIKE "*setnotifycmdline*"))
+   OR (pname == "mshta.exe"      AND (cmd LIKE "*http*" OR cmd LIKE "*javascript:*" OR cmd LIKE "*vbscript:*"))
+   OR (pname == "regsvr32.exe"   AND (cmd LIKE "*scrobj*" OR cmd LIKE "*/i:http*" OR cmd LIKE "*.sct*"))
+   OR (pname == "msiexec.exe"    AND cmd LIKE "*http*")
+   // rundll32 with a plain URL is how many apps open a browser (url.dll,FileProtocolHandler), so only the script and OpenURL forms count
+   OR (pname == "rundll32.exe"   AND (cmd LIKE "*javascript:*" OR cmd LIKE "*url.dll*openurl*"))
+   OR (pname IN ("curl.exe", "wget.exe") AND (cmd LIKE "*-o *" OR cmd LIKE "*--output*") AND (cmd LIKE "*.exe*" OR cmd LIKE "*.dll*" OR cmd LIKE "*.ps1*" OR cmd LIKE "*.bat*" OR cmd LIKE "*.hta*" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\public\\*"""))
+   OR (pname IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*downloadstring*" OR cmd LIKE "*downloadfile*" OR cmd LIKE "*net.webclient*"
+                                                   OR (cmd LIKE "*iex*" AND (cmd LIKE "*http*" OR cmd LIKE "*frombase64*"))))
+   // encoded PowerShell, except from the management agents that run encoded scripts by design
+   OR (pname IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*-encodedcommand*" OR cmd LIKE "* -enc *" OR cmd LIKE "* -ec *" OR cmd LIKE "* -e *")
+       AND parent NOT IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe", "windowsazureguestagent.exe", "gc_worker.exe", "wsmprovhost.exe"))
+   // .NET LOLBINs loading from user-writable paths; installers (msiexec) and Visual Studio run these legitimately
+   OR (pname IN ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe") AND (cmd LIKE "*http*" OR cmd LIKE """*\\temp\\*""" OR cmd LIKE """*\\appdata\\*""")
+       AND parent NOT IN ("msiexec.exe", "devenv.exe"))
+// Explorer-launched script hosts and downloaders are W03 (ClickFix/FileFix); one pasted cradle should alert once
+| WHERE NOT (parent == "explorer.exe"
+             AND pname IN ("powershell.exe", "pwsh.exe", "mshta.exe", "cmd.exe", "curl.exe", "msiexec.exe", "wscript.exe", "cscript.exe", "bitsadmin.exe", "certutil.exe", "hh.exe"))
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
-**Not covered:** encoded PowerShell with no visible URL (W15), `certutil -decode` of a file already on disk, and inline `javascript:` in `mshta` or `rundll32`.
-
 ## Suppression
-Suppress by `host.id`, `pname` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: each hourly run sees the same 24 hours again. A different host or program still alerts.
+Suppress by `host.id`, `pname` for 1h. Alerts missing a key field are not suppressed. Download cradles often retry or loop. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Developers using `curl.exe` against niche sites. Each one is rare, so each one alerts. If that's noisy, exclude the developer hosts' group, not `curl`.
-- A new internal tool rolled out to only a few hosts. It drops out on its own once more than 3 hosts run it.
+- Software deployment calling `msiexec /i https://…` from SYSTEM under the deployment agent parent. Exclude by parent process.
+- `certutil -urlcache` in some update scripts. Exclude by exact command line.
+- Encoded PowerShell from SCCM, Intune, the Azure guest agent and WinRM sessions is excluded by parent. Ansible and other WinRM-driven tools land under `wsmprovhost.exe` and are covered by W08 instead. Add other management agents by parent name.
+- Start-BitsTransfer is no longer matched. It is routine in admin scripts.
 
 ## Triage
-- `url_host` and `commands` show what was fetched. Check the domain in Zscaler (N07), look for a file written just after the command, and look for network connections from the process.
+- Same chain as W03: URL, payload, network, then user context.
 
 ## Test
-On a lab host, run `certutil -urlcache -f http://<lab-server>/test.txt test.txt`.
+Atomic Red Team T1105 and T1218.005 on a lab host.

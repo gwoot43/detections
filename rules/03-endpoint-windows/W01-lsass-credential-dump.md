@@ -1,6 +1,6 @@
 ---
 id: W01
-name: LSASS memory dumped or Mimikatz credential module run
+name: LSASS memory dump via known tooling or LOLBIN
 category: endpoint-windows
 status: todo
 severity: critical
@@ -14,31 +14,32 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Reading LSASS memory is how credentials are stolen from a Windows host. Whatever tool does it, the command line gives it away: it names LSASS together with a dump, calls the `MiniDump` export of `comsvcs.dll` (by name or by its ordinal `#24`), or runs Mimikatz's `sekurlsa` or `lsadump` modules. The rule matches on those words, not on a list of tools, so a renamed `procdump` still fires.
+Falcon blocks most LSASS reads, but the attempt still shows up as a process launch. `comsvcs.dll MiniDump` (by name or ordinal `#24`), `procdump -ma lsass` and `rundll32` naming the LSASS process have no admin use case outside a debugging session you would know about.
 
-Falcon blocks most LSASS reads, but the attempt is still a process launch. Falcon's own LSASS-access detections arrive through CS04.
+Dump tools that take a PID instead of a name (`sqldumper`, `createdump`, `rdrleakdiag`) only match when the command line names LSASS. Falcon's own LSASS-access detections arrive through CS04.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
-| EVAL cmd = TO_LOWER(process.command_line)
-| WHERE (cmd LIKE "*lsass*" AND (cmd LIKE "*dump*" OR cmd LIKE "*dmp*" OR cmd LIKE "* -ma *"))
-     OR cmd LIKE "*comsvcs*minidump*" OR cmd LIKE "*comsvcs*#24*"
-     OR cmd LIKE "*sekurlsa*" OR cmd LIKE "*lsadump*"
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line,
-       process.hash.sha256, _id, _version, _index
+| EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name)
+// comsvcs.dll MiniDump, by name or by its ordinal (#24)
+| WHERE (cmd LIKE "*comsvcs*" AND (cmd LIKE "*minidump*" OR cmd LIKE "*#24*"))
+   OR (cmd LIKE "*lsass*" AND (pname IN ("procdump.exe", "procdump64.exe", "rundll32.exe", "createdump.exe", "sqldumper.exe", "adplus.exe", "rdrleakdiag.exe")
+                               OR cmd LIKE "* -ma *" OR cmd LIKE "*.dmp*"))
+   OR cmd LIKE "*sekurlsa*" OR cmd LIKE "*lsadump*"
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256, _id, _version, _index
 ```
 
 ## Suppression
-Suppress by `host.id`, `process.name` for 1h. Alerts missing a key field are not suppressed. Attackers retry after Falcon blocks them; a different tool still alerts. `host.id` is the Falcon agent ID and is always present.
+Suppress by `host.id`, `process.name` for 1h. Alerts missing a key field are not suppressed. Attackers retry dumping after Falcon blocks them. Each different tool still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Microsoft support running `procdump` on LSASS during a case. Ticket-gated, not excluded.
-- Dump tools that take a process ID instead of a name (`sqldumper`, `rdrleakdiag`) only match when the command line also names LSASS.
+- Microsoft support engineers running `procdump` on LSASS during a case. Ticket-gated, not excluded.
+- `createdump.exe` from the .NET runtime on crashing services. It only matches when the command line names LSASS, so it needs no exclusion.
 
 ## Triage
-- Isolate the host in Falcon. Assume every credential logged on to it is compromised, and check 4624 for who that is (I06).
+- Isolate the host in Falcon. Assume every credential logged on to that host is compromised; check 4624 for who that is (I06).
 
 ## Test
-Run the Atomic Red Team T1003.001 test on a lab host. Falcon blocks it; the rule still fires on the process launch.
+Run the Atomic Red Team T1003.001 test on a lab host. Falcon will block it; the rule should still fire on the process launch.

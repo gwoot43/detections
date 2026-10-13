@@ -1,6 +1,6 @@
 ---
 id: W05
-name: Security protection turned off from the command line (Defender service or engine, firewall, safe boot)
+name: Defender or security service stopped, Defender engine wiped, EDR-killer tooling, or safe boot configured
 category: endpoint-windows
 status: todo
 severity: critical
@@ -14,43 +14,39 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Ransomware operators turn protection off before they encrypt. From the command line that means one of four things, and the command line says which:
-- **Defender's services** (`WinDefend`, `WdNisSvc`, `Sense`) stopped, deleted or set to disabled, by `sc`, `net` or PowerShell.
-- **Defender's engine wiped** with `MpCmdRun -RemoveDefinitions -All`, or the service disabled with `MpCmdRun -DisableService`.
-- **The Windows firewall switched off** with `netsh advfirewall ... state off` or `Set-NetFirewallProfile -Enabled False`.
-- **Safe boot set**, so the next boot runs without security drivers.
+Ransomware operators in 2026 disable EDR before encryption, usually through BYOVD EDR killers. The process-level precursors this rule keeps (stopping or deleting the Defender services, wiping the Defender engine with `MpCmdRun`, setting safe boot so the next boot runs without security drivers, running a known killer) are unambiguous. Pair with CS01 (driver loads) for the kernel side.
 
-The rule matches the service names and actions, not the tools, so it doesn't matter which program issues the command.
+Two neighbouring signals are owned elsewhere, so they are not repeated here:
+- **Defender settings changes** (`Set-MpPreference` disables, `Add-MpPreference` exclusions, the `DisableAntiSpyware` registry value) are CP06. It reads Defender's own event 5007, which records the outcome however the change was made, and needs the **Windows Defender** stream turned on in the Elastic Windows integration.
+- **Falcon tamper** (uninstall with `CsUninstallTool` or `msiexec /x`, sensor stopped or tampered with) is CS05, which uses the sensor's own uninstall and tamper events.
 
-Neighbouring signals live elsewhere: Defender settings changes are CP06 (Defender's own event 5007), Falcon uninstall and tamper are CS05, and vulnerable driver loads are CS01.
+Service creation with `sc create ... type= kernel` is not matched here either: WE08 sees every new service from user-writable paths (7045/4697), and CS01 sees the driver load.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
-| EVAL cmd = TO_LOWER(process.command_line)
-| WHERE ((cmd LIKE "*windefend*" OR cmd LIKE "*wdnissvc*" OR cmd LIKE "* sense*")
-         AND (cmd LIKE "*stop*" OR cmd LIKE "*delete*" OR cmd LIKE "*disabled*"))
-     OR (cmd LIKE "*-removedefinitions*" AND cmd LIKE "*-all*")
-     OR cmd LIKE "*mpcmdrun*-disableservice*"
-     OR cmd LIKE "*advfirewall*state off*" OR cmd LIKE "*set-netfirewallprofile*enabled false*"
-     OR cmd LIKE "*/set*safeboot*"
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line,
-       process.hash.sha256, _id, _version, _index
+| EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
+| WHERE
+  // -RemoveDefinitions -DynamicSignatures is a Microsoft troubleshooting step; -All wipes the engine
+     (cmd LIKE "*mpcmdrun*" AND ((cmd LIKE "*-removedefinitions*" AND cmd LIKE "*-all*") OR cmd LIKE "*-disableservice*"))
+  OR (pname IN ("sc.exe", "net.exe", "net1.exe") AND (cmd LIKE "*stop*" OR cmd LIKE "*delete*" OR cmd LIKE "*config*")
+      AND (cmd LIKE "*windefend*" OR cmd LIKE "*wdnissvc*" OR cmd LIKE "* sense*"))
+  OR (pname == "bcdedit.exe" AND cmd LIKE "*/set*safeboot*")
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256, _id, _version, _index
 ```
-
-This rule doesn't use rarity. Protection switched off on many hosts at once is a ransomware rollout, not a sign that it's normal.
+Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
 
 ## Suppression
-Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Tamper scripts issue many commands in seconds; one alert per host is the triage unit. `host.id` is the Falcon agent ID and is always present.
+Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Tamper scripts issue many commands in seconds. One alert per host is the triage unit, and other hosts still alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
-- Build or decommission scripts that stop Defender or the firewall on purpose. Exclude them by exact command line, never by parent: an attacker who owns SCCM or Intune pushes exactly this.
-- Helpdesk setting safe mode for a repair. Ticket-gated. Removing safe boot (`/deletevalue`) doesn't match.
-- `MpCmdRun -RemoveDefinitions -DynamicSignatures` is a Microsoft troubleshooting step and doesn't match; only `-All` does.
+- Build or decommission scripts that stop or reconfigure `WinDefend` explicitly. Exclude them by exact command line, never by parent alone: attackers who own SCCM or Intune push exactly this.
+- Helpdesk booting a machine into safe mode for repair. Ticket-gated. Removing safe boot (`/deletevalue`) no longer matches.
 
 ## Triage
-- Isolate immediately. This is usually the last step before encryption. Check the same host for shadow copy deletion (W06) and remote execution (W08) in the hour before.
+- Isolate immediately. This is the last step before encryption. Check for shadow copy deletion (W06) and lateral movement (W08) on the same host in the previous hour.
+- Check the same host for the neighbouring signals: Defender settings weakened (CP06, needs the Windows Defender stream), Falcon uninstalled or tampered with (CS05), and a vulnerable driver loaded (CS01).
 
 ## Test
-On a lab host, run `sc stop WinDefend` (tamper protection refuses it; the rule still fires), then `netsh advfirewall set allprofiles state off` and turn it back on.
+Run `sc stop WinDefend` or `bcdedit /set {current} safeboot minimal` (then `bcdedit /deletevalue {current} safeboot`) on a lab host. Tamper protection refuses the service stop; the rule still fires on the command.
