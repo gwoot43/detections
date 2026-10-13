@@ -1,6 +1,6 @@
 ---
 id: W02
-name: Office, browser, mail client or archiver spawning a script host or LOLBIN
+name: Office or PDF reader starts a Windows built-in program
 category: endpoint-windows
 status: todo
 severity: high
@@ -14,44 +14,42 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Word does not need PowerShell. Outlook does not need mshta. The parent list is small, the child list is small, and the intersection is malicious documents, HTML smuggling and archive-delivered loaders.
+Word, Excel, Outlook and PDF readers have no reason to start Windows' own programs (PowerShell, cmd, mshta, rundll32, certutil and the rest). When they do, a document is running code: a macro, an exploit, or an embedded object the user clicked.
 
-Three benign patterns are removed in the query:
-- Chrome and Edge start native-messaging hosts (password managers, Microsoft SSO) through `cmd.exe` with a `chrome-extension://` argument.
-- Outlook and other apps call `rundll32 shell32.dll,OpenAs_RunDLL` for the "Open with" dialog.
-- `msiexec.exe` is only counted under Office, PDF and mail parents. Users install downloaded MSIs from browsers and archives all the time.
+The rule doesn't list which programs count. Anything that runs from `\Windows\System32` or `\Windows\SysWOW64` does, so a LOLBIN nobody thought to list still fires. The parent list is the definition of the rule: the document apps that open attachments.
 
-`explorer.exe` is not a parent here. W03 owns script hosts and LOLBINs launched from Explorer: commands pasted into the Run dialog or address bar (ClickFix/FileFix), and script files opened from Downloads, a temp folder or an archive extraction folder.
+Two everyday children are excluded: Windows Error Reporting (`werfault.exe`) when Office crashes, and Notepad, which Outlook uses to open `.txt` attachments. The "Open with" dialog (`rundll32 shell32.dll,OpenAs_RunDLL`) is excluded by its command line.
+
+Scripts opened from a browser's or an archiver's download are W12, and commands pasted into the Run dialog are W03.
 
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
-| EVAL parent = TO_LOWER(process.parent.name), child = TO_LOWER(process.name), cmd = TO_LOWER(COALESCE(process.command_line, ""))
-| EVAL doc_parent = parent IN ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "onenote.exe", "msaccess.exe", "mspub.exe", "visio.exe",
-                               "acrord32.exe", "acrobat.exe", "foxitreader.exe"),
-       web_parent = parent IN ("msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "teams.exe", "ms-teams.exe", "slack.exe",
-                               "7zfm.exe", "winrar.exe", "winzip64.exe")
-| WHERE (doc_parent OR web_parent)
-  AND child IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe",
-                "certutil.exe", "bitsadmin.exe", "msiexec.exe", "msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe",
-                "curl.exe", "wget.exe", "schtasks.exe", "wmic.exe", "cmstp.exe", "forfiles.exe", "hh.exe")
-  AND NOT (child == "msiexec.exe" AND web_parent)
-  AND NOT (child == "cmd.exe" AND cmd LIKE "*chrome-extension://*")
-  AND NOT (child == "rundll32.exe" AND cmd LIKE "*shell32.dll*openas_rundll*")
-| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| EVAL parent = TO_LOWER(process.parent.name),
+       child = TO_LOWER(process.name),
+       path = TO_LOWER(COALESCE(process.executable, "")),
+       cmd = TO_LOWER(COALESCE(process.command_line, ""))
+| WHERE parent IN ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "onenote.exe", "msaccess.exe", "mspub.exe",
+                   "visio.exe", "acrord32.exe", "acrobat.exe", "foxitreader.exe")
+  AND path RLIKE """.*\\windows\\(system32|syswow64)\\.*"""
+| WHERE NOT child IN ("werfault.exe", "notepad.exe") AND NOT cmd LIKE "*shell32.dll*openas_rundll*"
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id,
+       _id, _version, _index
 ```
 
+This rule doesn't use rarity. A phishing wave that gets several users to enable the same macro should alert more, not less.
+
 ## Suppression
-Suppress by `host.id`, `parent`, `child` for 1h. Alerts missing a key field are not suppressed. A macro often spawns the same child several times. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
+Suppress by `host.id`, `parent`, `child` for 1h. Alerts missing a key field are not suppressed. A macro often starts the same child several times. `host.id` is the Falcon agent ID and is always present.
 
 ## Known false positives / exclusions
-- Excel spawning `cmd.exe` for approved macros in finance. Exclude by exact command line after review, never by host.
-- Browser extensions that launch a native host through `powershell.exe` instead of `cmd.exe`. Exclude by exact command line.
+- Office add-ins that shell out (some finance or CRM add-ins start `cmd.exe`). Run the rule in preview for a week and add each one by exact command line, never by host.
+- Outlook opening an `.rdp` attachment starts `mstsc.exe`. That is worth an alert: rogue RDP files are a known phishing lure.
 
 ## Triage
-- FDR does not carry the parent's command line. Find the parent's own ProcessRollup2 (its `process.entity_id` equals this event's `process.parent.entity_id`) to get the document or download path. Pull it from Mimecast (E02) or detonate.
-- Look for follow-on network connections from the child (NetworkConnectIP4 with the child's `process.entity_id`).
+- FDR does not carry the parent's command line. Find the parent's own ProcessRollup2 (its `process.entity_id` equals this event's `process.parent.entity_id`) to get the document path, then pull the document from Mimecast (E02) or detonate it.
+- Look for network connections from the child (NetworkConnectIP4 with the child's `process.entity_id`).
 
 ## Test
-Open a lab document with a macro that launches `calc.exe` via `cmd /c`.
+Open a lab document with a macro that runs `cmd /c calc`.

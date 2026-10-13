@@ -1,48 +1,60 @@
 ---
 id: W08
-name: Remote execution landing on a host via service, WMI, WinRM, DCOM or remote scheduled task
+name: Shell started by a remote execution service (WMI, WinRM, DCOM, PsExec, service) with a command few hosts see
 category: endpoint-windows
 status: todo
 severity: high
 language: esql
 index: logs-crowdstrike.fdr-*
-mitre: [T1021.002, T1047, T1021.006, T1021.003, T1053.005, T1569.002]
+mitre: [T1021.002, T1047, T1021.006, T1021.003, T1569.002]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.id, user.name]
+  fields: [host.id, parent]
   duration: 1h
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-The parent tells the story. `services.exe` spawning a shell is a service binary that is a shell (PsExec-class tools), and the PsExec-style service binaries themselves (PSEXESVC, PAExec, RemCom, CSExec) starting on a host are matched by name. Service installs from user-writable paths are WE08. `wmiprvse.exe` spawning a shell is remote WMI. `wsmprovhost.exe` is WinRM. `mmc.exe` spawning shells is DCOM (MMC20.Application). Admins use these too, from a small number of jump hosts you can exclude.
+Every remote execution method lands on the target the same way: a remote execution service starts a shell. The parent names the method:
+- `wmiprvse.exe` is WMI (`wmiexec`, `wmic /node`).
+- `wsmprovhost.exe` and `winrshost.exe` are WinRM.
+- `mmc.exe` is DCOM (MMC20.Application).
+- `services.exe` is a new service whose binary is a shell (`smbexec`, PsExec-style tools).
+- `psexesvc.exe` is Sysinternals PsExec.
 
-The source-side branches (`wmic /node`, `schtasks /s`, `sc \\host`) catch the same moves from the machine that launches them. `dllhost.exe` and PowerShell `Invoke-Command`/`Enter-PSSession` are not matched: both are everyday admin and COM activity, and WinRM execution is already seen on the destination through `wsmprovhost.exe`.
+Management tools do this too, but they run the same commands on many hosts. An attacker's commands are new. So the rule counts how many hosts ran the same command from the same parent in the last day, and alerts only when it is 3 or fewer. That replaces the per-tool exclusions: monitoring and configuration management drop out on their own.
+
+A sweep of remote execution across many hosts is B04 and B05.
 
 ## Query
+Run hourly with a 24-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-crowdstrike.fdr-*
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
-| EVAL parent = TO_LOWER(process.parent.name), child = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
-| WHERE (parent IN ("wmiprvse.exe", "wsmprovhost.exe", "mmc.exe", "psexesvc.exe", "paexec.exe", "winrshost.exe")
-        AND child IN ("cmd.exe", "powershell.exe", "pwsh.exe", "rundll32.exe", "regsvr32.exe", "mshta.exe", "wscript.exe", "cscript.exe", "certutil.exe", "net.exe", "whoami.exe", "reg.exe"))
-   OR (parent == "services.exe" AND child IN ("cmd.exe", "powershell.exe", "pwsh.exe", "rundll32.exe"))
-   OR child IN ("psexesvc.exe", "paexec.exe", "remcomsvc.exe", "csexecsvc.exe")
-   OR (child == "wmic.exe" AND cmd LIKE "*/node:*" AND cmd LIKE "*process call create*")
-   OR (child == "schtasks.exe" AND cmd LIKE "*/s *" AND cmd LIKE "*/create*")
-   OR (child == "sc.exe" AND cmd LIKE """*\\\\*""" AND (cmd LIKE "*create*" OR cmd LIKE "*start*"))
-| EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| EVAL parent = TO_LOWER(process.parent.name), child = TO_LOWER(process.name)
+| WHERE parent IN ("wmiprvse.exe", "wsmprovhost.exe", "winrshost.exe", "mmc.exe", "services.exe", "psexesvc.exe")
+  AND child IN ("cmd.exe", "powershell.exe", "pwsh.exe")
+| STATS runs = COUNT(*),
+        first_seen = MIN(@timestamp),
+        last_seen = MAX(@timestamp),
+        host.name = VALUES(host.name),
+        users = VALUES(user.name)
+    BY host.id, parent, child, process.command_line
+| INLINE STATS hosts = COUNT_DISTINCT(host.id) BY parent, process.command_line
+| WHERE hosts <= 3
+| KEEP host.id, host.name, parent, child, process.command_line, hosts, runs, first_seen, last_seen, users
 ```
 
+**Not covered:** the source side (`wmic /node`, `schtasks /s`, `sc \\host`) on the machine that launches the move. The destination side above sees the same move wherever Falcon runs.
+
 ## Suppression
-Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Remote execution tools spawn many processes per session on the destination. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
+Suppress by `host.id`, `parent` for 1h. Alerts missing a key field are not suppressed. Tools like `wmiexec` run each command with a unique output file name, so one session produces many rare commands; they fold into one alert per host and method, and the suppressed count shows how many.
 
 ## Known false positives / exclusions
-- Configuration management and monitoring agents using WMI, and Ansible or other WinRM-driven tooling under `wsmprovhost.exe`. Exclude by the child's exact command line or the service account, not by parent.
-- Admin jump hosts as the source. Exclude by `user.name` being an approved admin only when the destination is a server. Workstation-to-workstation is never excluded.
+- An admin running a one-off command over WinRM or WMI. Expected occasionally; check the user against the admin team.
+- Management tools that put a unique ID in every command line. They never repeat, so they never look common. Exclude that tool's command pattern once, by exact prefix.
 
 ## Triage
-- Identify the source (4624 logon type 3 on the destination just before, or the source host's fan-out in B04). Check the source host for W01 and the account for I05.
+- Find the source: the 4624 logon type 3 on this host just before, or the source host's fan-out in B04. Check the source host for W01 and the account for I05.
 
 ## Test
-Run Sysinternals PsExec against a lab host from a lab admin host.
+Run Sysinternals PsExec and Impacket `wmiexec.py` against a lab host from a lab admin host.
