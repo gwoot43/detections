@@ -32,7 +32,8 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
          AND host_proc IN ("explorer.exe", "svchost.exe", "rundll32.exe", "regsvr32.exe", "notepad.exe", "werfault.exe", "dllhost.exe", "spoolsv.exe", "gpupdate.exe", "searchprotocolhost.exe", "wuauclt.exe"))
    OR (event.action == "DllInjection"
        AND (dll LIKE """*\\temp\\*""" OR dll LIKE """*\\appdata\\*""" OR dll LIKE """*\\programdata\\*""" OR dll LIKE """*\\users\\public\\*""" OR dll LIKE """*\\downloads\\*"""))
-| KEEP @timestamp, host.id, host.name, event.action, src, crowdstrike.AssemblyName, crowdstrike.ModuleILPath, process.entity_id, crowdstrike.ContextProcessId
+| KEEP @timestamp, host.id, host.name, event.action, src, crowdstrike.AssemblyName, crowdstrike.ModuleILPath, process.entity_id, crowdstrike.ContextProcessId,
+       _id, _version, _index
 ```
 `msbuild.exe` is not on the list: it compiles inline tasks in memory by design (W04 covers its abuse). PowerShell is not either: `Add-Type` loads assemblies from memory all the time.
 

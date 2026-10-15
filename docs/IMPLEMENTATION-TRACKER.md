@@ -101,6 +101,8 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS06** Process injection / hollowing _(P2)_ · `suppress: host.id, src / 1h`
 - [ ] **CS07** Suspicious scheduled task (services: WE08) _(P1)_ · `suppress: host.id, payload / 24h`
 - [ ] **CS08** (Reference) promote stable rules to Falcon custom IOAs _(ongoing)_
+- [ ] **CS09** Windows port forward created with netsh portproxy _(P1)_ · `suppress: host.id / 1h`
+- [ ] **CS10** Web server process reaches a new internal admin port (webshell tunnel or pivot) _(P1)_ · `suppress: host.id, process.name / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
