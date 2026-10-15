@@ -38,6 +38,13 @@ FROM logs-crowdstrike.fdr-*
 | SORT events DESC
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+(DeviceInstanceId=* OR IsOnRemovableDisk=/^(1|true)$/)
+| groupBy([#event_simpleName], function=[count(as=events), count(aid, distinct=true, as=hosts)], limit=max)
+| sort(events, order=desc)
+```
+
 If Device Control events (for example `DcUsbDeviceConnected`) appear, DV02 and DV03 can be rewritten against FDR alone, with no Windows auditing needed.
 
 ## Considered and not built

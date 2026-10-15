@@ -59,6 +59,36 @@ FROM logs-yourorg-crowdstrike-data-default*
 | WHERE names >= 100 AND (long_names >= 20 OR odd_types >= 20)
 | EVAL sample = MV_SLICE(sample, 0, 9)
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search), run over the last 1 hour**
+```logscale
+#event_simpleName=DnsRequest DomainName=*
+// lower-case, drop a trailing dot, keep names with three or more labels
+| DomainName=/^(?<q>.+?)\.?$/
+| q := lower(q)
+| q=/\..*\./
+// registrable parent: last three labels for com.au-style suffixes, otherwise last two
+| q=/(?<sld>[^.]*)\.[^.]*$/
+| case {
+    in(field="sld", values=["com", "net", "org", "gov", "edu", "asn", "id", "co", "ac"]) | q=/(?<parent>[^.]*\.[^.]*\.[^.]*)$/;
+    * | q=/(?<parent>[^.]*\.[^.]*)$/;
+  }
+| !in(field="parent", values=["corp-internal.example", "corp-legacy.example", "in-addr.arpa", "ip6.arpa",
+                             // DNS-as-an-API services that legitimately look like tunnels
+                             "sophosxl.net", "spamhaus.org", "spamcop.net", "barracudacentral.org", "surbl.org", "uribl.com"])
+| !in(field="ContextBaseFileName", values=["MSExchangeTransport.exe", "MSExchangeFrontendTransport.exe",
+                                          "MSExchangeSubmission.exe", "MSExchangeDelivery.exe"])
+| q=/^(?<label1>[^.]*)/
+| label_len := length(label1)
+| case { test(label_len >= 30) | long_label := 1; * | long_label := 0; }
+// 16 = TXT, 10 = NULL
+| case { in(field="RequestType", values=["16", "10"]) | odd_type := 1; * | odd_type := 0; }
+| groupBy([aid, parent], function=[count(q, distinct=true, as=names), count(as=queries), sum(long_label, as=long_names),
+                                   sum(odd_type, as=odd_types), max(label_len, as=max_label),
+                                   min(@timestamp, as=first_seen), max(@timestamp, as=last_seen),
+                                   collect([ComputerName, ContextBaseFileName]), collect([q], limit=10)], limit=max)
+| test(names >= 100 AND (long_names >= 20 OR odd_types >= 20))
+```
 Run every 15 minutes with a 1-hour lookback, and no time bucket. Suppress by `host.id`, `parent` for 24h.
 
 - **Why the parent logic matters for you:** with a plain "last two labels", every `.com.au` domain would group under `com.au` and the rule would fire on Australian web browsing.

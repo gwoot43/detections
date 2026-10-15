@@ -46,6 +46,22 @@ FROM logs-yourorg-crowdstrike-data-default*
     BY host.id, port_family
 | WHERE port_family IN ("rdp", "winrm") OR (port_family == "smb" AND targets >= 3)
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search), run over the last 1 hour**
+```logscale
+#event_simpleName=NetworkConnectIP4
+| in(field="ContextBaseFileName", ignoreCase=true, values=["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe",
+                                                         "iexplore.exe", "msedgewebview2.exe"])
+| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+| in(field="RemotePort", values=["445", "3389", "5985", "5986"])
+| NOT (RemotePort=/^(5985|5986)$/ AND RemoteAddressIP4="192.0.2.10")   // approved WinRM gateway
+| case { RemotePort=445 | port_family := "smb"; RemotePort=3389 | port_family := "rdp"; * | port_family := "winrm"; }
+| groupBy([aid, port_family], function=[count(as=connections), count(RemoteAddressIP4, distinct=true, as=targets),
+                                        collect([RemoteAddressIP4, ContextBaseFileName, ComputerName]),
+                                        min(@timestamp, as=first_seen), max(@timestamp, as=last_seen)], limit=max)
+// rdp and winrm on any count, smb only at three or more targets
+| case { port_family!="smb"; test(targets >= 3); }
+```
 Run every 15 minutes with a 1-hour lookback. Suppress by `host.id`, `port_family` for 12h.
 
 - The exclusion now drops the gateway's events before counting, so other targets in the same window still alert.

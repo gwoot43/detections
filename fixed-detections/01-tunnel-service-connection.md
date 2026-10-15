@@ -87,6 +87,39 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, finding, process.executable, process.command_line,
        destination.ip, destination.port, data.ContextBaseFileName, data.ParentBaseFileName, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|NetworkConnectIP4)$/
+| cmd := lower(CommandLine)
+| regex("(?<pname>[^\\\\/]*)$", field=ImageFileName, strict=false)
+| pname := lower(pname)
+| case {
+    #event_simpleName=NetworkConnectIP4 RemotePort=7844
+      !cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+      | finding := "cloudflare tunnel edge connection (port 7844)";
+    #event_simpleName=/ProcessRollup2$/
+      | case {
+          cmd=/ tunnel/ cmd=/--url| run|--token/
+            | finding := "cloudflared-style tunnel started";
+          cmd=/ (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( |$)/
+            | finding := "ngrok-style tunnel started (any binary name)";
+          in(field="pname", values=["code.exe", "code", "code-tunnel.exe", "code-tunnel"]) cmd=/ tunnel/
+            | finding := "vs code / dev tunnel host";
+          in(field="pname", values=["devtunnel.exe", "devtunnel"]) cmd=/ host/
+            | finding := "vs code / dev tunnel host";
+          cmd=/ client / cmd=/ r:/
+            | finding := "chisel-style reverse tunnel";
+          cmd=/ server / cmd=/--reverse/
+            | finding := "chisel-style reverse tunnel";
+          // original case: -R (reverse) and -D (socks), not -L or -l
+          in(field="pname", values=["plink.exe", "plink", "ssh.exe", "ssh"]) CommandLine=/ -R| -D/
+            | finding := "ssh or plink reverse / socks tunnel";
+        };
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ImageFileName, CommandLine,
+         RemoteAddressIP4, RemotePort, ContextBaseFileName, ParentBaseFileName])
+```
 Suppress by `host.id`, `finding` for 24h.
 
 - **No `NOT user.name:*$` filter.** Falcon generally records SYSTEM processes under the machine account, so that filter hides tunnels started from a service or scheduled task.

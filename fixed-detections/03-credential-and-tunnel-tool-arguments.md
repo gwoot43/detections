@@ -39,6 +39,25 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, finding, process.executable, process.command_line,
        data.ParentBaseFileName, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
+| cmd := lower(CommandLine)
+| regex("(?<pname>[^\\\\]*)$", field=ImageFileName, strict=false)
+| pname := lower(pname)
+| case {
+    cmd=/sekurlsa::|lsadump::|kerberos::/
+      | finding := "mimikatz one-liner";
+    pname="rundll32.exe" cmd=/comsvcs/ cmd=/minidump|#24|#\+24|#00024/
+      | finding := "lsass dump via comsvcs";
+    cmd=/lsass/ cmd=/ -ma | -mm |minidump|\.dmp/
+      | finding := "lsass memory dump (procdump or similar)";
+    pname="reg.exe" cmd=/ save | export / cmd=/hklm\\sam|hklm\\security|hkey_local_machine\\sam|hkey_local_machine\\security/
+      | finding := "sam / security hive saved";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ImageFileName, CommandLine, ParentBaseFileName])
+```
 Suppress by `host.id`, `finding` for 1h. Severity critical.
 
 - **No user filter.** SYSTEM context is where this matters most.

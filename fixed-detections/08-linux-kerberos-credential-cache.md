@@ -51,6 +51,18 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
   AND NOT parent IN ("sssd", "sssd_be", "sssd_kcm", "adcli", "realm", "certmonger")
 | KEEP @timestamp, host.id, host.name, user.name, pname, process.command_line, data.ParentBaseFileName, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
+| CommandLine=/krb5cc_|\.keytab|\/var\/lib\/sss\/secrets\/|\/var\/lib\/sss\/db\/ccache_|secrets\.ldb|\.secrets\.mkey/i
+| regex("(?<pname>[^/]*)$", field=ImageFileName, strict=false)
+| pname := lower(pname)
+| !in(field="pname", values=["kinit", "klist", "kdestroy", "kvno", "kswitch", "ktutil", "adcli", "realm", "msktutil", "net",
+                            "winbindd", "sssd", "sssd_be", "sssd_kcm", "gssproxy", "certmonger", "sss_cache", "sssctl"])
+| !in(field="ParentBaseFileName", ignoreCase=true, values=["sssd", "sssd_be", "sssd_kcm", "adcli", "realm", "certmonger"])
+| table([@timestamp, aid, ComputerName, UserName, pname, CommandLine, ParentBaseFileName])
+```
 Suppress by `host.id`, `pname` for 6h. Severity high.
 
 - **Allowlist, not denylist.** Any process referencing these files alerts unless it's known Kerberos or SSSD tooling.
@@ -68,6 +80,17 @@ FROM logs-yourorg-crowdstrike-data-default*
 | STATS runs = COUNT(*), hosts = COUNT_DISTINCT(host.id), examples = VALUES(process.command_line)
     BY process.executable, data.ParentBaseFileName
 | SORT runs DESC
+```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search), run over the last 30 days**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
+| CommandLine=/krb5cc_|\.keytab|\/var\/lib\/sss\/secrets\/|\/var\/lib\/sss\/db\/ccache_|secrets\.ldb|\.secrets\.mkey/i
+| default(field=ImageFileName, value="unknown", replaceEmpty=true)
+| default(field=ParentBaseFileName, value="unknown", replaceEmpty=true)
+| groupBy([ImageFileName, ParentBaseFileName], function=[count(as=runs), count(aid, distinct=true, as=hosts),
+                                                       collect([CommandLine])], limit=max)
+| sort(runs, order=desc, limit=1000)
 ```
 
 ## Before vs after

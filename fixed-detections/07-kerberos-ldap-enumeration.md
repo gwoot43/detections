@@ -53,6 +53,29 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | EVAL auth = CASE(cmd LIKE "*gssapi*", "kerberos", cmd LIKE "* -w *" OR cmd LIKE "* -y *", "password", "other")
 | KEEP @timestamp, host.id, host.name, user.name, finding, auth, process.command_line, data.ParentBaseFileName, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
+| cmd := lower(CommandLine)
+| regex("(?<pname>[^/]*)$", field=ImageFileName, strict=false)
+| pname := lower(pname)
+| case {
+    pname="ldapsearch"
+      cmd=/serviceprincipalname|admincount=1|1\.2\.840\.113556\.1\.4\.803|msds-allowedtodelegateto|msds-allowedtoactonbehalfofotheridentity|ms-mcs-admpwd|mslaps-|msds-managedpassword|mspki-certificate-name-flag/
+      | finding := "ldapsearch with an attack-path filter";
+    cmd=/ldapdomaindump|bloodhound-python|bloodhound\.py|windapsearch|adidnsdump|finddelegation|getuserspns|getnpusers/
+      | finding := "ad reconnaissance tool";
+    cmd=/certipy/ cmd=/ find/
+      | finding := "ad reconnaissance tool";
+    cmd=/netexec|crackmapexec/ cmd=/ ldap /
+      | finding := "ad reconnaissance tool";
+    in(field="pname", values=["nxc", "cme"]) cmd=/ ldap /
+      | finding := "ad reconnaissance tool";
+  }
+| case { cmd=/gssapi/ | auth := "kerberos"; cmd=/ -w | -y / | auth := "password"; * | auth := "other"; }
+| table([@timestamp, aid, ComputerName, UserName, finding, auth, CommandLine, ParentBaseFileName])
+```
 Suppress by `host.id`, `finding` for 6h. Severity high.
 
 - **The filters are the signal.** Admins look up users and groups. Attack-path discovery asks for SPNs, `adminCount=1`, bitwise UAC matches (the `1.2.840.113556.1.4.803` matching rule), delegation attributes, LAPS and gMSA password attributes, and certificate template flags. Those rarely appear in routine scripts.
