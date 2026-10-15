@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v19.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**172 rules · 103 techniques covered** (190 technique and sub-technique IDs).
+**173 rules · 103 techniques covered** (190 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -26,7 +26,7 @@ flowchart LR
   T9["Discovery<br/>14/34 techniques · 12 rules"]:::high
   T10["Lateral Movement<br/>6/9 techniques · 28 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
-  T12["Command and Control<br/>10/18 techniques · 17 rules"]:::high
+  T12["Command and Control<br/>10/18 techniques · 18 rules"]:::high
   T13["Exfiltration<br/>6/9 techniques · 6 rules"]:::high
   T14["Impact<br/>4/15 techniques · 5 rules"]:::mid
   T0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8 --> T9 --> T10 --> T11 --> T12 --> T13 --> T14
@@ -54,7 +54,7 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 12 |
 | Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 28 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
-| Command and Control (TA0011) | 10 / 18 | `███████████░░░░░░░░░` 56% | 17 |
+| Command and Control (TA0011) | 10 / 18 | `███████████░░░░░░░░░` 56% | 18 |
 | Exfiltration (TA0010) | 6 / 9 | `█████████████░░░░░░░` 67% | 6 |
 | Impact (TA0040) | 4 / 15 | `█████░░░░░░░░░░░░░░░` 27% | 5 |
 
@@ -119,7 +119,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1071.001 Web Protocols | Command and Control | B06, N07 |
 | T1105 Ingress Tool Transfer | Command and Control | L02, N07, W03, W04, W10 |
 | T1219 Remote Access Tools | Command and Control | W10, X06 |
-| T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, N09, W10 |
+| T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, N09, W10 |
 | T1090.003 Multi-hop Proxy | Command and Control | N09, S07 |
 | T1567.002 Exfiltration to Cloud Storage | Exfiltration | N08 |
 | T1048 Exfiltration Over Alternative Protocol | Exfiltration | IN05, N08 |
@@ -300,15 +300,15 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1090 Proxy | CS09, CS10, N09, S07, S14, S15, W10 | T1090.001 Internal Proxy (CS09, CS10); T1090.002 External Proxy (S14, S15); T1090.003 Multi-hop Proxy (N09, S07) |
+| T1090 Proxy | CS09, CS10, CS11, N09, S07, S14, S15, W10 | T1090.001 Internal Proxy (CS09, CS10, CS11); T1090.002 External Proxy (S14, S15); T1090.003 Multi-hop Proxy (N09, S07) |
+| T1572 Protocol Tunneling | CS03, CS09, CS10, CS11, N09, W10 | - |
 | T1071 Application Layer Protocol | B06, CS03, L01, N07, WE10 | T1071.001 Web Protocols (B06, N07); T1071.004 DNS (CS03) |
 | T1105 Ingress Tool Transfer | L02, N07, W03, W04, W10 | - |
-| T1572 Protocol Tunneling | CS03, CS09, CS10, N09, W10 | - |
 | T1573 Encrypted Channel | B06, N09 | - |
+| T1571 Non-Standard Port | CS11, N07 | - |
 | T1219 Remote Access Tools | W10, X06 | - |
 | T1568 Dynamic Resolution | CS03 | T1568.002 Domain Generation Algorithms (CS03) |
 | T1095 Non-Application Layer Protocol | B06 | - |
-| T1571 Non-Standard Port | N07 | - |
 | T1205 Traffic Signaling | L09 | T1205.002 Socket Filters (L09) |
 
 ### Exfiltration
@@ -419,6 +419,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS08 | Reference: push these to Falcon custom IOAs, not just Elastic | (vendor alerts, various) |
 | CS09 | Windows port forward created with netsh portproxy (traffic relayed through this host) | T1090.001, T1572 |
 | CS10 | Web server process connects to internal RDP, SMB, SSH, WinRM or RPC on a host it has never contacted (webshell tunnel or pivot) | T1021, T1090.001, T1505.003, T1572 |
+| CS11 | Program starts accepting connections from other internal hosts, new on this host and rare in the fleet (implant listener or pivot) | T1090.001, T1571, T1572 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |
