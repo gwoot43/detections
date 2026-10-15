@@ -35,6 +35,32 @@ FROM logs-crowdstrike.fdr-*
     BY host.id, process.entity_id, BUCKET(@timestamp, 5 minutes)
 | WHERE files >= 300 AND dirs >= 20
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(FileOpenInfo|FsPostOpen)$/ TargetFileName=*
+// file-open events often lack the process name; group by process instance
+| pname := lower(ContextBaseFileName)
+| default(field=pname, value="unknown", replaceEmpty=true)
+// search indexers, AV and sync agents read many files by design; add your backup agent here
+| !in(field="pname", values=["searchprotocolhost.exe", "searchfilterhost.exe", "searchindexer.exe",
+                              "msmpeng.exe", "mssense.exe", "csfalconservice.exe", "onedrive.exe"])
+// directory and extension split from the path, as the Elastic integration does for file.directory and file.extension
+| case {
+    TargetFileName=/^(?<fdir>.*)[\\\/][^\\\/]+$/;
+    *;
+  }
+| case {
+    TargetFileName=/[\\\/][^\\\/]*\.(?<fext>[^.\\\/]*)$/;
+    *;
+  }
+| bucket_start := @timestamp - (@timestamp % 300000)
+| groupBy([aid, ContextProcessId, bucket_start], function=[count(TargetFileName, distinct=true, as=files), count(fdir, distinct=true, as=dirs),
+                                                          count(fext, distinct=true, as=extensions), collect([fext, pname, ComputerName])],
+          limit=max)
+| test(files >= 300 AND dirs >= 20)
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
 File-read telemetry is high volume and may be sampled or off by default in CrowdStrike. Confirm which of these events your feed sends and that collection is enabled before relying on this. Counting per process instance (`process.entity_id`) keeps two busy processes on one host from adding up. Tune `files` and `dirs` to your environment.
 
 ## Suppression

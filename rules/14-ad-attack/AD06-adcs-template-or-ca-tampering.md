@@ -50,6 +50,23 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
                       "certificate_mapping_weakened")
 | KEEP @timestamp, h, actor, finding, event.code, winlog.event_data.ObjectDN, attr, process.command_line, registry.path, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|AsepValueUpdate|RegGenericValueUpdate|RegSystemConfigValueUpdate)$/
+| case {
+    #event_simpleName=/ProcessRollup2$/ FileName=/^certutil\.exe$/i CommandLine=/-setreg/i
+      CommandLine=/editflags|interfaceflags|disableextensionlist/i
+      | finding := "ca_flags_changed";
+    #event_simpleName=/^(AsepValueUpdate|RegGenericValueUpdate|RegSystemConfigValueUpdate)$/
+      | regpath := format("%s\\%s", field=[RegObjectName, RegValueName])
+      | regpath=/kdc.*strongcertificatebindingenforcement|schannel.*certificatemappingmethods/i
+      | finding := "certificate_mapping_weakened";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, CommandLine, regpath])
+```
+The template and CA-setting branches (5136 and the CA audit events) aren't in the LogScale version because Windows Security events from the DCs and the CA aren't in Falcon.
+
 Template changes need directory-object auditing on the Certificate Templates container. The CA events need CA auditing for configuration and security changes.
 
 ## Suppression

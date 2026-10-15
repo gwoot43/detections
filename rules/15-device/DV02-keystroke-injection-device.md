@@ -51,6 +51,9 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
 | EVAL seconds_after_device = DATE_DIFF("second", first_device, first_shell)
 | KEEP host_key, first_device, first_shell, seconds_after_device, devices, device_ids, shells, command_lines, users
 ```
+
+No LogScale version: the rule pairs a new keyboard from Windows Security 6416, which isn't in Falcon, with the shell that follows it, and the FDR half on its own (Explorer starting a shell) is not this detection.
+
 Run every 5 minutes with a 10-minute lookback.
 
 **How the join works.** There are no subqueries, so `INLINE STATS` stamps every row on a host with that host's first new-keyboard time, without collapsing the rows. The shells are then filtered to the 90 seconds after it. If a host sees two new keyboards several minutes apart inside one lookback, only shells within 90 seconds of the first one count. `INLINE STATS` is tech preview and needs a release that has it (9.2 or later at the time of writing). Check your version.
@@ -71,6 +74,8 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
     BY host_key, window = BUCKET(@timestamp, 2 minutes)
 | WHERE first_device IS NOT NULL AND last_shell IS NOT NULL AND last_shell >= first_device
 ```
+
+No LogScale version: same reason as the primary query.
 
 ## Suppression
 Suppress by `host_key` for 1h. Alerts missing a key field are not suppressed. The 10-minute lookback overlaps the 5-minute interval, so each pair is seen twice.

@@ -60,6 +60,48 @@ FROM logs-crowdstrike.fdr-*
 | WHERE distinct_recon >= 6 OR ad_recon_kinds >= 3
 | EVAL severity = CASE(ad_recon_kinds >= 1, "high", "medium")
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+// SCCM and Intune scripts run inventory commands in bursts
+| !in(field="ParentBaseFileName", ignoreCase=true, values=["ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe"])
+| !in(field="GrandParentBaseFileName", ignoreCase=true, values=["ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe"])
+| pname := lower(FileName)
+// net.exe re-launches as net1.exe and query.exe as quser/qwinsta, so each pair counts once
+| case {
+    in(field="pname", values=["net.exe", "net1.exe"]) | recon := "net";
+    in(field="pname", values=["quser.exe", "qwinsta.exe", "query.exe"]) | recon := "sessions";
+    in(field="pname", values=["whoami.exe", "hostname.exe", "systeminfo.exe", "tasklist.exe", "ipconfig.exe",
+                              "nltest.exe", "arp.exe", "route.exe", "netstat.exe", "nbtstat.exe",
+                              "dsquery.exe", "setspn.exe", "klist.exe", "cmdkey.exe"]) | recon := pname;
+  }
+// high-signal domain-enumeration arguments
+| case {
+    in(field="pname", values=["net.exe", "net1.exe"]) CommandLine=/group.*\/domain|user.*\/domain|domain admins/i
+      | ad_recon := "net-domain";
+    pname="nltest.exe" CommandLine=/\/dclist|\/domain_trusts/i | ad_recon := "nltest";
+    pname="whoami.exe" CommandLine=/\/priv|\/groups|\/all/i | ad_recon := "whoami";
+    pname="setspn.exe" CommandLine=/-q/i | ad_recon := "setspn";
+    *;
+  }
+// UserName is DOMAIN\user or user; group on the bare, lowercased name
+| case {
+    UserName=/(?<uname>[^\\]*)$/ | uname := lower(uname);
+    *;
+  }
+| default(field=uname, value="unknown", replaceEmpty=true)
+| bucket_start := @timestamp - (@timestamp % 600000)
+| groupBy([aid, uname, bucket_start], function=[count(recon, distinct=true, as=distinct_recon),
+                                               count(ad_recon, distinct=true, as=ad_recon_kinds),
+                                               collect([recon, ad_recon, ParentBaseFileName, ComputerName])], limit=max)
+| test(distinct_recon >= 6 OR ad_recon_kinds >= 3)
+| case {
+    test(ad_recon_kinds >= 1) | severity := "high";
+    * | severity := "medium";
+  }
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
 These are native Windows utilities, so the signal is the count and speed, not any one command. `net.exe` re-launches as `net1.exe` with the same arguments, so `ad_recon_kinds` counts the pair once. `reg.exe`, `wmic.exe` and `fsutil.exe` are not counted: installers and inventory scripts call them constantly and they are not discovery-specific. Tune the threshold on your estate.
 
 ## Suppression

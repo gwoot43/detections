@@ -45,6 +45,38 @@ FROM logs-crowdstrike.fdr-*
     BY host.id, process.entity_id, BUCKET(@timestamp, 10 minutes)
 | WHERE store_types >= 3
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(FileOpenInfo|FsPostOpen)$/ TargetFileName=*
+| pname := lower(ContextBaseFileName)
+| default(field=pname, value="unknown", replaceEmpty=true)
+// browsers read their own and (on import) each other's stores; IDEs read SSH, kube and cloud config together
+| !in(field="pname", values=["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "code.exe", "code"])
+| case {
+    TargetFileName=/\\user data\\.*\\(login data|cookies|web data)|\/\.config\/(google-chrome|chromium)\//i
+      | store := "chromium";
+    TargetFileName=/(key4\.db|logins\.json|cookies\.sqlite)$/i
+      | store := "firefox";
+    TargetFileName=/[\/\\]id_(rsa|dsa|ecdsa|ed25519)$/i
+      | store := "ssh_private_key";
+    (TargetFileName=/\\\.aws\\credentials|\/\.aws\/credentials|msal_token_cache|accesstokens\.json/i
+       OR (TargetFileName=/gcloud/i AND TargetFileName=/credentials|access_tokens/i))
+      | store := "cloud";
+    TargetFileName=/\\\.kube\\config|\/\.kube\/config/i
+      | store := "kube";
+    TargetFileName=/\.(kdbx|ppk|ovpn|keychain-db)$/i
+      | store := "vault_or_key";
+    TargetFileName=/\\microsoft\\(credentials|vault|protect)\\/i
+      | store := "windows_cred";
+  }
+| bucket_start := @timestamp - (@timestamp % 600000)
+| groupBy([aid, ContextProcessId, bucket_start], function=[count(store, distinct=true, as=store_types),
+                                                          count(TargetFileName, distinct=true, as=files),
+                                                          collect([store, pname, ComputerName])], limit=max)
+| test(store_types >= 3)
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
 SSH counts only private keys (`id_rsa`, not `id_rsa.pub`, `config` or `known_hosts`), and the key-file type leaves out `.pem` and `.key`, which TLS clients and servers read constantly. Counting per process instance (`process.entity_id`) stops a browser, an SSH client and a cloud CLI on the same host from adding up to three.
 
 ## Suppression

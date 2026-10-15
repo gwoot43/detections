@@ -35,6 +35,18 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, parent, child, process.command_line, process.parent.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| in(field="ParentBaseFileName", ignoreCase=true, values=["sqlservr.exe", "w3wp.exe", "umworkerprocess.exe"])
+| in(field="FileName", ignoreCase=true, values=["cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe",
+                                               "rundll32.exe", "regsvr32.exe", "certutil.exe", "bitsadmin.exe", "curl.exe",
+                                               "whoami.exe", "net.exe", "net1.exe", "nltest.exe", "systeminfo.exe", "tasklist.exe", "ipconfig.exe"])
+// baseline two weeks, then exclude exact legitimate command lines here
+| !in(field="CommandLine", ignoreCase=true, values=["cmd.exe /c echo ok"])
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.name`, `parent` for 1h. Alerts missing a key field are not suppressed. A webshell session runs many commands; one alert per server process carries the count.
 

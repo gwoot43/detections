@@ -32,6 +32,19 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
      OR (event.action == "ProcessRollup2" AND pname == "dnscmd.exe" AND cl LIKE "*serverlevelplugindll*")
 | KEEP @timestamp, host.name, user.name, event.action, regpath, registry.data.strings, process.command_line, process.parent.name, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(AsepValueUpdate|RegGenericValueUpdate|RegSystemConfigValueUpdate|ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    #event_simpleName=/^(AsepValueUpdate|RegGenericValueUpdate|RegSystemConfigValueUpdate)$/
+      | regpath := format("%s\\%s", field=[RegObjectName, RegValueName])
+      | regpath=/services.*dns.*parameters.*serverlevelplugindll/i;
+    #event_simpleName=/ProcessRollup2$/ FileName=/^dnscmd\.exe$/i CommandLine=/serverlevelplugindll/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, regpath, RegStringValue, CommandLine, ParentBaseFileName])
+```
+
 The DNS Server event log also records the plugin loading (event 770 in the DNS Server channel) if you ship that channel; it is a useful confirmation during triage.
 
 ## Suppression

@@ -52,6 +52,21 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
        user.name, process.parent.name, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ FileName=/^bcdedit\.exe$/i
+| case {
+    CommandLine=/testsigning +(on|yes|true)/i
+      | finding := "bcdedit set test signing";
+    CommandLine=/nointegritychecks +(on|yes|true)|disable_integrity_checks/i
+      | finding := "bcdedit disabled integrity checks";
+    CommandLine=/debug +(on|yes|true)|\/dbgsettings |debugtype/i
+      | finding := "bcdedit enabled kernel debugging";
+  }
+| table([@timestamp, aid, ComputerName, finding, UserName, ParentBaseFileName, CommandLine])
+```
+The 4826 branch (booted with test signing, integrity checks off or kernel debugging) isn't in the LogScale version because Windows Security events aren't in Falcon.
+
 **How the parsing works.** 4826 renders each setting as `Name: Yes|No` on its own line. Each `GROK` captures one word after the label. `Load Options` can hold several switches, so it takes the rest of the line (the first match is the general one, which comes before `HyperVisor Load Options`). `Flight Signing` is deliberately ignored, because Windows Insider builds turn it on. The structured `winlog.event_data` copies of these settings stay as raw `%%1842`/`%%1843` codes, which is why the rendered `message` is parsed instead.
 
 The bcdedit patterns need the setting name followed by a value that turns it on. `debug +(on|yes|true)` also covers `bootdebug` and `hypervisordebug`. A looser `*testsigning*on*` would also match `testsigning off` followed by any later "on" (a `.conf` path, for example).

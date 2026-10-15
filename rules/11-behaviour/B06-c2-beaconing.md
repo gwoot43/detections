@@ -44,6 +44,36 @@ FROM logs-crowdstrike.fdr-*
        avg_interval_minutes = span_minutes::double / conns
 | WHERE beacon_regularity >= 0.6
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 3 hours:
+```logscale
+#event_simpleName=/^(NetworkConnectIP4|NetworkConnectIP6)$/
+| dst := coalesce([RemoteAddressIP4, RemoteAddressIP6])
+| dst=*
+// DNS and NTP poll public servers on a fixed schedule by design
+| !in(field="RemotePort", values=["53", "123"])
+| !cidr(dst, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "100.64.0.0/10",
+                     "224.0.0.0/4", "::1/128", "fc00::/7", "fe80::/10"])
+| pname := lower(ContextBaseFileName)
+| default(field=pname, value="unknown", replaceEmpty=true)
+// browsers, Microsoft 365 clients and security agents poll the same endpoints all day
+| !in(field="pname", values=["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "msedgewebview2.exe",
+                              "teams.exe", "ms-teams.exe", "outlook.exe", "onedrive.exe",
+                              "csfalconservice.exe", "mssense.exe", "msmpeng.exe", "falcon-sensor"])
+| minute := @timestamp - (@timestamp % 60000)
+| groupBy([aid, pname, dst, RemotePort], function=[count(as=conns), count(minute, distinct=true, as=active_minutes),
+                                                  min(@timestamp, as=min_ts), max(@timestamp, as=max_ts), collect([ComputerName])],
+          limit=max)
+| test(conns >= 30 AND active_minutes >= 20)
+| span_minutes := (max_ts - min_ts) / 60000
+| span_minutes := math:floor(span_minutes)
+| test(span_minutes >= 60)
+| beacon_regularity := active_minutes / conns
+| avg_interval_minutes := span_minutes / conns
+| test(beacon_regularity >= 0.6)
+| min_ts := formatTime(format="%F %T", field=min_ts, timezone="Australia/Sydney")
+| max_ts := formatTime(format="%F %T", field=max_ts, timezone="Australia/Sydney")
+```
 The idea: a beacon produces roughly one connection per interval, so `active_minutes` is close to `conns` (regularity near 1) and the connections are spread over at least an hour rather than clustered. `avg_interval_minutes` gives the analyst the approximate sleep time. Tune the thresholds on your own traffic. This is an approximation, not a true jitter analysis; a long-interval or high-jitter beacon can still slip under it.
 
 FDR connection events name the process only on sensors that send `ContextBaseFileName`. Otherwise `process.name` reads `unknown`, every process on the host is counted together for that destination, and the name exclusions above cannot apply.

@@ -40,6 +40,22 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT host.id IN ("<vuln_scanner_aid>", "<monitoring_aid>")
 | KEEP @timestamp, host.id, host.name, user.name, decoy, q, dst, destination.port, process.name, process.command_line, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(DnsRequest|NetworkConnectIP4)$/
+| case {
+    #event_simpleName=DnsRequest DomainName=/^(?<short_name>[^.]*)/
+      | short_name := lower(short_name)
+      | in(field="short_name", values=["<decoy_name_1>", "<decoy_name_2>", "<decoy_name_3>"])
+      | decoy := format("dns:%s", field=[short_name]);
+    #event_simpleName=NetworkConnectIP4 in(field="RemoteAddressIP4", values=["<decoy_ip_1>"])
+      | decoy := format("connect:%s", field=[RemoteAddressIP4]);
+  }
+// scanners and monitoring that sweep every IP (placeholders: Falcon agent IDs)
+| !in(field="aid", values=["<vuln_scanner_aid>", "<monitoring_aid>"])
+| table([@timestamp, aid, ComputerName, UserName, decoy, DomainName, RemoteAddressIP4, RemotePort, ContextBaseFileName, CommandLine])
+```
 Matching on the **first DNS label** catches both `vault-prod` and `vault-prod.corp.local`. If a decoy name could collide with a real public host name, match on the full name instead.
 
 The exclusion and the suppression use `host.id` (the Falcon agent ID), which every FDR event carries. `host.name` is only filled when the CrowdStrike integration's "Enrich Host and User Metadata" option is on, and `NOT host.name IN (...)` drops every row where it's empty.

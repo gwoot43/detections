@@ -37,6 +37,20 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
 | KEEP @timestamp, h, event.code, user.name, winlog.event_data.SubjectUserName, winlog.event_data.BackupTypeDescription,
        process.command_line, process.parent.name, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ FileName=/^certutil\.exe$/i
+| regex("^(?<h>[^.]*)", field=ComputerName, strict=false)
+| case {
+    CommandLine=/-backupkey/i;
+    CommandLine=/-backup /i;
+    in(field="h", ignoreCase=true, values=["ca01", "ca02"]) | CommandLine=/-exportpfx/i;   // your CA servers
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, CommandLine])
+```
+The 4876/4877 branch isn't in the LogScale version because the CA's Windows Security events aren't in Falcon.
+
 `-exportpfx` is only flagged on CA hosts, since exporting an ordinary certificate elsewhere is routine. `-backupdb` is not matched in the process branch because it copies the database without the CA key; it still writes 4876/4877, and `BackupTypeDescription` shows the type.
 
 ## Suppression

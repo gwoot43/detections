@@ -32,6 +32,25 @@ FROM logs-crowdstrike.fdr-*
 | EVAL sample_files = MV_SLICE(sample_files, 0, 19)
 | KEEP host.id, host_names, users, files, archives, file_types, devices, first_write, last_write, sample_files
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last hour:
+```logscale
+#event_simpleName=/FileWritten$/
+| in(field="IsOnRemovableDisk", values=["1", "true"])
+| fpath := lower(TargetFileName)
+| case {
+    fpath=/\.(zip|7z|rar|tar|gz|iso|vhdx?)$/ | is_archive := 1;
+    * | is_archive := 0;
+  }
+| groupBy([aid], function=[count(fpath, distinct=true, as=files), sum(is_archive, as=archives),
+                           collect([UserName, ComputerName, #event_simpleName, DiskParentDeviceInstanceId]),
+                           collect([fpath], limit=20),
+                           min(@timestamp, as=first_write), max(@timestamp, as=last_write)], limit=max)
+| test(files >= 25 OR archives >= 3)
+| rename(field=fpath, as=sample_files)
+| first_write := formatTime(format="%F %T", field=first_write, timezone="Australia/Sydney")
+| last_write := formatTime(format="%F %T", field=last_write, timezone="Australia/Sydney")
+```
 Run every 15 minutes with a 1-hour lookback.
 
 Falcon only emits `*FileWritten` events for the file types it tracks (Office documents, PDFs, archives, executables and scripts). That is the content that matters here. The `file.device` column is the removable disk's device instance ID, so you can tell one stick from another.

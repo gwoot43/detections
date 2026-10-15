@@ -51,6 +51,39 @@ FROM logs-crowdstrike.fdr-*
                     "ldap_dc_fanout"),
        severity = CASE(targets >= 15, "high", "medium")
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=NetworkConnectIP4 event_platform=Win
+| in(field="RemotePort", values=["5985", "5986", "3389", "135", "445", "389", "636", "3268", "3269"])
+| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+| pname := lower(ContextBaseFileName)
+| default(field=pname, value="unknown", replaceEmpty=true)
+| case {
+    in(field="RemotePort", values=["5985", "5986"])
+      | protocol := "winrm" | target_ip := RemoteAddressIP4 | winrm_ip := RemoteAddressIP4;
+    RemotePort=3389
+      | protocol := "rdp" | target_ip := RemoteAddressIP4 | rdp_ip := RemoteAddressIP4;
+    in(field="RemotePort", values=["389", "636", "3268", "3269"])
+      | protocol := "ldap" | ldap_ip := RemoteAddressIP4;
+    *
+      | protocol := "smb_rpc" | target_ip := RemoteAddressIP4;
+  }
+// exclude admin jump hosts, patch and management servers here, e.g. | !in(field="ComputerName", ignoreCase=true, values=["jump01", "sccm01"])
+// Netlogon (inside lsass.exe) pings several DCs over LDAP to locate one; that is normal DC discovery, not enumeration
+| (protocol!="ldap" OR pname!="lsass.exe")
+| bucket_start := @timestamp - (@timestamp % 600000)
+| groupBy([aid, pname, bucket_start], function=[count(target_ip, distinct=true, as=targets), count(winrm_ip, distinct=true, as=winrm),
+                                               count(rdp_ip, distinct=true, as=rdp), count(ldap_ip, distinct=true, as=ldap_targets),
+                                               collect([protocol, ComputerName]), count(as=conns)], limit=max)
+| test(targets >= 15 OR ldap_targets >= 3)
+| case {
+    test(targets >= 15 AND ldap_targets >= 1) | label := "ldap_and_lateral_sweep" | severity := "high";
+    test(targets >= 15) | label := "lateral_sweep" | severity := "high";
+    * | label := "ldap_dc_fanout" | severity := "medium";
+  }
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
 `targets` counts SMB/RPC, WinRM and RDP destinations only; `ldap_targets` counts directory servers on 389, 636, 3268 and 3269. Keep the source scoped to workstations if your servers legitimately fan out; exclude server names inline. Lower `ldap_targets` to 2 in an estate with only two domain controllers per site, or raise it if one process normally talks to several. FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown`, the row covers every process on the host, and the `lsass.exe` exclusion cannot apply, so expect DC-locator noise in the LDAP tier on those sensors.
 
 ## Suppression
