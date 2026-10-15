@@ -32,6 +32,28 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    CommandLine=/(curl|wget) /i CommandLine=/\| ?(sh|bash)|-o \/dev\/shm\//i
+      | finding := "download piped to shell or saved to /dev/shm";
+    CommandLine=/base64 -d/i CommandLine=/\| ?(sh|bash)/i
+      | finding := "base64 decode piped to shell";
+    FileName=/^python/i CommandLine=/urllib/i CommandLine=/exec\(|os\.system/i
+      | finding := "python urllib exec";
+    CommandLine=/http/i CommandLine=/\/dev\/shm\/|\/tmp\/\./i CommandLine=/chmod (\+x|777)/i
+      | finding := "download to /dev/shm or hidden /tmp file made executable";
+    CommandLine=/&& chmod \+x/i CommandLine=/&& \.\//i CommandLine=/\/tmp\/|\/dev\/shm\//i
+      | finding := "chmod and run from /tmp or /dev/shm";
+  }
+// developer machines
+| NOT ComputerName=/^dev-|-laptop/i
+| UserName := lower(UserName)
+| replace(regex="^.*\\\\", with="", field=UserName, as=UserName)
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Install scripts and loaders retry. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 

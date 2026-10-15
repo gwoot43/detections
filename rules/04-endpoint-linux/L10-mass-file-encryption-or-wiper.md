@@ -30,6 +30,23 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR cmd LIKE "*esxcli*vm process kill*"
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    FileName=/^find$/i CommandLine=/-exec/i CommandLine=/openssl.*enc|gpg/i
+      | finding := "find -exec encryption over a tree";
+    FileName=/^dd$/i CommandLine=/if=\/dev\/urandom/i CommandLine=/of=\/dev\//i CommandLine!=/of=\/dev\/null/i
+      | finding := "dd from /dev/urandom onto a device";
+    CommandLine=/\.vmdk/i CommandLine=/encrypt/i
+      | finding := "vmdk encryption";
+    CommandLine=/esxcli.*vm process kill/i
+      | finding := "esxcli vm process kill";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 Branch B (volume-based) needs file-write events. Run it as a second rule once you confirm which `*FileWritten` and `FileRenameInfo` events your Linux sensors send and that they carry the writing process name (newer sensors set `process.name` from `ContextBaseFileName`):
 ```esql
 FROM logs-crowdstrike.fdr-*
@@ -41,6 +58,26 @@ FROM logs-crowdstrike.fdr-*
     BY host.id, process.entity_id, pname, BUCKET(@timestamp, 5 minutes)
 | WHERE files >= 200 AND dirs >= 5
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(\w*FileWritten|FileRenameInfo)$/ event_platform=Lin
+| pname := lower(ContextBaseFileName)
+| default(field=pname, value="unknown", replaceEmpty=true)
+// package managers, archivers and sync tools write thousands of files by design
+| !in(field="pname", values=["dpkg", "rpm", "dnf", "yum", "apt", "apt-get", "unattended-upgr", "packagekitd", "pip", "pip3", "npm", "rsync",
+                             "tar", "unzip", "cp", "git"])
+| regex("^(?<file_dir>.*/)", field=TargetFileName, strict=false)
+| regex("[.](?<ext>[^./]+)$", field=TargetFileName, strict=false)
+| ext := lower(ext)
+| bucket_start := @timestamp - (@timestamp % 300000)
+| groupBy([aid, ContextProcessId, pname, bucket_start], function=[count(TargetFileName, distinct=true, as=files),
+                                                               count(file_dir, distinct=true, as=dirs), collect([ext, ComputerName])], limit=max)
+| test(files >= 200 AND dirs >= 5)
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
+
+Falcon has no separate extension or directory field, so `ext` and `file_dir` are cut from `TargetFileName`.
 
 ## Suppression
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Encryption produces thousands of events. One alert per host, and every new host still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.

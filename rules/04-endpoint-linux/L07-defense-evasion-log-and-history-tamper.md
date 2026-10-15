@@ -41,6 +41,33 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    in(field="FileName", ignoreCase=true, values=["rm", "unlink", "shred", "truncate"])
+      | CommandLine=/\/var\/log\/(auth\.log|secure|messages|syslog|audit\/)|wtmp|btmp|lastlog|\.(bash|zsh)_history|\/root\/\..*history/i
+      | finding := "security log or shell history deleted";
+    CommandLine=/\/var\/log\/(auth\.log|secure|messages|syslog|audit\/)|wtmp|btmp|lastlog|\.(bash|zsh)_history|\/root\/\..*history/i
+      CommandLine=/: >|echo.*>|cat \/dev\/null.*>/i CommandLine!=/>>/
+      | finding := "security log or shell history overwritten";
+    CommandLine=/history -c|unset histfile|export histfile=\/dev\/null|set \+o history|histsize=0/i
+      | finding := "shell history cleared or disabled";
+    CommandLine=/ln -sf \/dev\/null/i CommandLine=/history/i
+      | finding := "shell history linked to /dev/null";
+    FileName=/^touch$/i CommandLine=/-[rtd] /i CommandLine=/\/usr\/|\/bin\/|\/sbin\/|\/lib|\/etc\//i
+      | finding := "timestomp in system directory";
+    in(field="FileName", ignoreCase=true, values=["systemctl", "service"])
+      | CommandLine=/stop|disable|mask/i CommandLine=/auditd|syslog/i
+      | finding := "auditd or syslog stopped";
+    FileName=/^auditctl$/i CommandLine=/-e 0/i
+      | finding := "auditing disabled";
+    CommandLine=/chattr/i CommandLine=/\+i|-a/i CommandLine=/\/var\/log|history/i
+      | finding := "chattr on logs or shell history";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Log wiping runs as a burst of commands. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

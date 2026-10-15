@@ -33,6 +33,27 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    (FileName=/^insmod$/i OR CommandLine=/^insmod |\/insmod |kmod insert /i)
+      | finding := "insmod";
+    (FileName=/^modprobe$/i OR CommandLine=/^modprobe |\/modprobe /i)
+      | CommandLine=/\/tmp\/|\/dev\/shm\/|\/var\/tmp\/|\/home\//i
+      | finding := "modprobe from user-writable path";
+    CommandLine=/bpftool/i CommandLine=/prog load|map create/i
+      | finding := "bpftool program load or map create";
+    CommandLine=/\/sys\/kernel\/debug\//i CommandLine=/echo|>/i
+      | finding := "write to debugfs";
+    CommandLine=/ld_preload/i CommandLine=/\/tmp\/|\/dev\/shm\//i
+      | finding := "LD_PRELOAD from temp directory";
+  }
+| !in(field="ParentBaseFileName", ignoreCase=true, values=["dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd",
+                                                           "cloud-init", "falcon-sensor", "falcond"])
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. Modules reload at every boot. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

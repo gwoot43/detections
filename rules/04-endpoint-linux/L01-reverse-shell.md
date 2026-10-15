@@ -39,6 +39,37 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.parent.entity_id
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    CommandLine=/\/dev\/(tcp|udp)\//i CommandLine=/0>&1|0<&|sh -i|while read/i
+      | finding := "/dev/tcp or /dev/udp with shell or stdin duplication";
+    in(field="FileName", ignoreCase=true, values=["nc", "ncat", "netcat", "nc.traditional", "nc.openbsd"])
+      | (CommandLine=/ -(e|c) / OR CommandLine=/--(sh-)?exec/i)
+      | finding := "netcat with exec";
+    CommandLine=/mkfifo/i CommandLine=/nc |ncat/i
+      | finding := "mkfifo netcat relay";
+    CommandLine=/socat/i CommandLine=/exec:/i CommandLine=/tcp4?:|openssl:/i
+      | finding := "socat exec to socket";
+    FileName=/^python/i CommandLine=/socket/i CommandLine=/dup2|pty\.spawn/i CommandLine=/connect/i
+      | finding := "python socket shell";
+    FileName=/^perl/i CommandLine=/socket/i CommandLine=/exec/i
+      | finding := "perl socket shell";
+    FileName=/^php/i CommandLine=/fsockopen/i CommandLine=/\/bin\/sh/i
+      | finding := "php fsockopen shell";
+    FileName=/^ruby/i CommandLine=/tcpsocket/i CommandLine=/exec/i
+      | finding := "ruby socket shell";
+    CommandLine=/bash -i/i CommandLine=/>&/
+      | finding := "interactive bash redirected";
+    CommandLine=/sh -i/i CommandLine=/[<>]&/
+      | finding := "interactive sh redirected";
+    FileName=/^openssl$/i CommandLine=/s_client/i CommandLine=/\| (\/bin\/sh|bash)/i
+      | finding := "openssl s_client piped to shell";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+```
+
 ## Suppression
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Reverse shells reconnect repeatedly. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

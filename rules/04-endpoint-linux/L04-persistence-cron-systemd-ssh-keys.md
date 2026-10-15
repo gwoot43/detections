@@ -44,6 +44,34 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|CriticalFileModified)$/ event_platform=Lin
+| case {
+    #event_simpleName=CriticalFileModified TargetFileName=/\/\.ssh\/authorized_keys|^\/etc\/ld\.so\.preload$/i
+      | finding := "authorized_keys or ld.so.preload modified";
+    #event_simpleName=/ProcessRollup2$/ FileName=/^crontab$/i CommandLine=/ -$|\/tmp\/|\/dev\/shm\/|\/var\/tmp\//i
+      | finding := "crontab installed from stdin or temp file";
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/authorized_keys/i CommandLine=/echo|>>|tee|curl|wget/i
+      | finding := "authorized_keys written from shell";
+    #event_simpleName=/ProcessRollup2$/ FileName=/^systemctl$/i CommandLine=/ enable /i
+      CommandLine=/\/tmp\/|\/dev\/shm\/|\/var\/tmp\/|\/home\//i
+      | finding := "systemd unit enabled from temp or home directory";
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/\/etc\/systemd\/system\//i CommandLine=/echo|>>|tee|(cp|mv) /i
+      | finding := "systemd unit written from shell";
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/ld\.so\.preload/i CommandLine=/>.*ld\.so\.preload|echo|tee|(cp|mv) /i
+      | finding := "ld.so.preload written from shell";
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/\.bashrc|\.bash_profile|\/etc\/profile\.d\//i CommandLine=/>>|tee/i
+      CommandLine=/curl|wget|base64|\/dev\/tcp|nohup|alias sudo/i
+      | finding := "shell profile appended with fetch, decode or socket";
+  }
+| !in(field="ParentBaseFileName", ignoreCase=true, values=["apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook",
+                                                           "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor"])
+| UserName := lower(UserName)
+| replace(regex="^.*\\\\", with="", field=UserName, as=UserName)
+| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, ParentBaseFileName, FileName, CommandLine, TargetFileName])
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Persistence is usually set up with several commands at once. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 

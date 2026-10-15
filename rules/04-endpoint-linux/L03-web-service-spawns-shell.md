@@ -41,6 +41,27 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    ParentBaseFileName=/^(nginx|apache2|httpd|lighttpd|caddy|envoy|traefik|php-cgi|gunicorn|uwsgi|puma|unicorn|php-fpm.*)$/i
+      | in(field="FileName", ignoreCase=true, values=["sh", "bash", "dash", "zsh", "ash", "ksh", "nc", "ncat", "netcat", "perl", "python",
+                                                     "python3", "php", "ruby", "curl", "wget", "whoami", "id", "uname", "chmod", "base64",
+                                                     "socat", "crontab", "useradd", "passwd"])
+      | finding := "web server spawned shell or tool";
+    in(field="ParentBaseFileName", ignoreCase=true, values=["java", "node", "nodejs", "python", "python3", "ruby", "php", "dotnet"])
+      | in(field="FileName", ignoreCase=true, values=["whoami", "nc", "ncat", "netcat", "socat"])
+      | finding := "runtime spawned recon or socket tool";
+    in(field="ParentBaseFileName", ignoreCase=true, values=["java", "node", "nodejs", "python", "python3", "ruby", "php", "dotnet"])
+      | in(field="FileName", ignoreCase=true, values=["sh", "bash", "dash", "zsh", "ash", "ksh"])
+      | CommandLine=/\/dev\/tcp\/|whoami|base64 -d|\| ?(sh|bash)/i
+      | finding := "runtime spawned shell with reverse-shell or recon command";
+  }
+// add exact benign command lines found while baselining, e.g. | !in(field="CommandLine", ignoreCase=true, values=["sh -c /usr/bin/convert ..."])
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+```
+
 ## Suppression
 Suppress by `host.id`, `parent` for 1h. Alerts missing a key field are not suppressed. Each webshell command is a new process. One alert per compromised service, with the count showing activity. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

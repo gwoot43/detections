@@ -35,6 +35,30 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    in(field="FileName", ignoreCase=true, values=["cat", "less", "more", "head", "tail", "cp", "vi", "vim", "nano", "python", "python3", "perl",
+                                                   "grep", "awk", "xxd", "base64"])
+      | CommandLine=/\/etc\/g?shadow/i
+      | finding := "shadow file read";
+    CommandLine=/169\.254\.169\.254|metadata\.google\.internal|fd00:ec2::254/i
+      CommandLine=/security-credentials|identity\/oauth2\/token|service-accounts.*token/i
+      | finding := "instance credential request";
+    in(field="FileName", ignoreCase=true, values=["find", "grep", "egrep"])
+      | CommandLine=/id_rsa|id_ed25519|id_ecdsa|\.ppk|-----begin.*private/i
+      | finding := "private key search";
+    in(field="FileName", ignoreCase=true, values=["cat", "less", "more", "head", "tail", "cp", "scp", "curl", "wget", "base64", "xxd", "tar",
+                                                   "zip", "nc", "ncat"])
+      | CommandLine=/\.aws\/credentials|\.kube\/config|\.docker\/config\.json|gcloud.*credentials/i
+      | finding := "credential file read by copy or transfer tool";
+  }
+| UserName := lower(UserName)
+| replace(regex="^.*\\\\", with="", field=UserName, as=UserName)
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Credential harvesting runs as a burst of reads and searches. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 

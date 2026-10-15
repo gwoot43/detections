@@ -43,6 +43,36 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, user.id, parent, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    CommandLine=/sudoedit/i CommandLine=/ -[si]/i CommandLine=/\\/
+      | finding := "sudoedit with backslash (CVE-2021-3156)";
+    in(field="ParentBaseFileName", ignoreCase=true, values=["sudo", "pkexec"])
+      | in(field="FileName", ignoreCase=true, values=["find", "vim", "vi", "nmap", "awk", "gawk", "gdb", "tar", "zip", "less", "more", "man",
+                                                     "env", "python", "python3", "perl", "ruby", "lua"])
+      | CommandLine=/\/bin\/(sh|bash)|!sh|--interactive|checkpoint-action=exec|pty\.spawn|-exec (sh|bash)/i
+      | finding := "GTFOBins shell escape under sudo or pkexec";
+    FileName=/^pkexec$/i NOT CommandLine=/./
+      | finding := "pkexec with empty command line (PwnKit)";
+    FileName=/^pkexec$/i
+      | !in(field="ParentBaseFileName", ignoreCase=true, values=["gnome-shell", "gdm", "systemd", "gnome-session-binary"])
+      | finding := "pkexec outside a desktop session";
+    CommandLine=/chmod/i CommandLine=/4755|4777|u\+s| \+s /i CommandLine=/\/tmp\/|\/dev\/shm\/|\/var\/tmp\/|\/home\//i
+      | finding := "SUID bit set in temp or home directory";
+    FileName=/^find$/i CommandLine=/-perm/i CommandLine=/4000|-u=s/i UID=* UID!=0
+      | finding := "SUID enumeration by non-root account";
+    FileName=/^unshare$/i CommandLine=/-r/i CommandLine=/bash/i
+      | finding := "unshare -r into bash";
+    CommandLine=/capsh/i CommandLine=/--gid=0/i CommandLine=/--uid=0/i
+      | finding := "capsh to uid and gid 0";
+  }
+| UserName := lower(UserName)
+| replace(regex="^.*\\\\", with="", field=UserName, as=UserName)
+| table([@timestamp, aid, ComputerName, UserName, UID, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Escalation attempts are retried. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 

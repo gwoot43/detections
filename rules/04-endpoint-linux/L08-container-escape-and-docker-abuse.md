@@ -34,6 +34,28 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
+| case {
+    in(field="FileName", ignoreCase=true, values=["docker", "podman", "nerdctl"])
+      | CommandLine=/run/i
+      | CommandLine=/--privileged|--pid=host| -v \/:\/|--volume[ =]\/:\/|--cap-add=(sys_admin|all)|--security-opt.*apparmor=unconfined/i
+      | finding := "privileged or host-root container";
+    FileName=/^nsenter$/i CommandLine=/-t 1 |--target[ =]1 /i CommandLine=/-m|--mount/i
+      | finding := "nsenter into PID 1 mount namespace";
+    CommandLine=/docker\.sock/i CommandLine=/\/containers\/create|\/exec/i
+      | finding := "Docker API create or exec over the socket";
+    CommandLine=/\/proc\/1\/root/i
+      | finding := "host filesystem via /proc/1/root";
+    CommandLine=/>.*\/proc\/sys\/kernel\/core_pattern/i
+      | finding := "core_pattern overwrite";
+    CommandLine=/release_agent|cgroup.*notify_on_release/i
+      | finding := "cgroup release_agent escape";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Escape attempts are retried. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

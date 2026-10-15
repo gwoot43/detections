@@ -32,6 +32,18 @@ FROM logs-crowdstrike.fdr-*
 | WHERE dests >= 15
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=NetworkConnectIP4 event_platform=Lin RemotePort=22
+| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+// exclude Ansible control nodes, jump hosts and backup orchestrators here by aid or ComputerName
+| bucket_start := @timestamp - (@timestamp % 600000)
+| groupBy([aid, bucket_start], function=[count(RemoteAddressIP4, distinct=true, as=dests), count(as=conns),
+                                       collect([RemoteAddressIP4, ContextBaseFileName, ComputerName])], limit=max)
+| test(dests >= 15)
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
+
 ## Suppression
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Aggregating rule; suppression stops overlapping lookbacks from re-alerting on the same burst. `host.id` is the Falcon agent ID and is always present; connection events carry no user, so the account is found in triage.
 

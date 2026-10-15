@@ -38,6 +38,26 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, event.action, parent, pname, process.command_line, f, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|\w*FileWritten)$/ event_platform=Lin
+| case {
+    #event_simpleName=/FileWritten$/ ContextBaseFileName=/./
+      TargetFileName=/^\/etc\/pam\.d\/|\/pam_.*\.so$|^\/etc\/nsswitch\.conf$/i
+      | !in(field="ContextBaseFileName", ignoreCase=true, values=["dpkg", "rpm", "yum", "dnf", "apt", "apt-get", "unattended-upgr",
+                                                                  "packagekitd", "authselect", "pam-auth-update", "authconfig"])
+      | finding := "PAM or NSS file written";
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/\/etc\/pam\.d\/|pam_.*\.so|nsswitch\.conf/i
+      | (CommandLine=/echo|>>|tee|sed -i|(cp|mv) /i OR FileName=/^(vi|vim|nano)$/i)
+      | !in(field="ParentBaseFileName", ignoreCase=true, values=["apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook",
+                                                                 "puppet", "chef-client", "salt-minion", "cloud-init", "authselect",
+                                                                 "pam-auth-update"])
+      | finding := "PAM or NSS file edited from shell or editor";
+  }
+| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, ParentBaseFileName, FileName, ContextBaseFileName, CommandLine,
+         TargetFileName])
+```
+
 ## Suppression
 Suppress by `host.id`, `f` for 1h. Alerts missing a key field are not suppressed. One edit can produce several file events; a different file or host still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
