@@ -41,6 +41,26 @@ FROM logs-crowdstrike.fdr-*
     BY host.id, user.name, BUCKET(@timestamp, 10 minutes)
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    CommandLine=/asktgt| \/ptt/i;
+    CommandLine=/--collectionmethod|invoke-bloodhound|sharphound/i;
+    CommandLine=/find \/vulnerable|\/altname:|certipy/i;
+    CommandLine=/get-domainuser|get-netgroupmember|find-localadminaccess/i;
+    in(field="FileName", ignoreCase=true, values=["adfind.exe", "rubeus.exe", "mimikatz.exe", "sharphound.exe", "certify.exe", "whisker.exe",
+                                                 "seatbelt.exe", "sharpview.exe", "snaffler.exe"]);
+  }
+// group on the bare, lowercased account name (the part after any DOMAIN\)
+| regex("(?<user>[^\\\\]+)$", field=UserName, strict=false)
+| user := lower(user)
+| default(field=user, value="unknown", replaceEmpty=true)
+| bucket_start := @timestamp - (@timestamp % 600000)
+| groupBy([aid, user, bucket_start], function=[count(as=tool_hits), collect([CommandLine, ParentBaseFileName, ComputerName])], limit=max)
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. Overlapping lookbacks would re-alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 

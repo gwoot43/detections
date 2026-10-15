@@ -34,6 +34,29 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE NOT (exe LIKE """*\\program files\\your-approved-rmm\\*""")
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, exe, process.command_line, process.hash.sha256, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    in(field="FileName", ignoreCase=true, values=["anydesk.exe", "screenconnect.clientservice.exe", "screenconnect.windowsclient.exe",
+                                                 "connectwisecontrol.client.exe", "ateraagent.exe", "splashtop_streamer.exe", "rustdesk.exe",
+                                                 "teamviewer.exe", "teamviewerqs.exe", "quickassist.exe", "logmein.exe", "gotoassist.exe",
+                                                 "supremo.exe", "ammyy.exe", "ultraviewer_desktop.exe", "zohoassist.exe", "meshagent.exe",
+                                                 "syncro.exe", "dwagent.exe", "rport.exe", "netsupport.exe", "client32.exe", "remotepc.exe",
+                                                 "radmin.exe", "ngrok.exe", "cloudflared.exe", "chisel.exe", "ligolo.exe", "ligolo-agent.exe",
+                                                 "frpc.exe", "bore.exe", "socat.exe", "gost.exe", "tailscale.exe", "zerotier-one.exe",
+                                                 "psiphon.exe", "tor.exe", "proxifier.exe", "devtunnel.exe", "code-tunnel.exe"]);
+    CommandLine=/ngrok.*tcp|cloudflared.*tunnel/i;
+    // PuTTY/OpenSSH only when used as a tunnel (remote or SOCKS forward); the flags are matched case-sensitively
+    FileName=/^(plink|ssh)\.exe$/i CommandLine=/ -R | -D /;
+    CommandLine=/tunnel --accept-server-license-terms/i;
+  }
+// remove your own approved tool from the list, then keep this guard for its install path.
+// FDR records executables as \Device\HarddiskVolumeN\..., never C:\..., so match from the folder down.
+| NOT ImageFileName=/\\program files\\your-approved-rmm\\/i
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, ImageFileName, CommandLine, SHA256HashData])
+```
 `quickassist.exe` and `teamviewer.exe` will be noisy if IT uses them. Decide once, then either remove them or restrict to launches under user-writable paths.
 
 ## Suppression

@@ -31,6 +31,19 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, parent, pname, exe, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| ParentBaseFileName=/^explorer\.exe$/i
+| case {
+    ImageFileName=/^\\device\\cdrom/i;
+    in(field="FileName", ignoreCase=true, values=["wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe",
+                                                 "powershell.exe", "pwsh.exe"])
+      | CommandLine=/[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ]|$)/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, ImageFileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id`, `exe` for 1h. Alerts missing a key field are not suppressed. One mount can launch several processes. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

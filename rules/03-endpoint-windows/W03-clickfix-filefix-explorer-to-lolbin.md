@@ -44,6 +44,28 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
 | KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| ParentBaseFileName=/^explorer\.exe$/i
+| in(field="FileName", ignoreCase=true, values=["powershell.exe", "pwsh.exe", "mshta.exe", "cmd.exe", "curl.exe", "msiexec.exe", "wscript.exe",
+                                               "cscript.exe", "bitsadmin.exe", "certutil.exe", "hh.exe"])
+| case {
+    CommandLine=/https?:\/\//i;
+    // whole-word aliases only: "irm " alone also matches "-confirm ", "iex" alone also matches "iexplore"
+    CommandLine=/ iwr | irm |iex\(|iex |\|iex|\| iex/i;
+    CommandLine=/invoke-webrequest|invoke-restmethod|invoke-expression|downloadstring|downloadfile|net\.webclient/i;
+    CommandLine=/ -enc|frombase64string| -w hidden|-windowstyle hidden/i;
+    CommandLine=/i am not a robot|captcha|verification|ray id/i;
+    // FileFix: a run of spaces before a "#" comment, or a fake file path after it, hides the command in the address bar
+    CommandLine=/   #|# c:\\/i;
+    // a script file double-clicked from Downloads, a temp folder or an archive extraction folder
+    in(field="FileName", ignoreCase=true, values=["wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "cmd.exe", "powershell.exe", "pwsh.exe"])
+      | CommandLine=/\\downloads\\|\\temp\\|\\7zo|\\rar\$/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+```
 The same technique also leaves `RunMRU` and `TypedPaths` registry values containing `powershell`, `mshta` or `http`. Those keys are not ASEPs, so CS02 does not watch them; add a registry branch only if your FDR feed records them.
 
 ## Suppression

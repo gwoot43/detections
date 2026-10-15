@@ -32,6 +32,23 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    FileName=/^vssadmin\.exe$/i CommandLine=/delete shadows|resize shadowstorage/i;
+    FileName=/^wmic\.exe$/i CommandLine=/shadowcopy/i CommandLine=/delete/i;
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/win32_shadowcopy/i CommandLine=/delete|remove/i;
+    // routine rotation ("delete systemstatebackup -keepversions:N", N >= 1) is excluded; keepversions:0 deletes everything
+    FileName=/^wbadmin\.exe$/i CommandLine=/delete catalog|-keepversions:0/i;
+    FileName=/^wbadmin\.exe$/i CommandLine=/delete.*backup/i CommandLine!=/-keepversions:/i;
+    FileName=/^bcdedit\.exe$/i CommandLine=/recoveryenabled no|bootstatuspolicy ignoreallfailures/i;
+    FileName=/^diskshadow\.exe$/i CommandLine=/delete shadows/i;
+    FileName=/^fsutil\.exe$/i CommandLine=/usn deletejournal/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id` for 1h. Alerts missing a key field are not suppressed. Ransomware runs several backup-destruction commands in a burst. Every other host still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

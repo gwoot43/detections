@@ -42,6 +42,27 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| in(field="FileName", ignoreCase=true, values=["powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe",
+                                               "regsvr32.exe", "certutil.exe", "bitsadmin.exe", "msiexec.exe", "msbuild.exe", "installutil.exe",
+                                               "regasm.exe", "regsvcs.exe", "curl.exe", "wget.exe", "schtasks.exe", "wmic.exe", "cmstp.exe",
+                                               "forfiles.exe", "hh.exe"])
+| case {
+    // Office, PDF and mail parents: every child in the list, msiexec included
+    in(field="ParentBaseFileName", ignoreCase=true, values=["winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "onenote.exe", "msaccess.exe",
+                                                           "mspub.exe", "visio.exe", "acrord32.exe", "acrobat.exe", "foxitreader.exe"]);
+    // browser, chat and archiver parents: msiexec is not counted
+    in(field="ParentBaseFileName", ignoreCase=true, values=["msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "teams.exe", "ms-teams.exe",
+                                                           "slack.exe", "7zfm.exe", "winrar.exe", "winzip64.exe"])
+      | FileName!=/^msiexec\.exe$/i;
+  }
+| NOT (FileName=/^cmd\.exe$/i AND CommandLine=/chrome-extension:\/\//i)
+| NOT (FileName=/^rundll32\.exe$/i AND CommandLine=/shell32\.dll.*openas_rundll/i)
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+```
+
 ## Suppression
 Suppress by `host.id`, `parent`, `child` for 1h. Alerts missing a key field are not suppressed. A macro often spawns the same child several times. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

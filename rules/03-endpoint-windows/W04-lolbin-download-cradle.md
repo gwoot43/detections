@@ -45,6 +45,35 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    FileName=/^certutil\.exe$/i CommandLine=/urlcache|-decode|-verifyctl/i;
+    FileName=/^bitsadmin\.exe$/i CommandLine=/transfer|addfile|setnotifycmdline/i;
+    FileName=/^mshta\.exe$/i CommandLine=/http|javascript:|vbscript:/i;
+    FileName=/^regsvr32\.exe$/i CommandLine=/scrobj|\/i:http|\.sct/i;
+    FileName=/^msiexec\.exe$/i CommandLine=/http/i;
+    // rundll32 with a plain URL is how many apps open a browser (url.dll,FileProtocolHandler), so only the script and OpenURL forms count
+    FileName=/^rundll32\.exe$/i CommandLine=/javascript:|url\.dll.*openurl/i;
+    FileName=/^(curl|wget)\.exe$/i CommandLine=/-o |--output/i
+      CommandLine=/\.exe|\.dll|\.ps1|\.bat|\.hta|\\temp\\|\\public\\/i;
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/downloadstring|downloadfile|net\.webclient/i;
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/iex/i CommandLine=/http|frombase64/i;
+    // encoded PowerShell, except from the management agents that run encoded scripts by design
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/-encodedcommand| -enc | -ec | -e /i
+      | !in(field="ParentBaseFileName", ignoreCase=true, values=["ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe",
+                                                                "windowsazureguestagent.exe", "gc_worker.exe", "wsmprovhost.exe"]);
+    // .NET LOLBINs loading from user-writable paths; installers (msiexec) and Visual Studio run these legitimately
+    FileName=/^(msbuild|installutil|regasm|regsvcs|cmstp)\.exe$/i CommandLine=/http|\\temp\\|\\appdata\\/i
+      | !in(field="ParentBaseFileName", ignoreCase=true, values=["msiexec.exe", "devenv.exe"]);
+  }
+// Explorer-launched script hosts and downloaders are W03 (ClickFix/FileFix); one pasted cradle should alert once
+| NOT (ParentBaseFileName=/^explorer\.exe$/i
+       AND FileName=/^(powershell|pwsh|mshta|cmd|curl|msiexec|wscript|cscript|bitsadmin|certutil|hh)\.exe$/i)
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id`, `pname` for 1h. Alerts missing a key field are not suppressed. Download cradles often retry or loop. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

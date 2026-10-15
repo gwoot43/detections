@@ -59,7 +59,7 @@ FROM logs-crowdstrike.fdr-*
 
 ## Falcon LogScale version
 The same detection written for Falcon Event Search or Next-Gen SIEM, if you run it in Falcon instead of Elastic.
-```
+```logscale
 #event_simpleName=/^(SensorMetadataUpdate|OsVersionInfo|SensorHeartbeat)$/
 | case {
     #event_simpleName=SensorHeartbeat | hb_ts := @timestamp ;

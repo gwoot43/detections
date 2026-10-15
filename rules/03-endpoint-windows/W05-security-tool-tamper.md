@@ -35,6 +35,19 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   OR (pname == "bcdedit.exe" AND cmd LIKE "*/set*safeboot*")
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.hash.sha256, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    // -RemoveDefinitions -DynamicSignatures is a Microsoft troubleshooting step; -All wipes the engine
+    CommandLine=/mpcmdrun/i CommandLine=/-removedefinitions/i CommandLine=/-all/i;
+    CommandLine=/mpcmdrun/i CommandLine=/-disableservice/i;
+    FileName=/^(sc|net|net1)\.exe$/i CommandLine=/stop|delete|config/i CommandLine=/windefend|wdnissvc| sense/i;
+    FileName=/^bcdedit\.exe$/i CommandLine=/\/set.*safeboot/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, SHA256HashData])
+```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
 
 ## Suppression

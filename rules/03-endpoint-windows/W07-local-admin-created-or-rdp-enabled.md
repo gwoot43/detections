@@ -35,6 +35,26 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, parent, pname, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    FileName=/^(net|net1)\.exe$/i CommandLine=/user/i CommandLine=/\/add/i;
+    FileName=/^(net|net1)\.exe$/i CommandLine=/localgroup/i CommandLine=/\/add/i CommandLine=/administrators|remote desktop users/i;
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/new-localuser/i;
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/add-localgroupmember/i CommandLine=/administrators/i;
+    // writes only: inventory scripts query these values constantly
+    FileName=/^reg\.exe$/i CommandLine=/add/i CommandLine=/fdenytsconnections/i CommandLine=/\/d 0/i;
+    FileName=/^netsh\.exe$/i CommandLine=/advfirewall/i CommandLine=/state off/i;
+    FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/set-netfirewallprofile/i CommandLine=/enabled false/i;
+    FileName=/^reg\.exe$/i CommandLine=/add/i CommandLine=/specialaccounts\\userlist/i;
+  }
+// net.exe re-launches itself as net1.exe; keep only the net.exe event
+| NOT (FileName=/^net1\.exe$/i AND ParentBaseFileName=/^net\.exe$/i)
+| !in(field="ParentBaseFileName", ignoreCase=true, values=["ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe"])
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Account creation, group add and RDP enable usually come together. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 

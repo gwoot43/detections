@@ -39,6 +39,24 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, event.action, k, v, f, process.name, process.command_line, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(AsepValueUpdate|RegGenericValueUpdate|RegistryOperationDetectInfo|.*Written)$/ event_platform=Win
+| v := coalesce([RegStringValue, RegValueName])
+| case {
+    #event_simpleName=/^(AsepValueUpdate|RegGenericValueUpdate|RegistryOperationDetectInfo)$/
+      RegObjectName=/^\\registry\\user\\/i RegObjectName=/\\clsid\\.*inprocserver32/i
+      v=/\\appdata\\|\\temp\\|\\programdata\\|\\users\\public\\/i
+      | NOT v=/\\appdata\\local\\microsoft\\onedrive\\|\\appdata\\local\\microsoft\\teamsmeetingadd/i;
+    #event_simpleName=/Written$/
+      TargetFileName=/\\microsoft\\word\\startup\\|\\microsoft\\excel\\xlstart\\|\\microsoft\\addins\\|\\microsoft\\templates\\normal\.dotm$/i
+      | NOT (ContextBaseFileName=/^winword\.exe$/i AND TargetFileName=/normal\.dotm$/i)
+      | NOT (ContextBaseFileName=/^excel\.exe$/i AND TargetFileName=/personal\.xlsb$/i);
+  }
+| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, RegObjectName, RegValueName, RegStringValue, TargetFileName,
+         ContextBaseFileName, CommandLine])
+```
+
 ## Suppression
 Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. Installers touch these paths repeatedly in one session; a different host still alerts. Registry events carry no user, so the user is not a key. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

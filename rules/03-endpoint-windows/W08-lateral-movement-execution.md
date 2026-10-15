@@ -34,6 +34,22 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    in(field="ParentBaseFileName", ignoreCase=true, values=["wmiprvse.exe", "wsmprovhost.exe", "mmc.exe", "psexesvc.exe", "paexec.exe", "winrshost.exe"])
+      | in(field="FileName", ignoreCase=true, values=["cmd.exe", "powershell.exe", "pwsh.exe", "rundll32.exe", "regsvr32.exe", "mshta.exe",
+                                                     "wscript.exe", "cscript.exe", "certutil.exe", "net.exe", "whoami.exe", "reg.exe"]);
+    ParentBaseFileName=/^services\.exe$/i FileName=/^(cmd|powershell|pwsh|rundll32)\.exe$/i;
+    in(field="FileName", ignoreCase=true, values=["psexesvc.exe", "paexec.exe", "remcomsvc.exe", "csexecsvc.exe"]);
+    FileName=/^wmic\.exe$/i CommandLine=/\/node:/i CommandLine=/process call create/i;
+    FileName=/^schtasks\.exe$/i CommandLine=/\/s /i CommandLine=/\/create/i;
+    FileName=/^sc\.exe$/i CommandLine=/\\\\/ CommandLine=/create|start/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+```
+
 ## Suppression
 Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not suppressed. Remote execution tools spawn many processes per session on the destination. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on. `user.name` is reduced to the bare, lowercased account name, since enrichment writes either `DOMAIN\user` or `user`.
 

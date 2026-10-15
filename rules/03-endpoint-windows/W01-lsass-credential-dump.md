@@ -31,6 +31,21 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, process.parent.name, process.name, process.command_line, process.hash.sha256, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    // comsvcs.dll MiniDump, by name or by its ordinal (#24)
+    CommandLine=/comsvcs/i CommandLine=/minidump|#24/i;
+    CommandLine=/lsass/i
+      | in(field="FileName", ignoreCase=true, values=["procdump.exe", "procdump64.exe", "rundll32.exe", "createdump.exe", "sqldumper.exe",
+                                                     "adplus.exe", "rdrleakdiag.exe"]);
+    CommandLine=/lsass/i CommandLine=/ -ma |\.dmp/i;
+    CommandLine=/sekurlsa|lsadump/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, SHA256HashData])
+```
+
 ## Suppression
 Suppress by `host.id`, `process.name` for 1h. Alerts missing a key field are not suppressed. Attackers retry dumping after Falcon blocks them. Each different tool still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
