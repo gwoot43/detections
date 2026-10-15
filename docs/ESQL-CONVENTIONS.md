@@ -48,6 +48,10 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 
 If you remove `METADATA` from a non-aggregating rule, the query still runs in Discover, but the rule loses clean alert-to-event linkage and deduplication.
 
+## CrowdStrike rules carry a LogScale version
+
+Rules built on CrowdStrike FDR also include the same detection as a Falcon LogScale query (Advanced Event Search or Next-Gen SIEM), in a `logscale` block under the ES|QL one, so it can be run or scheduled in the Falcon console. It uses the raw Falcon field names (`#event_simpleName`, `ContextBaseFileName`, `RemoteAddressIP4`, `CommandLine`) rather than the ECS names the Elastic integration maps them to. Where ES|QL uses a feature LogScale lacks, such as `INLINE STATS`, the rule says how the LogScale version differs.
+
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
 ES|QL has **no SQL-style subqueries**. There is no `WHERE host.name IN (SELECT ...)`. Cross-dataset correlation uses one of two commands, both of which join on a **key, not a time window**.

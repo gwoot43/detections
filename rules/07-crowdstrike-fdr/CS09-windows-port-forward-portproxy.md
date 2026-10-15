@@ -31,6 +31,18 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
        registry.path, registry.data.strings, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|RegGenericValueUpdate|RegSystemConfigValueUpdate|AsepValueUpdate)$/ event_platform=Win
+| case {
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/portproxy/i CommandLine=/\s(add|set)\s/i
+      | finding := "netsh portproxy command";
+    RegObjectName=/\\Services\\PortProxy\\/i
+      | finding := "PortProxy registry write";
+  }
+| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, CommandLine, RegObjectName, RegValueName, RegStringValue])
+```
+
 The `netsh` command line holds the whole forward (`listenport=`, `connectaddress=`, `connectport=`). In the registry the value name is the listen address and port, and the data is the target. Whether the registry branch fires depends on your sensor reporting writes to that key; the process branch doesn't depend on it.
 
 ## Suppression

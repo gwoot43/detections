@@ -43,6 +43,22 @@ FROM logs-crowdstrike.fdr-*
 | KEEP host.id, host.name, pname, ports, peers, peer_ips, accepts, first_seen, last_seen, hosts
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 7 days:
+```logscale
+#event_simpleName=NetworkReceiveAcceptIP4 Protocol=6
+| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+| !in(field="LocalPort", values=["53", "80", "88", "135", "389", "443", "445", "636", "1433", "3268", "3269"])
+| pname := lower(ContextBaseFileName)
+| default(field=pname, value="unknown", replaceEmpty=true)
+| groupBy([pname, aid, ComputerName], function=[min(@timestamp, as=first_seen), collect([RemoteAddressIP4, LocalPort])])
+| groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
+                             collect([ComputerName, RemoteAddressIP4, LocalPort])])
+| _now := now()
+| test(hosts <= 3 AND newest_start > _now - 7200000)
+| newest_start := formatTime(format="%F %T", field=newest_start, timezone="Australia/Sydney")
+```
+LogScale has no `INLINE STATS`, so this version rolls up to one row per program, listing the (at most three) hosts it runs on. It alerts when the newest of those hosts started accepting connections in the last 2 hours.
+
 - **`first_seen`** is when this program first accepted an internal connection on this host in the 7 days. Only programs that started in the last 2 hours (two hourly runs) alert, so a long-running listener alerts once, not every hour.
 - **`hosts`** is how many hosts in the fleet had the same program accept internal connections in the 7 days. Three or fewer means it isn't normal software.
 - **`peer_ips`** are the machines that connected in: the attacker's previous hop.

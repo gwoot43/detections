@@ -41,6 +41,21 @@ FROM logs-crowdstrike.fdr-*
 | KEEP host.id, host.name, process.name, new_targets, targets, ports, first_seen
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 7 days:
+```logscale
+#event_simpleName=NetworkConnectIP4
+| in(field="ContextBaseFileName", ignoreCase=true, values=["w3wp.exe", "php-cgi.exe", "php-fpm", "httpd", "httpd.exe", "apache2",
+                                                          "nginx", "nginx.exe", "tomcat8.exe", "tomcat9.exe", "tomcat10.exe"])
+| in(field="RemotePort", values=["22", "135", "445", "3389", "5985", "5986"])
+| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+| groupBy([aid, ComputerName, ContextBaseFileName, RemoteAddressIP4, RemotePort], function=min(@timestamp, as=first_seen))
+| _now := now()
+| test(first_seen > _now - 7200000)
+| groupBy([aid, ComputerName, ContextBaseFileName], function=[count(RemoteAddressIP4, distinct=true, as=new_targets),
+                                                             collect([RemoteAddressIP4, RemotePort]), min(first_seen, as=first_seen)])
+| first_seen := formatTime(format="%F %T", field=first_seen, timezone="Australia/Sydney")
+```
+
 The first `STATS` finds when each web server first reached each internal admin port in the 7 days. The second keeps the ones that are new in the last 2 hours (two hourly runs, so a late event isn't missed) and rolls them up to one row per server and process, with every new target listed.
 
 The process filter compares `process.name` unchanged so Elasticsearch can apply it in the index; FDR writes these names in lower case. `process.name` on network events comes from `ContextBaseFileName`, which older sensors don't send.
