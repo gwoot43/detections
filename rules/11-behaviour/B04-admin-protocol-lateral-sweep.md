@@ -34,7 +34,7 @@ FROM logs-crowdstrike.fdr-*
                        destination.port == 3389, "rdp",
                        destination.port IN (389, 636, 3268, 3269), "ldap",
                        "smb_rpc")
-// exclude admin jump hosts, patch and management servers here, e.g. AND host.name NOT IN ("jump01", "sccm01")
+// exclude admin jump hosts, patch and management servers by Falcon agent ID, e.g. AND NOT host.id IN ("<jump01_aid>", "<sccm01_aid>")
 // Netlogon (inside lsass.exe) pings several DCs over LDAP to locate one; that is normal DC discovery, not enumeration
 | WHERE NOT (protocol == "ldap" AND process.name == "lsass.exe")
 | STATS targets = COUNT_DISTINCT(CASE(protocol != "ldap", destination.ip, NULL)),
@@ -44,7 +44,7 @@ FROM logs-crowdstrike.fdr-*
         protocols = VALUES(protocol),
         conns = COUNT(*),
         host.name = VALUES(host.name)
-    BY host.id, process.name, BUCKET(@timestamp, 10 minutes)
+    BY host.id, process.name
 | WHERE targets >= 15 OR ldap_targets >= 3
 | EVAL label = CASE(targets >= 15 AND ldap_targets >= 1, "ldap_and_lateral_sweep",
                     targets >= 15, "lateral_sweep",
@@ -69,28 +69,26 @@ FROM logs-crowdstrike.fdr-*
     *
       | protocol := "smb_rpc" | target_ip := RemoteAddressIP4;
   }
-// exclude admin jump hosts, patch and management servers here, e.g. | !in(field="ComputerName", ignoreCase=true, values=["jump01", "sccm01"])
+// exclude admin jump hosts, patch and management servers by agent ID, e.g. | !in(field="aid", values=["<jump01_aid>", "<sccm01_aid>"])
 // Netlogon (inside lsass.exe) pings several DCs over LDAP to locate one; that is normal DC discovery, not enumeration
 | (protocol!="ldap" OR pname!="lsass.exe")
-| bucket_start := @timestamp - (@timestamp % 600000)
-| groupBy([aid, pname, bucket_start], function=[count(target_ip, distinct=true, as=targets), count(winrm_ip, distinct=true, as=winrm),
-                                               count(rdp_ip, distinct=true, as=rdp), count(ldap_ip, distinct=true, as=ldap_targets),
-                                               collect([protocol, ComputerName]), count(as=conns)], limit=max)
+| groupBy([aid, pname], function=[count(target_ip, distinct=true, as=targets), count(winrm_ip, distinct=true, as=winrm),
+                                  count(rdp_ip, distinct=true, as=rdp), count(ldap_ip, distinct=true, as=ldap_targets),
+                                  collect([protocol, ComputerName]), count(as=conns)], limit=max)
 | test(targets >= 15 OR ldap_targets >= 3)
 | case {
     test(targets >= 15 AND ldap_targets >= 1) | label := "ldap_and_lateral_sweep" | severity := "high";
     test(targets >= 15) | label := "lateral_sweep" | severity := "high";
     * | label := "ldap_dc_fanout" | severity := "medium";
   }
-| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
 ```
-`targets` counts SMB/RPC, WinRM and RDP destinations only; `ldap_targets` counts directory servers on 389, 636, 3268 and 3269. Keep the source scoped to workstations if your servers legitimately fan out; exclude server names inline. Lower `ldap_targets` to 2 in an estate with only two domain controllers per site, or raise it if one process normally talks to several. FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown`, the row covers every process on the host, and the `lsass.exe` exclusion cannot apply, so expect DC-locator noise in the LDAP tier on those sensors.
+`targets` counts SMB/RPC, WinRM and RDP destinations only; `ldap_targets` counts directory servers on 389, 636, 3268 and 3269. Keep the source scoped to workstations if your servers legitimately fan out; exclude servers inline by agent ID. Counts run over the whole 15-minute lookback, not fixed buckets, so a sweep that crosses a bucket edge isn't split in two. Lower `ldap_targets` to 2 in an estate with only two domain controllers per site, or raise it if one process normally talks to several. FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown`, the row covers every process on the host, and the `lsass.exe` exclusion cannot apply, so expect DC-locator noise in the LDAP tier on those sensors.
 
 ## Suppression
-Suppress by `host.id`, `process.name`, `severity` for 2h. Alerts missing a key field are not suppressed. Aggregating rule. A sweep spans buckets; a new source still alerts. `severity` is in the key so an LDAP-only fan-out that turns into a lateral sweep raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
+Suppress by `host.id`, `process.name`, `severity` for 2h. Alerts missing a key field are not suppressed. Aggregating rule: each 10-minute run overlaps the last, and suppression folds the repeat into the open alert. A new source still alerts. `severity` is in the key so an LDAP-only fan-out that turns into a lateral sweep raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 
 ## Known false positives / exclusions
-- Admin jump hosts and management servers that administer many machines. Exclude them inline by host name.
+- Admin jump hosts and management servers that administer many machines. Exclude them inline by `host.id`, not `host.name`: `NOT host.name IN (...)` drops every row where the name is empty, which blinds the rule wherever host enrichment is off.
 - Patch and configuration tools using WinRM or WMI broadly, and inventory scanners. Exclude their process and host.
 - Legitimate AD tooling run by admins (PingCastle on a schedule) and servers that query several domain controllers or Global Catalogs by design (Exchange, Entra Connect, ADFS, identity-governance and monitoring servers). Exclude the host and process inline.
 

@@ -56,7 +56,7 @@ FROM logs-crowdstrike.fdr-*
         ad_commands = VALUES(ad_recon),
         parents = VALUES(parent),
         host.name = VALUES(host.name)
-    BY host.id, user.name, BUCKET(@timestamp, 10 minutes)
+    BY host.id, user.name
 | WHERE distinct_recon >= 6 OR ad_recon_kinds >= 3
 | EVAL severity = CASE(ad_recon_kinds >= 1, "high", "medium")
 ```
@@ -91,21 +91,19 @@ FROM logs-crowdstrike.fdr-*
     *;
   }
 | default(field=uname, value="unknown", replaceEmpty=true)
-| bucket_start := @timestamp - (@timestamp % 600000)
-| groupBy([aid, uname, bucket_start], function=[count(recon, distinct=true, as=distinct_recon),
-                                               count(ad_recon, distinct=true, as=ad_recon_kinds),
-                                               collect([recon, ad_recon, ParentBaseFileName, ComputerName])], limit=max)
+| groupBy([aid, uname], function=[count(recon, distinct=true, as=distinct_recon),
+                                  count(ad_recon, distinct=true, as=ad_recon_kinds),
+                                  collect([recon, ad_recon, ParentBaseFileName, ComputerName])], limit=max)
 | test(distinct_recon >= 6 OR ad_recon_kinds >= 3)
 | case {
     test(ad_recon_kinds >= 1) | severity := "high";
     * | severity := "medium";
   }
-| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
 ```
-These are native Windows utilities, so the signal is the count and speed, not any one command. `net.exe` re-launches as `net1.exe` with the same arguments, so `ad_recon_kinds` counts the pair once. `reg.exe`, `wmic.exe` and `fsutil.exe` are not counted: installers and inventory scripts call them constantly and they are not discovery-specific. Tune the threshold on your estate.
+These are native Windows utilities, so the signal is the count and speed, not any one command. `net.exe` re-launches as `net1.exe` with the same arguments, so `ad_recon_kinds` counts the pair once. `reg.exe`, `wmic.exe` and `fsutil.exe` are not counted: installers and inventory scripts call them constantly and they are not discovery-specific. Counts run over the whole 15-minute lookback, not fixed buckets, so a burst that crosses a bucket edge isn't split in two. Tune the threshold on your estate.
 
 ## Suppression
-Suppress by `host.id`, `user.name`, `severity` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. A burst spans buckets; a different host or user still alerts. `severity` is in the key so a generic burst that turns into domain enumeration raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
+Suppress by `host.id`, `user.name`, `severity` for 1h. Alerts missing a key field are not suppressed. Aggregating rule: each 10-minute run overlaps the last, and suppression folds the repeat into the open alert. A different host or user still alerts. `severity` is in the key so a generic burst that turns into domain enumeration raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Login scripts, inventory agents and support scripts run several of these at logon. SCCM and Intune are excluded by parent and grandparent; add your RMM or login-script host the same way.

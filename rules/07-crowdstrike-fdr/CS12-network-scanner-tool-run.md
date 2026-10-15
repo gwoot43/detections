@@ -1,6 +1,6 @@
 ---
 id: CS12
-name: Network scanner run (nmap, masscan, rustscan, zmap, Advanced IP Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan)
+name: Network scanner run (nmap, masscan, rustscan, zmap, naabu, Advanced IP/Port Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan)
 category: crowdstrike-fdr
 status: todo
 severity: medium
@@ -21,9 +21,9 @@ This is the companion to B01. B01 catches any scan by its shape but relies on Fa
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2"
+| WHERE event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
 | EVAL exe = TO_LOWER(COALESCE(process.executable, ""))
-| WHERE exe RLIKE """.*[\\/](nmap|masscan|rustscan|zmap|nbtscan|fscan|advanced_ip_scanner|netscan|ipscan)(\.exe)?"""
+| WHERE exe RLIKE """.*[\\/](nmap|masscan|rustscan|zmap|naabu|nbtscan(-[0-9.]+)?|fscan(32|64)?(_[a-z0-9]+)?|advanced_ip_scanner|advanced_port_scanner|netscan|ipscan(-[-_.a-z0-9]+)?)(\.exe)?"""
   // network and security team hosts that scan by design (placeholders: Falcon agent IDs)
   AND NOT host.id IN ("<network_team_aid>", "<security_team_aid>")
 | KEEP @timestamp, host.id, host.name, user.name, process.executable, process.command_line, process.parent.name,
@@ -33,12 +33,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
-| ImageFileName=/[\\\/](nmap|masscan|rustscan|zmap|nbtscan|fscan|advanced_ip_scanner|netscan|ipscan)(\.exe)?$/i
+| ImageFileName=/[\\\/](nmap|masscan|rustscan|zmap|naabu|nbtscan(-[0-9.]+)?|fscan(32|64)?(_[a-z0-9]+)?|advanced_ip_scanner|advanced_port_scanner|netscan|ipscan(-[-_.a-z0-9]+)?)(\.exe)?$/i
 | !in(field="aid", values=["<network_team_aid>", "<security_team_aid>"])
 | table([@timestamp, aid, ComputerName, UserName, ImageFileName, CommandLine, ParentBaseFileName, SHA256HashData])
 ```
 
-The pattern matches the last part of the path: `nmap.exe`, `/usr/bin/nmap`, `advanced_ip_scanner.exe` and `fscan.exe` match; `nmapper.exe` doesn't.
+The pattern matches the last part of the path: `nmap.exe`, `/usr/bin/nmap`, `advanced_ip_scanner.exe` and `fscan.exe` match; `nmapper.exe` doesn't. It also takes the names the tools ship under, which carry a version or architecture: `fscan64.exe`, `fscan_amd64`, `nbtscan-1.0.35.exe`, `ipscan-win64-3.9.1.exe`.
 
 ## Suppression
 Suppress by `host.id`, `process.executable` for 1h. Alerts missing a key field are not suppressed. Scanners are often run several times in a row with different options. A different host or tool still alerts.

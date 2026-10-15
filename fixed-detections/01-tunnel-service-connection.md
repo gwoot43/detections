@@ -70,7 +70,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     event.action == "processrollup2" AND cmd LIKE "* tunnel*"
       AND (cmd LIKE "*--url*" OR cmd LIKE "* run*" OR cmd LIKE "*--token*"),
       "cloudflared-style tunnel started",
-    event.action == "processrollup2" AND cmd RLIKE ".* (http|tcp|tls) ([0-9.]+:)?[0-9]{2,5}( .*)?",
+    event.action == "processrollup2" AND cmd RLIKE ".* (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( .*)?",
       "ngrok-style tunnel started (any binary name)",
     event.action == "processrollup2"
       AND ((pname IN ("code.exe", "code", "code-tunnel.exe", "code-tunnel") AND cmd LIKE "* tunnel*")
@@ -91,7 +91,7 @@ Suppress by `host.id`, `finding` for 24h.
 
 - **No `NOT user.name:*$` filter.** Falcon generally records SYSTEM processes under the machine account, so that filter hides tunnels started from a service or scheduled task.
 - **ssh flags are matched on the original-case command line.** `-R` (reverse) and `-D` (SOCKS) are what tunnels use. Lower-case `-l` (login name) and `-L` (local forward, common for developers reaching databases) are deliberately not matched.
-- **The ngrok-style pattern** catches a renamed binary run as `<anything> tcp 3389`. If one of your internal tools uses that argument shape, exclude it by `pname`.
+- **The ngrok-style pattern** catches a renamed binary run as `<anything> tcp 3389`, `<anything> http localhost:8080` or `<anything> tcp 10.0.0.5:3389`. If one of your internal tools uses that argument shape, exclude it by `pname`.
 
 ## Before vs after
 

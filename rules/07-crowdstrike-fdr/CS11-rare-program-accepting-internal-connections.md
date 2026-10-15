@@ -18,7 +18,7 @@ When an attacker turns a compromised host into a relay, something on that host s
 
 The rule asks one question: did a program start accepting TCP connections from other internal hosts on a host where it never did in the last 7 days, and is it a program almost no other host does this with? Software that legitimately takes inbound connections (SQL Server, IIS, monitoring and backup agents, Windows services) does it every day and on many hosts, so it is in the history and drops out without a list.
 
-Well-known service ports (DNS, Kerberos, LDAP, SMB, RPC endpoint mapper, HTTP/S, SQL Server, global catalog) are left out. They carry most inbound volume on servers and domain controllers, and a tool listening for a pivot can't take them because the real service already holds them.
+Well-known service ports (DNS, Kerberos, LDAP, SMB, RPC endpoint mapper, SQL Server, global catalog) are left out. They carry most inbound volume on servers and domain controllers, and a tool listening for a pivot can't take them because the real service already holds them. 80 and 443 stay in: on a workstation nothing holds them, so they are the ports an implant listener picks to blend in, and real web servers accept on them every day on many hosts, so the new-and-rare gates drop them.
 
 Port forwarding with `netsh portproxy` is CS09: the forward is accepted by a Windows service that runs everywhere, so this rule won't see it.
 
@@ -28,7 +28,7 @@ Run hourly with a 7-day lookback.
 FROM logs-crowdstrike.fdr-*
 | WHERE event.action == "NetworkReceiveAcceptIP4" AND network.transport == "tcp"
   AND CIDR_MATCH(source.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
-  AND NOT destination.port IN (53, 80, 88, 135, 389, 443, 445, 636, 1433, 3268, 3269)
+  AND NOT destination.port IN (53, 88, 135, 389, 445, 636, 1433, 3268, 3269)
 | EVAL pname = TO_LOWER(COALESCE(process.name, "unknown"))
 | STATS first_seen = MIN(@timestamp),
         last_seen = MAX(@timestamp),
@@ -47,7 +47,7 @@ FROM logs-crowdstrike.fdr-*
 ```logscale
 #event_simpleName=NetworkReceiveAcceptIP4 Protocol=6
 | cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
-| !in(field="LocalPort", values=["53", "80", "88", "135", "389", "443", "445", "636", "1433", "3268", "3269"])
+| !in(field="LocalPort", values=["53", "88", "135", "389", "445", "636", "1433", "3268", "3269"])
 | pname := lower(ContextBaseFileName)
 | default(field=pname, value="unknown", replaceEmpty=true)
 | groupBy([pname, aid], function=[min(@timestamp, as=first_seen), collect([ComputerName, RemoteAddressIP4, LocalPort])], limit=max)

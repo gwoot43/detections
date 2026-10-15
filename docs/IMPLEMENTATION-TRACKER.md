@@ -89,13 +89,13 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **N06** Imperva block-then-success (bypass) _(P1)_ · `suppress: source.ip, url.domain / 1h`
 - [ ] **N07** Zscaler C2 / malware callback _(P1)_ · `suppress: source.ip, destination.domain / 24h`
 - [ ] **N08** Zscaler large upload / exfil _(P2)_ · `suppress: user.name, destination.domain / 24h`
-- [ ] **N09** Zscaler anonymizer / tunnel / DoH bypass _(P2)_ · `suppress: user.name, destination.domain / 24h`
+- [ ] **N09** Zscaler anonymizer / proxy avoidance / VPN / DoH _(P2)_ · `suppress: user.name, destination.domain, severity / 24h`
 - [ ] **N10** External scanning against the Imperva edge (internal fan-out: B01/B04) _(P2)_ · `suppress: src / 1h`
 
 ## CrowdStrike FDR (bonus, sensor-native telemetry)
 - [ ] **CS01** BYOVD vulnerable driver load _(P1, critical)_ · `suppress: host.id, img / 24h`
 - [ ] **CS02** Run key / Winlogon / IFEO / ASEP persistence (services: WE08) _(P1)_ · `suppress: host.id, k / 24h`
-- [ ] **CS03** Suspicious DNS / DGA / tunneling _(P2)_ · `suppress: host.id, parent / 24h`
+- [ ] **CS03** DNS tunnelling (many long, distinct names under one parent) _(P2)_ · `suppress: host.id, parent / 24h`
 - [ ] **CS04** Falcon detections passthrough _(P0)_ · `suppress: host.name, technique / 1h`
 - [ ] **CS05** Falcon sensor health / tamper _(P0)_ · `suppress: host.id / 24h`
 - [ ] **CS06** Process injection / hollowing _(P2)_ · `suppress: host.id, src / 1h`
