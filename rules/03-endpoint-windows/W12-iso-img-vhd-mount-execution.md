@@ -24,20 +24,20 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
 | EVAL exe = TO_LOWER(COALESCE(process.executable, "")), pname = TO_LOWER(process.name),
        parent = TO_LOWER(process.parent.name), cmd = TO_LOWER(COALESCE(process.command_line, ""))
-| WHERE parent == "explorer.exe"
-  AND (exe LIKE """\\device\\cdrom*"""
-       OR (pname IN ("wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
-           AND cmd RLIKE """.*[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ].*)?"""))
+| WHERE exe LIKE """\\device\\cdrom*"""
+   OR (parent == "explorer.exe"
+       AND pname IN ("wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe", "powershell.exe", "pwsh.exe")
+       AND cmd RLIKE """.*[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ].*)?""")
 | KEEP @timestamp, host.id, host.name, user.name, parent, pname, exe, process.command_line, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
-| ParentBaseFileName=/^explorer\.exe$/i
 | case {
     ImageFileName=/^\\device\\cdrom/i;
-    in(field="FileName", ignoreCase=true, values=["wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe",
+    ParentBaseFileName=/^explorer\.exe$/i
+      | in(field="FileName", ignoreCase=true, values=["wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "rundll32.exe", "regsvr32.exe", "cmd.exe",
                                                  "powershell.exe", "pwsh.exe"])
       | CommandLine=/[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ]|$)/i;
   }

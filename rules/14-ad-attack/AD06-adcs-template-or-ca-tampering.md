@@ -38,7 +38,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
           AND attr IN ("mspki-certificate-name-flag", "mspki-enrollment-flag", "pkiextendedkeyusage",
                        "mspki-certificate-application-policy", "mspki-ra-signature", "ntsecuritydescriptor"),
        ca_setting_change = event.code IN ("4882", "4885", "4890", "4891", "4892"),
-       ca_flag_change = event.action == "ProcessRollup2" AND pname == "certutil.exe" AND cl LIKE "*-setreg*"
+       ca_flag_change = event.action == "ProcessRollup2" AND pname == "certutil.exe" AND cl RLIKE ".*[-/]setreg.*"
           AND (cl LIKE "*editflags*" OR cl LIKE "*interfaceflags*" OR cl LIKE "*disableextensionlist*"),
        mapping_weakened = event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate")
           AND (regpath LIKE "*kdc*strongcertificatebindingenforcement*"
@@ -55,7 +55,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|AsepValueUpdate|RegGenericValueUpdate|RegSystemConfigValueUpdate)$/
 | case {
-    #event_simpleName=/ProcessRollup2$/ FileName=/^certutil\.exe$/i CommandLine=/-setreg/i
+    #event_simpleName=/ProcessRollup2$/ FileName=/^certutil\.exe$/i CommandLine=/[-\/]setreg/i
       CommandLine=/editflags|interfaceflags|disableextensionlist/i
       | finding := "ca_flags_changed";
     #event_simpleName=/^(AsepValueUpdate|RegGenericValueUpdate|RegSystemConfigValueUpdate)$/

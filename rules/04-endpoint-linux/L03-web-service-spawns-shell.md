@@ -36,7 +36,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (runtime_parent
        AND (child IN ("whoami", "nc", "ncat", "netcat", "socat")
             OR (shell_child AND (cmd LIKE "*/dev/tcp/*" OR cmd LIKE "*whoami*" OR cmd LIKE "*base64 -d*"
-                                 OR cmd LIKE "*| sh*" OR cmd LIKE "*|sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|bash*"))))
+                                 OR cmd RLIKE """.*\| ?(sh|bash)([ ;].*)?"""))))
 // add exact benign command lines found while baselining, e.g. | WHERE NOT (cmd IN ("sh -c /usr/bin/convert ..."))
 | KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
 ```
@@ -55,7 +55,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
       | finding := "runtime spawned recon or socket tool";
     in(field="ParentBaseFileName", ignoreCase=true, values=["java", "node", "nodejs", "python", "python3", "ruby", "php", "dotnet"])
       | in(field="FileName", ignoreCase=true, values=["sh", "bash", "dash", "zsh", "ash", "ksh"])
-      | CommandLine=/\/dev\/tcp\/|whoami|base64 -d|\| ?(sh|bash)/i
+      | CommandLine=/\/dev\/tcp\/|whoami|base64 -d|\| ?(sh|bash)([ ;]|$)/i
       | finding := "runtime spawned shell with reverse-shell or recon command";
   }
 // add exact benign command lines found while baselining, e.g. | !in(field="CommandLine", ignoreCase=true, values=["sh -c /usr/bin/convert ..."])

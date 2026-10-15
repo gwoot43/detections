@@ -21,8 +21,8 @@ suppression:
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name), h = TO_LOWER(COALESCE(host.name, ""))
-| WHERE ((cmd LIKE "*curl *" OR cmd LIKE "*wget *") AND (cmd LIKE "*| sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|sh*" OR cmd LIKE "*|bash*" OR cmd LIKE "*-o /dev/shm/*"))
-   OR (cmd LIKE "*base64 -d*" AND (cmd LIKE "*| sh*" OR cmd LIKE "*| bash*" OR cmd LIKE "*|sh*" OR cmd LIKE "*|bash*"))
+| WHERE ((cmd LIKE "*curl *" OR cmd LIKE "*wget *") AND (cmd RLIKE """.*\| ?(sh|bash)([ ;].*)?""" OR cmd LIKE "*-o /dev/shm/*"))
+   OR (cmd LIKE "*base64 -d*" AND cmd RLIKE """.*\| ?(sh|bash)([ ;].*)?""")
    OR (pname LIKE "python*" AND cmd LIKE "*urllib*" AND (cmd LIKE "*exec(*" OR cmd LIKE "*os.system*"))
    OR (cmd LIKE "*http*" AND (cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/tmp/.*") AND (cmd LIKE "*chmod +x*" OR cmd LIKE "*chmod 777*"))
    OR (cmd LIKE "*&& chmod +x*" AND cmd LIKE "*&& ./*" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*"))
@@ -36,9 +36,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Lin
 | case {
-    CommandLine=/(curl|wget) /i CommandLine=/\| ?(sh|bash)|-o \/dev\/shm\//i
+    CommandLine=/(curl|wget) /i CommandLine=/\| ?(sh|bash)([ ;]|$)|-o \/dev\/shm\//i
       | finding := "download piped to shell or saved to /dev/shm";
-    CommandLine=/base64 -d/i CommandLine=/\| ?(sh|bash)/i
+    CommandLine=/base64 -d/i CommandLine=/\| ?(sh|bash)([ ;]|$)/i
       | finding := "base64 decode piped to shell";
     FileName=/^python/i CommandLine=/urllib/i CommandLine=/exec\(|os\.system/i
       | finding := "python urllib exec";

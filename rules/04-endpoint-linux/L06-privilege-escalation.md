@@ -36,7 +36,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "pkexec" AND (cmd == "" OR parent NOT IN ("gnome-shell", "gdm", "systemd", "gnome-session-binary")))
    OR (cmd LIKE "*chmod*" AND (cmd LIKE "*4755*" OR cmd LIKE "*4777*" OR cmd LIKE "*u+s*" OR cmd LIKE "* +s *")
        AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*" OR cmd LIKE "*/home/*"))
-   OR (pname == "find" AND cmd LIKE "*-perm*" AND (cmd LIKE "*4000*" OR cmd LIKE "*-u=s*") AND user.id != "0")
+   OR (pname == "find" AND cmd LIKE "*-perm*" AND (cmd LIKE "*4000*" OR cmd LIKE "*-u=s*") AND NOT (COALESCE(user.id, "") == "0" OR TO_LOWER(COALESCE(user.name, "")) == "root"))
    OR (pname == "unshare" AND cmd LIKE "*-r*" AND cmd LIKE "*bash*")
    OR (cmd LIKE "*capsh*" AND cmd LIKE "*--gid=0*" AND cmd LIKE "*--uid=0*")
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
@@ -61,7 +61,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
       | finding := "pkexec outside a desktop session";
     CommandLine=/chmod/i CommandLine=/4755|4777|u\+s| \+s /i CommandLine=/\/tmp\/|\/dev\/shm\/|\/var\/tmp\/|\/home\//i
       | finding := "SUID bit set in temp or home directory";
-    FileName=/^find$/i CommandLine=/-perm/i CommandLine=/4000|-u=s/i UID=* UID!=0
+    FileName=/^find$/i CommandLine=/-perm/i CommandLine=/4000|-u=s/i NOT UID=0 NOT UserName=/^root$/i
       | finding := "SUID enumeration by non-root account";
     FileName=/^unshare$/i CommandLine=/-r/i CommandLine=/bash/i
       | finding := "unshare -r into bash";

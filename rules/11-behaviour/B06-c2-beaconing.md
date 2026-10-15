@@ -40,7 +40,8 @@ FROM logs-crowdstrike.fdr-*
 | WHERE conns >= 30 AND active_minutes >= 20
 | EVAL span_minutes = (max_ts::long - min_ts::long) / 60000
 | WHERE span_minutes >= 60
-| EVAL beacon_regularity = active_minutes::double / conns,
+// a beacon fills one minute per connection when it sleeps a minute or more, and every minute when it is faster
+| EVAL beacon_regularity = active_minutes::double / LEAST(conns, span_minutes + 1),
        avg_interval_minutes = span_minutes::double / conns
 | WHERE beacon_regularity >= 0.6
 ```
@@ -68,13 +69,15 @@ FROM logs-crowdstrike.fdr-*
 | span_minutes := (max_ts - min_ts) / 60000
 | span_minutes := math:floor(span_minutes)
 | test(span_minutes >= 60)
-| beacon_regularity := active_minutes / conns
+| possible := span_minutes + 1
+| case { test(conns < possible) | possible := conns; * ; }
+| beacon_regularity := active_minutes / possible
 | avg_interval_minutes := span_minutes / conns
 | test(beacon_regularity >= 0.6)
 | min_ts := formatTime(format="%F %T", field=min_ts, timezone="Australia/Sydney")
 | max_ts := formatTime(format="%F %T", field=max_ts, timezone="Australia/Sydney")
 ```
-The idea: a beacon produces roughly one connection per interval, so `active_minutes` is close to `conns` (regularity near 1) and the connections are spread over at least an hour rather than clustered. `avg_interval_minutes` gives the analyst the approximate sleep time. Tune the thresholds on your own traffic. This is an approximation, not a true jitter analysis; a long-interval or high-jitter beacon can still slip under it.
+The idea: a beacon's connections are spread evenly, so they fill nearly every minute they could. A beacon that sleeps a minute or more puts each connection in its own minute (`active_minutes` close to `conns`); one that calls home faster than once a minute fills every minute of its span (`active_minutes` close to `span_minutes`). `beacon_regularity` divides the minutes used by whichever of those is smaller, so both score near 1, while a burst of connections packed into a few minutes scores low. The connections must also be spread over at least an hour. `avg_interval_minutes` gives the analyst the approximate sleep time. Tune the thresholds on your own traffic. This is an approximation, not a true jitter analysis; a long-interval or high-jitter beacon can still slip under it.
 
 FDR connection events name the process only on sensors that send `ContextBaseFileName`. Otherwise `process.name` reads `unknown`, every process on the host is counted together for that destination, and the name exclusions above cannot apply.
 
@@ -89,4 +92,4 @@ Suppress by `host.id`, `process.name`, `destination.ip` for 24h. Alerts missing 
 - Look at the process and destination. An unsigned binary or a script interpreter beaconing to a hosting or newly registered domain is C2. Pivot to Zscaler (N07) for the destination reputation and isolate the host.
 
 ## Test
-Run a benign agent that connects to a lab server every 30 seconds for an hour and confirm the regularity branch fires.
+Run a benign agent that connects to a lab server every 30 seconds for an hour, then one every 2 minutes for three hours, and confirm both fire.

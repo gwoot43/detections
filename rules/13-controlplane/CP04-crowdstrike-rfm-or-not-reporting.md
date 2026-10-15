@@ -75,13 +75,14 @@ The same detection written for Falcon Event Search or Next-Gen SIEM, if you run 
     max(hb_ts, as=LastHeartbeat)
   ], limit=max)
 | RFMEvents > 0
-| ComputerName!=/\.ap-southeast-\d+\.compute\.internal$/i
+| ComputerName!=/\.ap-southeast-\d+\.compute\.internal/i
+| _now := now()
 | case {
     test(LastNormal > LastRFM) | Status := "recovered" ;
-    test(now() - LastHeartbeat <= 3600000) | Status := "rfm_sensor_alive" ;
+    test(_now - LastHeartbeat < 3660000) | Status := "rfm_sensor_alive" ;
     * | Status := "rfm_stale_or_offline" }
 | Status != "recovered"
-| test(now() - FirstRFM > 7200000)
+| test(_now - FirstRFM >= 7200000)
 | FirstRFM := formatTime(format="%F %T", field=FirstRFM, timezone="Australia/Sydney")
 | LastRFM := formatTime(format="%F %T", field=LastRFM, timezone="Australia/Sydney")
 | LastNormal := formatTime(format="%F %T", field=LastNormal, timezone="Australia/Sydney")

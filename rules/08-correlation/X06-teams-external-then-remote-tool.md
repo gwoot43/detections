@@ -31,7 +31,7 @@ FROM logs-o365.audit-*, logs-crowdstrike.fdr-*
 // contact: a new Teams chat that includes another tenant, started by someone outside your domains
 //          (placeholders: list your own domains and any sanctioned support vendor's domain)
 | EVAL contact = event.provider == "MicrosoftTeams" AND event.action == "ChatCreated" AND foreign == "true"
-         AND NOT TO_LOWER(user.domain) IN ("<your_domain>", "<your_tenant>.onmicrosoft.com", "<sanctioned_vendor_domain>"),
+         AND NOT TO_LOWER(COALESCE(user.domain, "")) IN ("<your_domain>", "<your_tenant>.onmicrosoft.com", "<sanctioned_vendor_domain>"),
        tool = event.action == "ProcessRollup2" AND host.os.type == "windows"
          AND pname IN ("quickassist.exe", "anydesk.exe", "teamviewer.exe", "teamviewerqs.exe", "screenconnect.windowsclient.exe",
                        "rustdesk.exe", "logmein.exe", "supremo.exe", "zohoassist.exe")

@@ -21,13 +21,13 @@ Hands-on-keyboard intruders create a local backdoor admin and turn on RDP on the
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line), parent = TO_LOWER(COALESCE(process.parent.name, ""))
-| WHERE (pname IN ("net.exe", "net1.exe") AND ((cmd LIKE "*user*" AND cmd LIKE "*/add*") OR (cmd LIKE "*localgroup*" AND cmd LIKE "*/add*" AND (cmd LIKE "*administrators*" OR cmd LIKE "*remote desktop users*"))))
+| WHERE (pname IN ("net.exe", "net1.exe") AND ((cmd LIKE "* user *" AND cmd LIKE "*/add*") OR (cmd LIKE "*localgroup*" AND cmd LIKE "*/add*" AND (cmd LIKE "*administrators*" OR cmd LIKE "*remote desktop users*"))))
    OR (pname IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*new-localuser*" OR (cmd LIKE "*add-localgroupmember*" AND cmd LIKE "*administrators*")))
    // writes only: inventory scripts query these values constantly
-   OR (pname == "reg.exe" AND cmd LIKE "*add*" AND cmd LIKE "*fdenytsconnections*" AND cmd LIKE "*/d 0*")
+   OR (pname == "reg.exe" AND cmd LIKE "* add *" AND cmd LIKE "*fdenytsconnections*" AND cmd LIKE "*/d 0*")
    OR (pname == "netsh.exe" AND cmd LIKE "*advfirewall*" AND cmd LIKE "*state off*")
    OR (pname IN ("powershell.exe", "pwsh.exe") AND cmd LIKE "*set-netfirewallprofile*" AND cmd LIKE "*enabled false*")
-   OR (pname == "reg.exe" AND cmd LIKE "*add*" AND cmd LIKE """*specialaccounts\\userlist*""")
+   OR (pname == "reg.exe" AND cmd LIKE "* add *" AND cmd LIKE """*specialaccounts\\userlist*""")
 // net.exe re-launches itself as net1.exe; keep only the net.exe event
 | WHERE NOT (pname == "net1.exe" AND parent == "net.exe")
 | WHERE parent NOT IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe")
@@ -39,15 +39,15 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
 | case {
-    FileName=/^(net|net1)\.exe$/i CommandLine=/user/i CommandLine=/\/add/i;
+    FileName=/^(net|net1)\.exe$/i CommandLine=/ user /i CommandLine=/\/add/i;
     FileName=/^(net|net1)\.exe$/i CommandLine=/localgroup/i CommandLine=/\/add/i CommandLine=/administrators|remote desktop users/i;
     FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/new-localuser/i;
     FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/add-localgroupmember/i CommandLine=/administrators/i;
     // writes only: inventory scripts query these values constantly
-    FileName=/^reg\.exe$/i CommandLine=/add/i CommandLine=/fdenytsconnections/i CommandLine=/\/d 0/i;
+    FileName=/^reg\.exe$/i CommandLine=/ add /i CommandLine=/fdenytsconnections/i CommandLine=/\/d 0/i;
     FileName=/^netsh\.exe$/i CommandLine=/advfirewall/i CommandLine=/state off/i;
     FileName=/^(powershell|pwsh)\.exe$/i CommandLine=/set-netfirewallprofile/i CommandLine=/enabled false/i;
-    FileName=/^reg\.exe$/i CommandLine=/add/i CommandLine=/specialaccounts\\userlist/i;
+    FileName=/^reg\.exe$/i CommandLine=/ add /i CommandLine=/specialaccounts\\userlist/i;
   }
 // net.exe re-launches itself as net1.exe; keep only the net.exe event
 | NOT (FileName=/^net1\.exe$/i AND ParentBaseFileName=/^net\.exe$/i)

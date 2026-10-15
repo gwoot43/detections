@@ -45,7 +45,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
     event.code == "4826" AND (kernel_debug == "yes" OR hv_debug == "yes"), "booted with kernel debugging",
     cmd RLIKE ".*testsigning +(on|yes|true).*", "bcdedit set test signing",
     cmd RLIKE ".*nointegritychecks +(on|yes|true).*" OR cmd LIKE "*disable_integrity_checks*", "bcdedit disabled integrity checks",
-    cmd RLIKE ".*debug +(on|yes|true).*" OR cmd LIKE "*/dbgsettings *" OR cmd LIKE "*debugtype*", "bcdedit enabled kernel debugging",
+    cmd RLIKE ".*debug +(on|yes|true).*" OR cmd LIKE "*/dbgsettings *" OR (cmd LIKE "*debugtype*" AND NOT cmd LIKE "*/deletevalue*"), "bcdedit enabled kernel debugging",
     NULL)
 | WHERE finding IS NOT NULL
 | KEEP @timestamp, host_key, finding, load_options, test_signing, integrity_off, kernel_debug, hv_debug,
@@ -60,7 +60,9 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
       | finding := "bcdedit set test signing";
     CommandLine=/nointegritychecks +(on|yes|true)|disable_integrity_checks/i
       | finding := "bcdedit disabled integrity checks";
-    CommandLine=/debug +(on|yes|true)|\/dbgsettings |debugtype/i
+    CommandLine=/debug +(on|yes|true)|\/dbgsettings /i
+      | finding := "bcdedit enabled kernel debugging";
+    CommandLine=/debugtype/i CommandLine!=/\/deletevalue/i
       | finding := "bcdedit enabled kernel debugging";
   }
 | table([@timestamp, aid, ComputerName, finding, UserName, ParentBaseFileName, CommandLine])
