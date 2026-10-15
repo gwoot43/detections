@@ -34,6 +34,19 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, user.name, event.action, crowdstrike.TaskName, payload, _id, _version, _index
 ```
 
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ScheduledTaskRegistered|ScheduledTaskModified)$/ event_platform=Win
+| default(field=TaskExecCommand, value="")
+| default(field=TaskExecArguments, value="")
+| payload := format("%s %s", field=[TaskExecCommand, TaskExecArguments])
+| payload := lower(payload)
+| payload=/\\temp\\|\\appdata\\|\\programdata\\|\\users\\public\\|\\downloads\\|mshta|\.hta|frombase64/
+    OR (payload=/powershell|pwsh|wscript|cscript|rundll32|regsvr32|certutil|bitsadmin|curl/ AND payload=/http| -enc| -e |hidden/)
+| payload!=/\\programdata\\microsoft\\windows defender\\platform\\|\\appdata\\local\\microsoft\\onedrive\\/
+| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, TaskName, payload])
+```
+
 ## Suppression
 Suppress by `host.id`, `payload` for 24h. Alerts missing a key field are not suppressed. Tasks re-register on update. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 

@@ -35,6 +35,20 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | KEEP @timestamp, host.id, host.name, event.action, src, crowdstrike.AssemblyName, crowdstrike.ModuleILPath, process.entity_id, crowdstrike.ContextProcessId,
        _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ReflectiveDotnetModuleLoad|DllInjection)$/ event_platform=Win
+| case {
+    #event_simpleName=ReflectiveDotnetModuleLoad
+      ImageFileName=/(^|\\)(explorer|svchost|rundll32|regsvr32|notepad|werfault|dllhost|spoolsv|gpupdate|searchprotocolhost|wuauclt)\.exe$/i
+      | src := lower(ImageFileName);
+    #event_simpleName=DllInjection
+      InjectedDll=/\\temp\\|\\appdata\\|\\programdata\\|\\users\\public\\|\\downloads\\/i
+      | src := lower(InjectedDll);
+  }
+| table([@timestamp, aid, ComputerName, #event_simpleName, src, AssemblyName, ModuleILPath, TargetProcessId, ContextProcessId])
+```
 `msbuild.exe` is not on the list: it compiles inline tasks in memory by design (W04 covers its abuse). PowerShell is not either: `Add-Type` loads assemblies from memory all the time.
 
 ## Suppression

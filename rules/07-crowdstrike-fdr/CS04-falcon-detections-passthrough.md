@@ -33,6 +33,9 @@ FROM logs-crowdstrike.alert-* METADATA _id, _index, _version
 | KEEP @timestamp, host.name, user.name, product, sev, crowdstrike.alert.display_name, crowdstrike.alert.description, tactic, technique,
        crowdstrike.alert.pattern_disposition_description, process.name, process.command_line, event.id, _id, _version, _index
 ```
+
+No LogScale version: the rule only forwards Falcon's own high and critical detections and OverWatch notifications, which Falcon already raises in the console.
+
 Also feed medium detections into a lower-priority queue rather than dropping them; they feed the correlation rules (X-series) even when not alertable on their own.
 
 The severity comes from Falcon's own `severity_name`, which is what the console shows. The numeric `crowdstrike.alert.severity` is a different type (long) and cannot be mixed into the same `COALESCE`.

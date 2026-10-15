@@ -38,6 +38,26 @@ FROM logs-crowdstrike.fdr-*
     BY host.id, parent, BUCKET(@timestamp, 10 minutes)
 | WHERE distinct_sub >= 50 AND max_len >= 50
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(DnsRequest|SuspiciousDnsRequest)$/
+| domain := lower(DomainName)
+| domain!=/\.arpa$/
+| domain=/(?<parent>[^.]*\.[^.]*)$/
+| !in(field="parent", ignoreCase=true, values=["akamaiedge.net", "akamai.net", "akamaihd.net", "cloudfront.net", "amazonaws.com", "azureedge.net", "trafficmanager.net",
+                                               "windows.net", "microsoft.com", "office.com", "office365.com", "office.net", "live.com", "msftncsi.com",
+                                               "googleapis.com", "gvt1.com", "gstatic.com", "1e100.net", "cluster.local",
+                                               "sophosxl.net", "mcafee.com", "spamhaus.org", "crowdstrike.com"])
+| len := length(domain)
+| bucket_start := @timestamp - (@timestamp % 600000)
+| groupBy([aid, parent, bucket_start], function=[count(domain, distinct=true, as=distinct_sub), count(as=total), max(len, as=max_len),
+                                                 collect([domain, ContextProcessId, ComputerName])], limit=max)
+| test(distinct_sub >= 50 AND max_len >= 50)
+| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+```
+Falcon has no registered-domain field, so `parent` here is the last two labels of the name, a simplification that groups unrelated sites under suffixes like `co.uk`.
+
 `SuspiciousDnsRequest` on its own is already curated by CrowdStrike and reaches Elastic as a Falcon detection through CS04 when it is alertable.
 
 ## Suppression

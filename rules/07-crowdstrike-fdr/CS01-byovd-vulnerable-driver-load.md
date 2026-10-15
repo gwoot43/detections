@@ -36,6 +36,21 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   OR h IN ("PUT_LOLDRIVERS_HASHES_HERE")
 | KEEP @timestamp, host.id, host.name, img, h, dll.name, dll.code_signature.subject_name, dll.pe.original_file_name, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=DriverLoad event_platform=Win
+| case {
+    ImageFileName=/\\(temp|users|programdata|appdata|downloads|perflogs)\\/i
+      ImageFileName!=/\\programdata\\microsoft\\windows defender\\platform\\/i
+      | finding := "driver from user-writable path";
+    ImageFileName=/\\(iqvw64|rtcore64|dbutil_2_3|gdrv|aswarpot|truesight|viragt64|wnbios.*|mhyprot.*|zam.*|kprocesshacker|nscm|nsecsoft.*)\.sys$/i
+      | finding := "known vulnerable driver name";
+    in(field="SHA256HashData", ignoreCase=true, values=["PUT_LOLDRIVERS_HASHES_HERE"])
+      | finding := "vulnerable driver hash";
+  }
+| table([@timestamp, aid, ComputerName, finding, ImageFileName, SHA256HashData, OriginalFilename, CertificatePublisher])
+```
 Populate the hash branch from a scheduled import of the loldrivers.io hash list. Names alone miss renamed drivers; hashes catch them. Keep the hashes lowercase, since `h` is lowercased.
 
 `procexp*.sys` is not on the name list: Process Explorer loads it from `System32\drivers` every time an admin runs it. A copy loaded from a temp or user folder still matches the path branch.

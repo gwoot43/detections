@@ -29,6 +29,24 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (event.action == "ProcessRollup2" AND (cmd LIKE "*csuninstalltool*" OR (pname == "msiexec.exe" AND cmd LIKE "*falcon*" AND cmd LIKE "*/x*")))
 | KEEP @timestamp, host.id, host.name, user.name, event.action, process.name, process.command_line, crowdstrike.SourceImageFileName, crowdstrike.TamperingAction, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(AcUninstallConfirmation|FalconHostFileTamperingInfo|FalconHostRegTamperingInfo|SensorTampering|ProcessRollup2|SyntheticProcessRollup2)$/
+| case {
+    #event_simpleName=AcUninstallConfirmation
+      | finding := "sensor uninstall confirmed";
+    #event_simpleName=/^FalconHost(File|Reg)TamperingInfo$/
+      | finding := "sensor file or registry tampering";
+    #event_simpleName=SensorTampering !in(field="SourceImageFileName", ignoreCase=true, values=["/usr/lib/systemd/systemd", "/lib/systemd/systemd"])
+      | finding := "sensor tampering";
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/csuninstalltool/i
+      | finding := "CsUninstallTool run";
+    #event_simpleName=/ProcessRollup2$/ FileName=/^msiexec\.exe$/i CommandLine=/falcon/i CommandLine=/\/x/i
+      | finding := "msiexec uninstall of Falcon";
+  }
+| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, FileName, CommandLine, SourceImageFileName, TamperingAction])
+```
 Silent-host companion (run daily): compare hosts seen in the last 24h against the asset inventory / AD computer list, and alert on managed hosts that stopped sending FDR while still appearing active in AD authentication (event 4624) or DHCP.
 
 ## Suppression
