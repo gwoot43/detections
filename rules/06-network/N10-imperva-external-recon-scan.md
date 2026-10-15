@@ -22,8 +22,8 @@ Internal scanning is not covered here; that is B01, B04 and CS12.
 Run every 5 minutes with a 10-minute lookback.
 ```esql
 FROM logs-imperva_cloud_waf.event-*
-// your own external scanners and attack-surface monitoring (placeholders)
-| WHERE NOT CIDR_MATCH(source.ip, "<own_scanner_cidr>")
+// your own external scanners and attack-surface monitoring (placeholder range: replace with yours)
+| WHERE NOT CIDR_MATCH(source.ip, "198.51.100.0/24")
 | EVAL src = source.ip
 | STATS uris = COUNT_DISTINCT(url.path), hosts = COUNT_DISTINCT(url.domain), hits = COUNT(*),
         first_seen = MIN(@timestamp)
