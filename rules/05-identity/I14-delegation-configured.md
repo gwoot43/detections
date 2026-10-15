@@ -42,7 +42,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | WHERE NOT (actor IN ("svc-cluster", "svc-scvmm"))    // clustering / virtualization tooling that sets delegation legitimately
 | EVAL delegation = CASE(resource_based, "resource_based", constrained, "constrained",
                          unconstrained, "unconstrained", "protocol_transition")
-| KEEP @timestamp, winlog.computer_name, actor, dn, delegation, op_id, winlog.event_data.AttributeValue
+| KEEP @timestamp, winlog.computer_name, actor, dn, delegation, op_id, winlog.event_data.AttributeValue, _id, _version, _index
 ```
 
 ## Suppression

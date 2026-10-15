@@ -29,7 +29,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
   AND optype IN ("%%14674", "value added")
   AND NOT (actor LIKE "msol_*")          // Windows Hello for Business key sync by the directory sync account
   AND NOT (actor LIKE "*$")              // a computer registering its own key (device registration)
-| KEEP @timestamp, winlog.computer_name, actor, dn, attr, op_id
+| KEEP @timestamp, winlog.computer_name, actor, dn, attr, op_id, _id, _version, _index
 ```
 Excluding all computer-account writers is a slight over-exclusion (it also drops a computer writing another object's key). Tighten later by comparing the actor name to the object DN in an ingest field if that precision matters.
 

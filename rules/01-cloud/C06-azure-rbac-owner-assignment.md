@@ -36,7 +36,7 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
 | WHERE role IS NOT NULL
 // landing-zone IaC service principal, by app ID
   AND COALESCE(azure.activitylogs.identity.claims.appid, "") NOT IN ("00000000-0000-0000-0000-000000000000")
-| KEEP @timestamp, actor, role, scope, source.ip, azure.subscription_id
+| KEEP @timestamp, actor, role, scope, source.ip, azure.subscription_id, _id, _version, _index
 ```
 `azure.activitylogs.properties` is mapped as `flattened`, so its sub-keys (`requestbody`, `responseBody`) are not ES|QL columns. The rule reads the whole object with `TO_STRING`, which needs an ES|QL version that supports `flattened`. Management-group and root-scope assignments appear only if you also export the tenant-level activity log.
 

@@ -38,7 +38,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
             OR (shell_child AND (cmd LIKE "*/dev/tcp/*" OR cmd LIKE "*whoami*" OR cmd LIKE "*base64 -d*"
                                  OR cmd RLIKE """.*\| ?(sh|bash)([ ;].*)?"""))))
 // add exact benign command lines found while baselining, e.g. | WHERE NOT (cmd IN ("sh -c /usr/bin/convert ..."))
-| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**

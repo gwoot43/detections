@@ -33,7 +33,7 @@ FROM logs-m365_defender.alert-* METADATA _id, _index, _version
   AND NOT det_source IN ("antivirus", "smartscreen")
   AND status != "resolved" AND verdict NOT IN ("falsepositive", "informationalexpectedactivity")
 | KEEP @timestamp, event.id, m365_defender.alert.title, m365_defender.alert.category, sev, det_source, status,
-       m365_defender.alert.mitre_techniques, host.hostname, user.name, m365_defender.alert.incident_id, event.url
+       m365_defender.alert.mitre_techniques, host.hostname, user.name, m365_defender.alert.incident_id, event.url, _id, _version, _index
 ```
 As with CS04, send **medium** alerts to a lower-priority queue rather than dropping them. Copy the rule with `sev == "medium"` at medium severity. Medium Defender for Endpoint alerts such as "Suspicious PowerShell command line" are often the first step of a chain the correlation rules (X01, X05) build on.
 

@@ -35,7 +35,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 // drop the Get-Changes-All entries of accounts that should hold it: list your Entra Connect (MSOL_) account SID(s)
 | EVAL sd_rest = REPLACE(sd, "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2;;(s-1-5-21-1111111111-2222222222-3333333333-1105)\\)", "")
 | WHERE sd_rest LIKE "*1131f6ad-9c07-11d1-f79f-00c04fc2dcd2;;s-1-5-21-*"     // DS-Replication-Get-Changes-All
-| KEEP @timestamp, winlog.computer_name, actor, winlog.event_data.ObjectDN, op_id, sd
+| KEEP @timestamp, winlog.computer_name, actor, winlog.event_data.ObjectDN, op_id, sd, _id, _version, _index
 ```
 Replace the example SID with your sync account's SID (`Get-ADUser MSOL_xxxx`), and add others with `|` inside the parentheses. The closing `\\)` stops a SID from matching a longer one that starts with the same digits. Until you do, a hybrid domain alerts on every change to the domain root's permissions, which is rare but not never.
 

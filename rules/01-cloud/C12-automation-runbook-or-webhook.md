@@ -29,7 +29,7 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
   AND event.outcome == "success"
 // your landing-zone / IaC principal: app ID for a service principal, UPN for a person
 | WHERE actor IS NULL OR actor NOT IN ("00000000-0000-0000-0000-000000000000")
-| KEEP @timestamp, op, actor, azure.resource.name, azure.resource.group, azure.subscription_id, source.ip
+| KEEP @timestamp, op, actor, azure.resource.name, azure.resource.group, azure.subscription_id, source.ip, _id, _version, _index
 ```
 Draft saves, job starts and automation-account writes are left out. A draft does nothing until it is published, job starts are how runbooks normally run (and are often API-driven), and account writes are mostly configuration noise. Creating, publishing and adding a webhook are the persistence steps.
 

@@ -39,7 +39,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
   AND NOT (child == "msiexec.exe" AND web_parent)
   AND NOT (child == "cmd.exe" AND cmd LIKE "*chrome-extension://*")
   AND NOT (child == "rundll32.exe" AND cmd LIKE "*shell32.dll*openas_rundll*")
-| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**

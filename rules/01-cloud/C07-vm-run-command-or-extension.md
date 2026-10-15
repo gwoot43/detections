@@ -38,7 +38,7 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
     OR ext LIKE "*customscript*" OR ext LIKE "*vmaccess*" OR ext LIKE "*runcommand*"
 // patching / automation service principals, by app ID
 | WHERE COALESCE(azure.activitylogs.identity.claims.appid, "") NOT IN ("00000000-0000-0000-0000-000000000000")
-| KEEP @timestamp, op, actor, azure.resource.name, azure.resource.group, azure.subscription_id, source.ip
+| KEEP @timestamp, op, actor, azure.resource.name, azure.resource.group, azure.subscription_id, source.ip, _id, _version, _index
 ```
 
 ## Suppression

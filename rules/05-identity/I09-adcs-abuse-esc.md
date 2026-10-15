@@ -31,7 +31,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | EVAL req_user = REPLACE(MV_LAST(SPLIT(requester, "\\")), "\\$$", "")
 | WHERE san IS NOT NULL AND LOCATE(san, req_user) == 0
   AND NOT (requester IN ("contoso\\svc-enrollment-agent"))      // your enrollment agents
-| KEEP @timestamp, winlog.computer_name, event.code, request_id, requester, req_user, san, template
+| KEEP @timestamp, winlog.computer_name, event.code, request_id, requester, req_user, san, template, _id, _version, _index
 ```
 This needs CA audit logging enabled (auditing on the CA plus `certutil -setreg CA\AuditFilter 127`). The event has no SAN or template field of its own; both come from `Attributes`. `Requester` and `Attributes` are not in the integration's predefined field list, so the query fails with "Unknown column" until the first 4886/4887 has been indexed.
 

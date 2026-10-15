@@ -29,7 +29,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | WHERE attr == "serviceprincipalname" AND cls == "user"
   AND optype IN ("%%14674", "value added")
   AND NOT (actor IN ("svc-identity-provisioning"))    // your service-account provisioning tooling, if any
-| KEEP @timestamp, winlog.computer_name, actor, dn, op_id, winlog.event_data.AttributeValue
+| KEEP @timestamp, winlog.computer_name, actor, dn, op_id, winlog.event_data.AttributeValue, _id, _version, _index
 ```
 
 ## Suppression

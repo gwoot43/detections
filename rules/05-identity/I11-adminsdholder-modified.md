@@ -27,7 +27,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        op_id = TO_STRING(winlog.event_data.OpCorrelationID)
 | WHERE dn LIKE "cn=adminsdholder,cn=system,*"
   AND optype IN ("%%14674", "value added")         // the new value; the paired "value deleted" event repeats the old one
-| KEEP @timestamp, winlog.computer_name, actor, dn, attr, op_id, winlog.event_data.AttributeValue
+| KEEP @timestamp, winlog.computer_name, actor, dn, attr, op_id, winlog.event_data.AttributeValue, _id, _version, _index
 ```
 Requires directory-object auditing with a SACL covering the System container. Confirm 5136 events appear for a test change before relying on this.
 

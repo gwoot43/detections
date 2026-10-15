@@ -27,7 +27,7 @@ FROM logs-azure.auditlogs-* METADATA _id, _index, _version
   AND event.outcome == "success"
 | KEEP @timestamp, azure.auditlogs.operation_name, azure.auditlogs.properties.initiated_by.user.userPrincipalName,
        azure.auditlogs.properties.initiated_by.app.displayName, `azure.auditlogs.properties.target_resources.0.display_name`,
-       source.ip, azure.tenant_id
+       source.ip, azure.tenant_id, _id, _version, _index
 ```
 "Update domain" and "Set Company Information" are left out on purpose. They fire for routine domain and tenant property edits, including Microsoft's own background processes, and carry no federation signal on their own.
 

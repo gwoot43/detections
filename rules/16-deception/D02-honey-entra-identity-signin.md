@@ -44,7 +44,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
                       result IN ("7000215", "7000222"), "invalid or expired client secret", CONCAT("error ", result))
 | KEEP @timestamp, honey_identity, outcome, result, azure.signinlogs.category, source.ip, source.as.organization.name,
        source.geo.country_iso_code, azure.signinlogs.properties.app_display_name,
-       azure.signinlogs.properties.resource_display_name, user_agent.original
+       azure.signinlogs.properties.resource_display_name, user_agent.original, _id, _version, _index
 ```
 `outcome` reading **SUCCESS** is the worst case. For a user, it means the honey password itself leaked, or the account was reset. For the service principal, it means the planted secret works and the attacker now holds a token.
 

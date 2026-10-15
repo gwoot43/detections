@@ -30,7 +30,7 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
   AND body RLIKE """.*sourceaddressprefix(es)?:\[?([^\]:]*,)?(\*|0\.0\.0\.0/0|internet|any)[,\]}].*"""
   // destination is a management or database port, or every port, as a single range or inside a list
   AND body RLIKE """.*destinationportranges?:\[?([^\]:]*,)?(22|3389|5985|5986|1433|3306|\*|0-65535)[,\]}].*"""
-| KEEP @timestamp, actor, azure.resource.name, azure.resource.group, azure.resource.id, azure.subscription_id, source.ip
+| KEEP @timestamp, actor, azure.resource.name, azure.resource.group, azure.resource.id, azure.subscription_id, source.ip, _id, _version, _index
 ```
 Only the security-rule write is matched. A whole-NSG write (`NETWORKSECURITYGROUPS/WRITE`, used by templates) carries every rule in one body, so the allow, direction, source and port could each come from a different rule and the match would be meaningless. Azure Firewall bodies use different keys and never matched the old conditions, so they were removed. Port ranges such as `3000-4000` that only contain a management port are not detected.
 

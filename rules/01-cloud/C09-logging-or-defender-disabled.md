@@ -38,7 +38,7 @@ FROM logs-azure.activitylogs-* METADATA _id, _index, _version
   AND (op != "MICROSOFT.SECURITY/AUTOPROVISIONINGSETTINGS/WRITE" OR body LIKE "*autoprovision:off*")
   // Event Hub deletes only for the namespace that carries your Elastic export (replace the name)
   AND (op NOT LIKE "MICROSOFT.EVENTHUB/*" OR res LIKE "*/namespaces/evhns-elastic-export*")
-| KEEP @timestamp, op, actor, azure.resource.name, azure.resource.id, azure.subscription_id, source.ip
+| KEEP @timestamp, op, actor, azure.resource.name, azure.resource.id, azure.subscription_id, source.ip, _id, _version, _index
 ```
 Activity-log alert deletions were removed: alert rules are edited and deleted routinely by the teams that own them, and losing one alert does not remove the underlying logs.
 

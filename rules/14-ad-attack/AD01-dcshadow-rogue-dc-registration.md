@@ -38,7 +38,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
 | WHERE dc_object_created OR drs_spn_added
 // real DCs carry these SPNs; list your DC computer objects so only non-DC targets alert
 | WHERE NOT (drs_spn_added AND dn LIKE "*ou=domain controllers,*")
-| KEEP @timestamp, winlog.computer_name, actor, cls, dn, attr, val, op_id, dc_object_created, drs_spn_added
+| KEEP @timestamp, winlog.computer_name, actor, cls, dn, attr, val, op_id, dc_object_created, drs_spn_added, _id, _version, _index
 ```
 
 ## Suppression

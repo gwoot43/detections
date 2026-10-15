@@ -31,7 +31,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (child == "schtasks.exe" AND cmd LIKE "*/s *" AND cmd LIKE "*/create*")
    OR (child == "sc.exe" AND cmd LIKE """*\\\\*""" AND (cmd LIKE "*create*" OR cmd LIKE "*start*"))
 | EVAL user.name = TO_LOWER(MV_LAST(SPLIT(user.name, "\\")))
-| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, parent, child, process.command_line, process.parent.entity_id, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**

@@ -36,7 +36,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (cmd LIKE "*bash -i*" AND cmd LIKE "*>&*")
    OR (cmd LIKE "*sh -i*" AND (cmd LIKE "*<&*" OR cmd LIKE "*>&*"))
    OR (pname == "openssl" AND cmd LIKE "*s_client*" AND (cmd LIKE "*| /bin/sh*" OR cmd LIKE "*| bash*"))
-| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.parent.entity_id
+| KEEP @timestamp, host.id, host.name, user.name, process.parent.name, pname, process.command_line, process.parent.entity_id, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**

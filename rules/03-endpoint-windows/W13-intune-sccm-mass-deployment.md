@@ -30,7 +30,7 @@ FROM logs-azure.platformlogs-* METADATA _id, _index, _version
          AND (op LIKE "create*" OR op LIKE "patch*" OR op LIKE "assign*"))
      OR ((op LIKE "create*" OR op LIKE "assign*") AND op LIKE "*mobileapp*")
 | WHERE actor NOT IN ("svc-intune-automation")    // your MDM automation account, if any
-| KEEP @timestamp, actor, op, azure.platformlogs.result_type, azure.tenant_id
+| KEEP @timestamp, actor, op, azure.platformlogs.result_type, azure.tenant_id, _id, _version, _index
 ```
 SCCM has no equivalent cloud audit feed. Its endpoint-side view (a management agent spawning a script) is covered by the FDR rules.
 
