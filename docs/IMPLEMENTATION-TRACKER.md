@@ -95,7 +95,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 ## CrowdStrike FDR (bonus, sensor-native telemetry)
 - [ ] **CS01** BYOVD vulnerable driver load _(P1, critical)_ · `suppress: host.id, img / 24h`
 - [ ] **CS02** Run key / Winlogon / IFEO / ASEP persistence (services: WE08) _(P1)_ · `suppress: host.id, k / 24h`
-- [ ] **CS03** Suspicious DNS / DGA / tunneling _(P2)_ · `suppress: host.id, parent / 24h`
+- [ ] **CS03** DNS tunnelling (many long, distinct names under one parent) _(P2)_ · `suppress: host.id, parent / 24h`
 - [ ] **CS04** Falcon detections passthrough _(P0)_ · `suppress: host.name, technique / 1h`
 - [ ] **CS05** Falcon sensor health / tamper _(P0)_ · `suppress: host.id / 24h`
 - [ ] **CS06** Process injection / hollowing _(P2)_ · `suppress: host.id, src / 1h`

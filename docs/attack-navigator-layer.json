@@ -191,8 +191,8 @@
   },
   {
    "techniqueID": "T1048.003",
-   "score": 1,
-   "comment": "IN05",
+   "score": 2,
+   "comment": "CS03, IN05",
    "enabled": true,
    "showSubtechniques": true
   },
@@ -1177,13 +1177,6 @@
    "showSubtechniques": true
   },
   {
-   "techniqueID": "T1568.002",
-   "score": 1,
-   "comment": "CS03",
-   "enabled": true,
-   "showSubtechniques": true
-  },
-  {
    "techniqueID": "T1569.002",
    "score": 3,
    "comment": "W08, WE08, WE14",
@@ -1226,16 +1219,9 @@
    "showSubtechniques": true
   },
   {
-   "techniqueID": "T1595.001",
-   "score": 1,
-   "comment": "N10",
-   "enabled": true,
-   "showSubtechniques": true
-  },
-  {
    "techniqueID": "T1595.002",
-   "score": 1,
-   "comment": "N06",
+   "score": 2,
+   "comment": "N06, N10",
    "enabled": true,
    "showSubtechniques": true
   },
@@ -1467,13 +1453,6 @@
    "techniqueID": "T1564",
    "score": 1,
    "comment": "via sub-techniques: E06",
-   "enabled": true,
-   "showSubtechniques": true
-  },
-  {
-   "techniqueID": "T1568",
-   "score": 1,
-   "comment": "via sub-techniques: CS03",
    "enabled": true,
    "showSubtechniques": true
   },

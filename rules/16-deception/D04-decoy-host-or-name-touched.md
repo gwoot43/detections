@@ -66,10 +66,11 @@ OpenCanary writes one JSON line per interaction (`logtype`, `src_host`, `dst_por
 ```esql
 FROM logs-opencanary.log-*
 | WHERE TO_INTEGER(logtype) >= 2000                  // 1xxx are OpenCanary's own start-up and status messages
+  AND NOT src_host IN ("<vuln_scanner_ip>", "<monitoring_ip>")
 | STATS hits = COUNT(*), ports = VALUES(dst_port), types = VALUES(logtype), first_seen = MIN(@timestamp)
     BY src_host
 ```
-Field names depend on how the JSON is parsed. With the default parser they arrive at the top level, as shown. If you set a JSON target, prefix the fields with it.
+Turn on OpenCanary's `portscan` module (logtype 5001). It reads the decoy's own firewall log, so it sees nmap SYN scans and masscan, which send raw packets that Falcon's connection events on the scanning host may not record (the B01 blind spot). Field names depend on how the JSON is parsed. With the default parser they arrive at the top level, as shown. If you set a JSON target, prefix the fields with it.
 
 ## Suppression
 Suppress by `host.id`, `decoy` for 4h. Alerts missing a key field are not suppressed. A scan of the decoy produces many connections. A different source host or decoy still alerts.

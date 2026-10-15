@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v19.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**173 rules · 103 techniques covered** (190 technique and sub-technique IDs).
+**173 rules · 102 techniques covered** (188 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -26,8 +26,8 @@ flowchart LR
   T9["Discovery<br/>14/34 techniques · 12 rules"]:::high
   T10["Lateral Movement<br/>6/9 techniques · 28 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
-  T12["Command and Control<br/>10/18 techniques · 18 rules"]:::high
-  T13["Exfiltration<br/>6/9 techniques · 6 rules"]:::high
+  T12["Command and Control<br/>9/18 techniques · 18 rules"]:::high
+  T13["Exfiltration<br/>6/9 techniques · 7 rules"]:::high
   T14["Impact<br/>4/15 techniques · 5 rules"]:::mid
   T0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8 --> T9 --> T10 --> T11 --> T12 --> T13 --> T14
   classDef none fill:#f3f3f1,stroke:#9b9a95,color:#52514e
@@ -54,8 +54,8 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 12 |
 | Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 28 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
-| Command and Control (TA0011) | 10 / 18 | `███████████░░░░░░░░░` 56% | 18 |
-| Exfiltration (TA0010) | 6 / 9 | `█████████████░░░░░░░` 67% | 6 |
+| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 18 |
+| Exfiltration (TA0010) | 6 / 9 | `█████████████░░░░░░░` 67% | 7 |
 | Impact (TA0040) | 4 / 15 | `█████░░░░░░░░░░░░░░░` 27% | 5 |
 
 ## Priority techniques
@@ -122,7 +122,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, N09, W10 |
 | T1090.003 Multi-hop Proxy | Command and Control | N09, S07 |
 | T1567.002 Exfiltration to Cloud Storage | Exfiltration | N08 |
-| T1048 Exfiltration Over Alternative Protocol | Exfiltration | IN05, N08 |
+| T1048 Exfiltration Over Alternative Protocol | Exfiltration | CS03, IN05, N08 |
 | T1041 Exfiltration Over C2 Channel | Exfiltration | N08 |
 | T1052.001 Exfiltration over USB | Exfiltration | DV01, DV03, DV05 |
 | T1486 Data Encrypted for Impact | Impact | L10, X05 |
@@ -138,7 +138,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1595 Active Scanning | N06, N10 | T1595.001 Scanning IP Blocks (N10); T1595.002 Vulnerability Scanning (N06); T1595.003 Wordlist Scanning (N10) |
+| T1595 Active Scanning | N06, N10 | T1595.002 Vulnerability Scanning (N06, N10); T1595.003 Wordlist Scanning (N10) |
 
 ### Initial Access
 
@@ -307,7 +307,6 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1573 Encrypted Channel | B06, N09 | - |
 | T1571 Non-Standard Port | CS11, N07 | - |
 | T1219 Remote Access Tools | W10, X06 | - |
-| T1568 Dynamic Resolution | CS03 | T1568.002 Domain Generation Algorithms (CS03) |
 | T1095 Non-Application Layer Protocol | B06 | - |
 | T1205 Traffic Signaling | L09 | T1205.002 Socket Filters (L09) |
 
@@ -315,9 +314,9 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
+| T1048 Exfiltration Over Alternative Protocol | CS03, IN05, N08 | T1048.003 Exfiltration Over Unencrypted Non-C2 Protocol (CS03, IN05) |
 | T1052 Exfiltration Over Physical Medium | DV01, DV03, DV05 | T1052.001 Exfiltration over USB (DV01, DV03, DV05) |
 | T1567 Exfiltration Over Web Service | IN02, IN05, N08 | T1567.002 Exfiltration to Cloud Storage (N08) |
-| T1048 Exfiltration Over Alternative Protocol | IN05, N08 | T1048.003 Exfiltration Over Unencrypted Non-C2 Protocol (IN05) |
 | T1041 Exfiltration Over C2 Channel | N08 | - |
 | T1011 Exfiltration Over Other Network Medium | DV03 | - |
 | T1537 Transfer Data to Cloud Account | IN02 | - |
@@ -385,7 +384,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | L09 | Suspicious kernel module load or rootkit indicator | T1014, T1205.002, T1547.006 |
 | L10 | Rapid mass file modification consistent with encryption or wiping | T1485, T1486, T1490 |
 | L11 | PAM module or NSS configuration changed (authentication backdoor) | T1543, T1556.003 |
-| L12 | SSH fan-out from one host to many new internal hosts | T1021.004 |
+| L12 | SSH fan-out from one Linux host to many internal hosts | T1021.004 |
 | I01 | DCSync by a non-domain-controller principal | T1003.006 |
 | I02 | Membership change to a Tier-0 / privileged group | T1078.002, T1098 |
 | I03 | Kerberoasting: TGS requests with weak encryption at volume | T1558.003 |
@@ -407,11 +406,11 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | N06 | Imperva source heavily blocked then receives an application success | T1190, T1595.002 |
 | N07 | Zscaler blocked C2, malware callback or known-bad category from an endpoint | T1071.001, T1105, T1571 |
 | N08 | Zscaler large upload to a new or risky destination (possible exfiltration) | T1041, T1048, T1567.002 |
-| N09 | Zscaler anonymizer, tunnel or SSL-inspection bypass usage | T1090.003, T1572, T1573 |
-| N10 | External reconnaissance scan against the Imperva-protected web edge (one source, many URIs) | T1595.001, T1595.003 |
+| N09 | Zscaler anonymizer, proxy-avoidance, unsanctioned VPN or DNS-over-HTTPS use | T1090.003, T1572, T1573 |
+| N10 | External reconnaissance scan against the Imperva-protected web edge (one source, many URIs) | T1595.002, T1595.003 |
 | CS01 | Vulnerable or unsigned driver loaded (BYOVD) | T1068, T1211, T1685 |
 | CS02 | Persistence written to Run keys, Winlogon, IFEO or other ASEPs (not services) | T1546, T1547.001 |
-| CS03 | Suspicious DNS: C2 domains, DGA patterns or DNS tunneling | T1071.004, T1568.002, T1572 |
+| CS03 | DNS tunnelling - many long, distinct names under one parent domain from one host | T1048.003, T1071.004, T1572 |
 | CS04 | CrowdStrike Falcon platform detections (high/critical) as first-class alerts | (vendor alerts, various) |
 | CS05 | Falcon sensor uninstalled, stopped, or stopped reporting | T1070, T1685 |
 | CS06 | Process injection, hollowing or suspicious remote thread | T1055, T1055.012, T1620 |
@@ -420,7 +419,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS09 | Windows port forward created with netsh portproxy (traffic relayed through this host) | T1090.001, T1572 |
 | CS10 | Web server process connects to internal RDP, SMB, SSH, WinRM or RPC on a host it has never contacted (webshell tunnel or pivot) | T1021, T1090.001, T1505.003, T1572 |
 | CS11 | Program starts accepting connections from other internal hosts, new on this host and rare in the fleet (implant listener or pivot) | T1090.001, T1571, T1572 |
-| CS12 | Network scanner run (nmap, masscan, rustscan, zmap, Advanced IP Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan) | T1018, T1046 |
+| CS12 | Network scanner run (nmap, masscan, rustscan, zmap, naabu, Advanced IP/Port Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan) | T1018, T1046 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |
