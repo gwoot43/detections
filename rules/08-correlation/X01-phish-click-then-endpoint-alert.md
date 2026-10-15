@@ -55,6 +55,9 @@ FROM logs-mimecast.ttp_url_logs-*, logs-crowdstrike.alert-*
 | EVAL minutes_click_to_alert = DATE_DIFF("minute", first_click, last_alert)
 | KEEP usr, first_click, last_alert, minutes_click_to_alert, hosts, alert_names, alert_command_lines, click_urls, senders, clicks, alerts
 ```
+
+No LogScale version: the click half is Mimecast data, which isn't in Falcon, and without it the query only passes through Falcon's own detections, which Falcon already raises in the console.
+
 Run every 15 minutes. The 2-hour lookback is the correlation window: a click and a later alert for the same user anywhere in it pair up. There is no `BUCKET`, so a pair is never split across a bucket edge.
 
 Field notes:

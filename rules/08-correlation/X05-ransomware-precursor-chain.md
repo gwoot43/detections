@@ -42,6 +42,38 @@ FROM logs-crowdstrike.fdr-*
     BY host.id
 | WHERE stages >= 2
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 30 minutes:
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|DriverLoad)$/ event_platform=Win
+| case {
+    // defense_disable
+    CommandLine=/set-mppreference.*-disable/i CommandLine!=/\$false/i
+      | stage := "defense_disable";
+    FileName=/^(sc|net|net1)\.exe$/i CommandLine=/stop|disabled/i CommandLine=/windefend| sense|wdnissvc|csfalcon/i
+      | stage := "defense_disable";
+    #event_simpleName=DriverLoad ImageFileName=/\\temp\\/i
+      | stage := "defense_disable" | driver := ImageFileName;
+    // backup_destroy
+    FileName=/^vssadmin\.exe$/i CommandLine=/delete shadows|resize shadowstorage/i
+      | stage := "backup_destroy";
+    FileName=/^wmic\.exe$/i CommandLine=/shadowcopy.*delete/i
+      | stage := "backup_destroy";
+    FileName=/^wbadmin\.exe$/i CommandLine=/delete/i
+      | stage := "backup_destroy";
+    FileName=/^bcdedit\.exe$/i CommandLine=/recoveryenabled no|ignoreallfailures/i
+      | stage := "backup_destroy";
+    // impact_prep
+    FileName=/^cipher\.exe$/i CommandLine=/\/w/i
+      | stage := "impact_prep";
+  }
+| groupBy([aid], function=[count(stage, distinct=true, as=stages), collect([stage, CommandLine, driver, ComputerName, UserName]),
+                           min(@timestamp, as=first_seen), max(@timestamp, as=last_seen)], limit=max)
+| test(stages >= 2)
+| first_seen := formatTime(format="%F %T", field=first_seen, timezone="Australia/Sydney")
+| last_seen := formatTime(format="%F %T", field=last_seen, timezone="Australia/Sydney")
+```
+
 Run every 10 minutes. The 30-minute lookback is the window, so two stages anywhere in it pair up. There is no `BUCKET`, so a chain is never split across a bucket edge.
 
 Field notes:

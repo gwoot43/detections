@@ -32,6 +32,22 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR (pname == "reg.exe" AND cmd LIKE "*save*" AND (cmd LIKE """*hklm\\system*""" OR cmd LIKE """*hklm\\sam*""" OR cmd LIKE """*hklm\\security*"""))
 | KEEP @timestamp, host.name, user.name, process.parent.name, pname, process.command_line, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win ComputerName=/^dc|-dc/i
+| case {
+    FileName=/^ntdsutil\.exe$/i CommandLine=/ifm|create full|ac i ntds/i;
+    FileName=/^vssadmin\.exe$/i CommandLine=/create shadow/i;
+    FileName=/^diskshadow\.exe$/i CommandLine=/create|expose|\/s /i;
+    FileName=/^esentutl\.exe$/i CommandLine=/ntds/i;
+    FileName=/^(cmd|powershell|pwsh|robocopy|xcopy)\.exe$/i CommandLine=/ntds\.dit/i;
+    FileName=/^(cmd|powershell|pwsh|robocopy|xcopy|esentutl)\.exe$/i CommandLine=/harddiskvolumeshadowcopy/i;
+    FileName=/^reg\.exe$/i CommandLine=/save/i CommandLine=/hklm\\(system|sam|security)/i;
+  }
+| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+```
+
 Companion via the Security channel: 4656/4663 (object access) on the `ntds.dit` file by a process other than `lsass.exe` or the backup agent, if you audit that file's SACL.
 
 ## Suppression

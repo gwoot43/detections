@@ -55,6 +55,9 @@ FROM logs-o365.audit-*, logs-crowdstrike.fdr-*
 | EVAL minutes_contact_to_tool = DATE_DIFF("minute", first_contact, last_tool)
 | KEEP usr, first_contact, last_tool, minutes_contact_to_tool, external_senders, tools, hosts, command_lines
 ```
+
+No LogScale version: the rule fires only when a remote tool follows a Teams chat from another tenant, and Microsoft 365 audit data isn't in Falcon; the FDR half on its own is W10.
+
 Run every 15 minutes. The 2-hour lookback is the correlation window: the tool must start after the chat was created.
 
 How the user is found: when someone in another tenant starts the chat, the audit event's `user.*` is that outsider, and your user only appears as a chat member. The integration copies every member UPN into `related.user`, so the query expands that list and keeps the UPNs other than the creator's. This overlaps W10 on the endpoint side; the correlation raises its severity and confidence.

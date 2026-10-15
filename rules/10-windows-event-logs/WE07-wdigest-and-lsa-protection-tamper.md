@@ -42,6 +42,31 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
    OR k LIKE """*control\\lsa\\notification packages"""
 | KEEP @timestamp, host.name, user.name, k, num, v, process.name, process.command_line, _id, _version, _index
 ```
+
+**CrowdStrike (Falcon LogScale / Advanced Event Search)**
+```logscale
+#event_simpleName=/^(RegSystemConfigValueUpdate|AsepValueUpdate|RegGenericValueUpdate|RegistryOperationDetectInfo)$/ event_platform=Win
+// k = RegObjectName\RegValueName, or RegObjectName when there is no value name
+| case {
+    RegValueName=* | k := format("%s\\%s", field=[RegObjectName, RegValueName]);
+    * | k := RegObjectName;
+  }
+| k := lower(k)
+| case {
+    k=/securityproviders\\wdigest\\uselogoncredential$/ RegNumericValue=1;
+    k=/control\\lsa\\runasppl$/ RegNumericValue=0;
+    k=/control\\lsa\\lsacfgflags$/ RegNumericValue=0;
+    k=/deviceguard\\lsacfgflags$/ RegNumericValue=0;
+    k=/control\\lsa\\disablerestrictedadmin$/ RegNumericValue=0;
+    k=/control\\lsa\\dsrmadminlogonbehavior$/ RegNumericValue=2;
+    k=/control\\lsa\\security packages$/;
+    k=/control\\lsa\\osconfig\\security packages$/;
+    k=/control\\lsa\\authentication packages$/;
+    k=/control\\lsa\\notification packages$/;
+  }
+| table([@timestamp, aid, ComputerName, UserName, k, RegNumericValue, RegStringValue, ContextBaseFileName, CommandLine])
+```
+
 Value checks are exact, so a hardening write (for example `RunAsPPL` set to 1 by Group Policy) does not match. `crowdstrike.RegNumericValue` is not in the integration's predefined fields; the query fails with "Unknown column" until an FDR registry event carrying it has been indexed. Confirm the field name in your FDR data first.
 
 This is a registry rule, so it runs on FDR, not the Windows Security channel. It belongs with the credential-access group but is grouped here because it is the registry twin of the event-log credential signals.
