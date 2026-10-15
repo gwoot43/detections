@@ -48,11 +48,12 @@ FROM logs-crowdstrike.fdr-*
                                                           "nginx", "nginx.exe", "tomcat8.exe", "tomcat9.exe", "tomcat10.exe"])
 | in(field="RemotePort", values=["22", "135", "445", "3389", "5985", "5986"])
 | cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
-| groupBy([aid, ComputerName, ContextBaseFileName, RemoteAddressIP4, RemotePort], function=min(@timestamp, as=first_seen))
+| groupBy([aid, ContextBaseFileName, RemoteAddressIP4, RemotePort], function=[min(@timestamp, as=first_seen), collect([ComputerName])],
+          limit=max)
 | _now := now()
 | test(first_seen > _now - 7200000)
-| groupBy([aid, ComputerName, ContextBaseFileName], function=[count(RemoteAddressIP4, distinct=true, as=new_targets),
-                                                             collect([RemoteAddressIP4, RemotePort]), min(first_seen, as=first_seen)])
+| groupBy([aid, ContextBaseFileName], function=[count(RemoteAddressIP4, distinct=true, as=new_targets),
+                                              collect([ComputerName, RemoteAddressIP4, RemotePort]), min(first_seen, as=first_seen)])
 | first_seen := formatTime(format="%F %T", field=first_seen, timezone="Australia/Sydney")
 ```
 

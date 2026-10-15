@@ -50,7 +50,7 @@ FROM logs-crowdstrike.fdr-*
 | !in(field="LocalPort", values=["53", "80", "88", "135", "389", "443", "445", "636", "1433", "3268", "3269"])
 | pname := lower(ContextBaseFileName)
 | default(field=pname, value="unknown", replaceEmpty=true)
-| groupBy([pname, aid, ComputerName], function=[min(@timestamp, as=first_seen), collect([RemoteAddressIP4, LocalPort])])
+| groupBy([pname, aid], function=[min(@timestamp, as=first_seen), collect([ComputerName, RemoteAddressIP4, LocalPort])], limit=max)
 | groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
                              collect([ComputerName, RemoteAddressIP4, LocalPort])])
 | _now := now()

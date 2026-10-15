@@ -11,8 +11,7 @@ Design constraints for this folder:
 
 | Rule | Behaviour | Tools it catches by behaviour |
 |---|---|---|
-| B01 | One host connects to many hosts | nmap, masscan, rustscan, custom scanners |
-| B02 | One host sweeps many ports on one target | any port scanner |
+| B01 | One process probes many internal host:port endpoints (horizontal, vertical or mixed scan) | nmap, masscan, rustscan, custom scanners, when they open normal connections (raw-packet scans: CS12) |
 | B04 | Fan-out on remote-admin ports (SMB/RPC, WinRM, RDP), or LDAP fan-out to several domain controllers | CrackMapExec/NetExec, Impacket, PsExec loops, BloodHound/SharpHound, ADExplorer |
 | B05 | One account authenticates to many hosts | pass-the-hash tooling, credential-spray lateral movement |
 | B06 | Regular outbound callbacks to one destination | Cobalt Strike, Sliver, Mythic, Havoc beacons |

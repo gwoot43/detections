@@ -104,6 +104,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS09** Windows port forward created with netsh portproxy _(P1)_ · `suppress: host.id / 1h`
 - [ ] **CS10** Web server process reaches a new internal admin port (webshell tunnel or pivot) _(P1)_ · `suppress: host.id, process.name / 24h`
 - [ ] **CS11** Rare program starts accepting connections from internal hosts (implant listener or pivot) _(P2)_ · `suppress: host.id, pname / 24h`
+- [ ] **CS12** Network scanner tool run (nmap, masscan, Advanced IP Scanner, NetScan...) _(P1)_ · `suppress: host.id, process.executable / 1h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
@@ -182,8 +183,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 
 
 ## Behaviour-based (rules/11-behaviour) — tune thresholds on 2 weeks of data
-- [ ] **B01** Horizontal network scan _(high)_ · `suppress: host.id, process.name / 1h`
-- [ ] **B02** Vertical port scan _(medium)_ · `suppress: host.id, destination.ip / 1h`
+- [ ] **B01** Internal network or port scan (host:port endpoints, replaces B02) _(high)_ · `suppress: host.id, process.name / 1h`
 - [ ] **B04** Lateral sweep over SMB/RPC/RDP/WinRM, or LDAP fan-out to several DCs (SharpHound, PsExec, CrackMapExec) _(high/medium)_ · `suppress: host.id, process.name, severity / 2h`
 - [ ] **B05** Network logon sweep (one account, many hosts) _(high)_ · `suppress: acct / 2h`
 - [ ] **B06** C2 beaconing (regular cadence) _(high)_ · `suppress: host.id, process.name, destination.ip / 24h`

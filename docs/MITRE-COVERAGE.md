@@ -103,7 +103,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1539 Steal Web Session Cookie | Credential Access | B08, S08, S23 |
 | T1087.002 Domain Account | Discovery | B04, W09 |
 | T1482 Domain Trust Discovery | Discovery | B09, W09 |
-| T1018 Remote System Discovery | Discovery | B01, B04, D04, W09 |
+| T1018 Remote System Discovery | Discovery | B01, B04, CS12, D04, W09 |
 | T1069.002 Domain Groups | Discovery | B04, B09, W09 |
 | T1083 File and Directory Discovery | Discovery | D03, IN09 |
 | T1082 System Information Discovery | Discovery | B09 |
@@ -259,9 +259,9 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
 | T1087 Account Discovery | B04, B09, IN07, S04, S21, W09 | T1087.002 Domain Account (B04, W09); T1087.004 Cloud Account (S04, S21) |
+| T1018 Remote System Discovery | B01, B04, CS12, D04, W09 | - |
 | T1069 Permission Groups Discovery | B04, B09, S21, W09 | T1069.002 Domain Groups (B04, B09, W09); T1069.003 Cloud Groups (S21) |
-| T1018 Remote System Discovery | B01, B04, D04, W09 | - |
-| T1046 Network Service Discovery | B01, B02, D04 | - |
+| T1046 Network Service Discovery | B01, CS12, D04 | - |
 | T1526 Cloud Service Discovery | S04, S21 | - |
 | T1482 Domain Trust Discovery | B09, W09 | - |
 | T1083 File and Directory Discovery | D03, IN09 | - |
@@ -420,6 +420,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS09 | Windows port forward created with netsh portproxy (traffic relayed through this host) | T1090.001, T1572 |
 | CS10 | Web server process connects to internal RDP, SMB, SSH, WinRM or RPC on a host it has never contacted (webshell tunnel or pivot) | T1021, T1090.001, T1505.003, T1572 |
 | CS11 | Program starts accepting connections from other internal hosts, new on this host and rare in the fleet (implant listener or pivot) | T1090.001, T1571, T1572 |
+| CS12 | Network scanner run (nmap, masscan, rustscan, zmap, Advanced IP Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan) | T1018, T1046 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |
@@ -464,8 +465,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | WE13 | Domain controller machine account authenticating with NTLM to a non-DC or from an unexpected IP | T1187, T1557.001 |
 | WE14 | Admin share or remote management pipe accessed from a workstation | T1021.002, T1053.005, T1569.002 |
 | WE15 | RDP logon from one workstation to another | T1021.001 |
-| B01 | Horizontal network scan - catches nmap, masscan, rustscan by behaviour | T1018, T1046 |
-| B02 | Vertical port scan - catches nmap and other port scanners by behaviour | T1046 |
+| B01 | Internal network or port scan - one process probes many internal host:port endpoints | T1018, T1046 |
 | B04 | Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (catches by behaviour: SharpHound/BloodHound collection, PsExec/Impacket sweeps, CrackMapExec/NetExec) | T1018, T1021, T1049, T1069.002, T1087.002, T1570 |
 | B05 | Network logon sweep - catches CrackMapExec, NetExec and pass-the-hash lateral movement by behaviour | T1021.002, T1078, T1550.002 |
 | B06 | C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour | T1071.001, T1095, T1573 |

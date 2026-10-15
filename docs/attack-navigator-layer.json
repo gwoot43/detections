@@ -93,8 +93,8 @@
   },
   {
    "techniqueID": "T1018",
-   "score": 4,
-   "comment": "B01, B04, D04, W09",
+   "score": 5,
+   "comment": "B01, B04, CS12, D04, W09",
    "enabled": true,
    "showSubtechniques": true
   },
@@ -171,7 +171,7 @@
   {
    "techniqueID": "T1046",
    "score": 3,
-   "comment": "B01, B02, D04",
+   "comment": "B01, CS12, D04",
    "enabled": true,
    "showSubtechniques": true
   },
