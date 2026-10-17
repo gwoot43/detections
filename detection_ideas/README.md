@@ -2,6 +2,8 @@
 
 Copies of the library's C2 and tunnelling detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.
 
+[SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with severity, schedule, suppression and ATT&CK.
+
 | File | Detection | Group | Original |
 |---|---|---|---|
 | [B06](B06-c2-beaconing.md) | C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour | C2 | `rules/11-behaviour/B06-c2-beaconing.md` |
