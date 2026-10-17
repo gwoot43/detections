@@ -18,10 +18,11 @@ suppression:
 
 The rule has one anchor and one corroborating property, not a list of command variants. The anchor is `tunnel` as an argument of its own. Every tunnel action passes it, including the persistent service (`--cli-data-dir <dir> tunnel service internal-run`). It must come with one of:
 - `--accept-server-license-terms`, which unattended starts need;
+- `--cli-data-dir`, which the persistent service always passes;
 - a binary named `code*` (`code.exe`, `code-tunnel.exe`, `code-insiders.exe`, `code` on Linux);
 - an executable in a staging folder: `ProgramData`, `Users\Public` or `Windows\Debug`.
 
-One exclusion: the desktop app runs `code-tunnel.exe tunnel status` on its own. This is the shape of Elastic's prebuilt rule "Attempt to Establish VScode Remote Tunnel". It's adapted to FDR: `tunnel` is matched as a whole word in the command line, and the name test also covers Linux.
+One exclusion: the desktop app runs `code-tunnel.exe tunnel status` on its own. This is the shape of Elastic's prebuilt rule "Attempt to Establish VScode Remote Tunnel". It's adapted to FDR: `tunnel` is matched as a whole word in the command line, the name test also covers Linux, and `--cli-data-dir` stands in for Elastic's signer test, which FDR can't do. That keeps a renamed CLI installed as a service alerting at every logon.
 
 ## Query
 ```esql
@@ -30,7 +31,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),
        exe = TO_LOWER(COALESCE(process.executable, "")), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 | WHERE cmd RLIKE ".* tunnel( .*)?"
-  AND (cmd LIKE "*--accept-server-license-terms*"
+  AND (cmd LIKE "*--accept-server-license-terms*" OR cmd LIKE "*--cli-data-dir*"
        OR pname LIKE "code*"
        // FDR paths start \Device\HarddiskVolumeN\, so match from the folder down
        OR exe LIKE """*\\programdata\\*""" OR exe LIKE """*\\users\\public\\*""" OR exe LIKE """*\\windows\\debug\\*""")
@@ -47,7 +48,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
 | CommandLine=/ tunnel( |$)/i
 | case {
-    CommandLine=/--accept-server-license-terms/i;
+    CommandLine=/--accept-server-license-terms|--cli-data-dir/i;
     FileName=/^code/i;
     ImageFileName=/\\(programdata|users\\public|windows\\debug)\\/i;
   }
@@ -65,7 +66,7 @@ Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. On
 - Another tool that takes `tunnel` as an argument (`cloudflared tunnel`) only matches when it runs from a staging folder. That's still a tunnel worth the alert.
 
 ## Blind spot
-Elastic's rule also matches a renamed CLI by its Microsoft signature. FDR process events carry no signer name, so a renamed CLI run outside the staging folders without the licence flag isn't matched. On its first run from a script the CLI needs the flag, so a fresh, unattended install is still caught. The Zscaler view of the relay domains (fixed-detections 01 After A) still sees the tunnel itself.
+Elastic's rule also matches a renamed CLI by its Microsoft signature. FDR process events carry no signer name, so a renamed CLI started by hand outside the staging folders, without the licence flag, isn't matched. On its first run from a script the CLI needs the flag, and once installed as a service it always passes `--cli-data-dir`, so unattended and persistent tunnels are still caught. The Zscaler view of the relay domains (fixed-detections 01 After A) still sees the tunnel itself.
 
 ## Triage
 - Read the command line. `--name` is the tunnel's name (reachable at `vscode.dev/tunnel/<name>`) and `--provider` is `github` or `microsoft`. `user login --access-token <token>` puts a live token in the command line and in your logs: revoke it.

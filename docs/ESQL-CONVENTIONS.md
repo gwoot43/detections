@@ -78,7 +78,7 @@ CS13 is the same rule on FDR. The translation:
 | `process.args : "tunnel"` | `cmd RLIKE ".* tunnel( .*)?"`. ES\|QL comparisons return null on multivalue fields, so test the word in the command line | `CommandLine=/ tunnel( \|$)/i` |
 | `process.name : "code*.exe"` | `pname LIKE "code*"` | `FileName=/^code/i` |
 | `process.executable : (...)` | `exe LIKE """*\\programdata\\*"""`. FDR paths start `\Device\HarddiskVolumeN\`, so match from the folder down | `ImageFileName=/\\programdata\\/i` |
-| `code_signature.subject_name` | Not in FDR process events. Say so in the rule's blind spot | Same |
+| `code_signature.subject_name` | Not in FDR process events. CS13 uses `--cli-data-dir` instead, which the persistent service always passes, and says what's left in its blind spot | `CommandLine=/--cli-data-dir/i` |
 | `a or b or c` | `(a OR b OR c)` | A `case {}` with filter-only branches: an event passes if any branch matches |
 | `not (...)` | `AND NOT (...)` | `NOT (... AND ...)` |
 
