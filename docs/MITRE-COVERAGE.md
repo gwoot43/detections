@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v19.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**176 rules · 102 techniques covered** (189 technique and sub-technique IDs).
+**177 rules · 102 techniques covered** (189 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -24,9 +24,9 @@ flowchart LR
   T7["Defense Impairment<br/>8/14 techniques · 35 rules"]:::high
   T8["Credential Access<br/>12/17 techniques · 56 rules"]:::high
   T9["Discovery<br/>14/34 techniques · 12 rules"]:::high
-  T10["Lateral Movement<br/>6/9 techniques · 28 rules"]:::high
+  T10["Lateral Movement<br/>6/9 techniques · 29 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
-  T12["Command and Control<br/>9/18 techniques · 21 rules"]:::high
+  T12["Command and Control<br/>9/18 techniques · 22 rules"]:::high
   T13["Exfiltration<br/>6/9 techniques · 7 rules"]:::high
   T14["Impact<br/>4/15 techniques · 5 rules"]:::mid
   T0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8 --> T9 --> T10 --> T11 --> T12 --> T13 --> T14
@@ -52,9 +52,9 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Defense Impairment (TA0112) | 8 / 14 | `███████████░░░░░░░░░` 57% | 35 |
 | Credential Access (TA0006) | 12 / 17 | `██████████████░░░░░░` 71% | 56 |
 | Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 12 |
-| Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 28 |
+| Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 29 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
-| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 21 |
+| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 22 |
 | Exfiltration (TA0010) | 6 / 9 | `█████████████░░░░░░░` 67% | 7 |
 | Impact (TA0040) | 4 / 15 | `█████░░░░░░░░░░░░░░░` 27% | 5 |
 
@@ -107,7 +107,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1069.002 Domain Groups | Discovery | B04, B09, W09 |
 | T1083 File and Directory Discovery | Discovery | D03, IN09 |
 | T1082 System Information Discovery | Discovery | B09 |
-| T1021.001 Remote Desktop Protocol | Lateral Movement | W07, WE15 |
+| T1021.001 Remote Desktop Protocol | Lateral Movement | CS15, W07, WE15 |
 | T1021.002 SMB/Windows Admin Shares | Lateral Movement | B05, W08, WE14 |
 | T1021.006 Windows Remote Management | Lateral Movement | W08 |
 | T1570 Lateral Tool Transfer | Lateral Movement | B04 |
@@ -119,7 +119,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1071.001 Web Protocols | Command and Control | B06, B10, N07 |
 | T1105 Ingress Tool Transfer | Command and Control | L02, N07, W03, W04, W10 |
 | T1219 Remote Access Tools | Command and Control | CS13, W10, X06 |
-| T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, CS13, CS14, N09, W10 |
+| T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, CS13, CS14, CS15, N09, W10 |
 | T1090.003 Multi-hop Proxy | Command and Control | N09, S07 |
 | T1567.002 Exfiltration to Cloud Storage | Exfiltration | N08 |
 | T1048 Exfiltration Over Alternative Protocol | Exfiltration | CS03, IN05, N08 |
@@ -277,8 +277,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
+| T1021 Remote Services | B04, B05, C07, CS10, CS15, D04, I06, L12, W07, W08, WE14, WE15, X03 | T1021.001 Remote Desktop Protocol (CS15, W07, WE15); T1021.002 SMB/Windows Admin Shares (B05, W08, WE14); T1021.003 Distributed Component Object Model (W08); T1021.004 SSH (CS15, L12); T1021.006 Windows Remote Management (W08); T1021.008 Direct Cloud VM Connections (C07) |
 | T1550 Use Alternate Authentication Material | B05, C04, CP01, I07, S07, S08, S17, S19, S20, S22, S23, WE04, WE12 | T1550.001 Application Access Token (C04, I07, S07, S19, S20, S22, S23); T1550.002 Pass the Hash (B05, WE04, WE12); T1550.004 Web Session Cookie (S08) |
-| T1021 Remote Services | B04, B05, C07, CS10, D04, I06, L12, W07, W08, WE14, WE15, X03 | T1021.001 Remote Desktop Protocol (W07, WE15); T1021.002 SMB/Windows Admin Shares (B05, W08, WE14); T1021.003 Distributed Component Object Model (W08); T1021.004 SSH (L12); T1021.006 Windows Remote Management (W08); T1021.008 Direct Cloud VM Connections (C07) |
 | T1534 Internal Spearphishing | E03, E09 | - |
 | T1570 Lateral Tool Transfer | B04 | - |
 | T1563 Remote Service Session Hijacking | AD13 | T1563.002 RDP Hijacking (AD13) |
@@ -300,8 +300,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
+| T1572 Protocol Tunneling | CS03, CS09, CS10, CS11, CS13, CS14, CS15, N09, W10 | - |
 | T1090 Proxy | CS09, CS10, CS11, CS14, N09, S07, S14, S15, W10 | T1090.001 Internal Proxy (CS09, CS10, CS11); T1090.002 External Proxy (CS14, S14, S15); T1090.003 Multi-hop Proxy (N09, S07) |
-| T1572 Protocol Tunneling | CS03, CS09, CS10, CS11, CS13, CS14, N09, W10 | - |
 | T1071 Application Layer Protocol | B06, B10, CS03, L01, N07, WE10 | T1071.001 Web Protocols (B06, B10, N07); T1071.004 DNS (CS03) |
 | T1105 Ingress Tool Transfer | L02, N07, W03, W04, W10 | - |
 | T1219 Remote Access Tools | CS13, W10, X06 | T1219.001 IDE Tunneling (CS13) |
@@ -422,6 +422,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS12 | Network scanner run (nmap, masscan, rustscan, zmap, naabu, Advanced IP/Port Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan) | T1018, T1046 |
 | CS13 | VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access) | T1219.001, T1572 |
 | CS14 | Tunnel service agent running on an endpoint (Cloudflare, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore and others) | T1090.002, T1572 |
+| CS15 | RDP or SSH reached from the host itself (traffic relayed in by a tunnel, whatever it's called) | T1021.001, T1021.004, T1572 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |
