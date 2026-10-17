@@ -87,6 +87,16 @@ B10 has the same shape with no command lines at all:
 - **Corroborating property:** sustained presence, 72 five-minute slots spread over at least 12 different hours. A browser tab polls just as steadily, but only while it's open, so the hours separate the two where request rate can't.
 - **Exclusion:** rarity (three users or fewer reach the domain at all) instead of a domain allowlist.
 
+### Checklist for a new or reworked rule (B10 is the reference)
+Not every detection can meet all of these, but aim for them, and say in the rule which ones it can't meet and why.
+1. **One goal**, stated in one sentence under "Why this is high fidelity".
+2. **A cheap anchor first:** a filter that cuts the volume before any aggregation.
+3. **Measure the behaviour, not strings:** count what the attacker can't avoid doing (hours of presence, fan-out, first seen), in one aggregation per entity.
+4. **Thresholds that split the behaviour from its nearest look-alike**, checked against a known true positive and the real false positives. Don't tune a rate to one sample.
+5. **Rarity instead of allowlists**, counted across everyone before the behaviour checks.
+6. **Few exclusions**, each one precise clause with a comment saying why, written so a missing field doesn't drop the row (`COALESCE`, `IS NULL OR`).
+7. **Output that answers the first triage questions** without another search.
+
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
 ES|QL has **no SQL-style subqueries**. There is no `WHERE host.name IN (SELECT ...)`. Cross-dataset correlation uses one of two commands, both of which join on a **key, not a time window**.
