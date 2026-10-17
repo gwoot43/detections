@@ -420,7 +420,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS10 | Web server process connects to internal RDP, SMB, SSH, WinRM or RPC on a host it has never contacted (webshell tunnel or pivot) | T1021, T1090.001, T1505.003, T1572 |
 | CS11 | Program starts accepting connections from other internal hosts, new on this host and rare in the fleet (implant listener or pivot) | T1090.001, T1571, T1572 |
 | CS12 | Network scanner run (nmap, masscan, rustscan, zmap, naabu, Advanced IP/Port Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan) | T1018, T1046 |
-| CS13 | VS Code or dev tunnel opened on an endpoint (code tunnel, Remote Tunnel Access, devtunnel host) | T1219.001, T1572 |
+| CS13 | VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access) | T1219.001, T1572 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |

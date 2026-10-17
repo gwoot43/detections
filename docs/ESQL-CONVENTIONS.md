@@ -52,6 +52,36 @@ If you remove `METADATA` from a non-aggregating rule, the query still runs in Di
 
 Rules built on CrowdStrike FDR also include the same detection as a Falcon LogScale query (Advanced Event Search or Next-Gen SIEM), in a `logscale` block under the ES|QL one, so it can be run or scheduled in the Falcon console. It uses the raw Falcon field names (`#event_simpleName`, `ContextBaseFileName`, `RemoteAddressIP4`, `CommandLine`) rather than the ECS names the Elastic integration maps them to. Where ES|QL uses a feature LogScale lacks, such as `INLINE STATS`, the rule says how the LogScale version differs.
 
+## Detection shape: anchor, corroborate, exclude
+
+Don't build a rule from a long list of command-line variants. Each list misses the next variant and keeps growing. Build it from three parts:
+1. **An anchor**: something every variant of the behaviour must do, such as an argument, a parent or a destination.
+2. **One corroborating property** that makes it this tool or this risk: a flag it needs, its name, its signer or where it runs from. Any one of them is enough.
+3. **A precise exclusion** for the known benign case, written as one clause rather than a list.
+
+The model is Elastic's prebuilt rule for VS Code tunnels:
+```eql
+process where host.os.type == "windows" and event.type == "start" and
+  process.args : "tunnel" and
+  (process.args : "--accept-server-license-terms" or
+   process.name : "code*.exe" or
+   ?process.code_signature.subject_name : "Microsoft Corporation" or
+   process.executable : ("?:\\ProgramData\\*", "?:\\Users\\Public\\*", "?:\\windows\\debug\\*",
+                         "\\Device\\HarddiskVolume*\\Users\\Public\\*", "\\Device\\HarddiskVolume*\\ProgramData\\*",  "\\Device\\HarddiskVolume*\\windows\\debug\\*")) and
+  not (process.name == "code-tunnel.exe" and process.args == "status" and process.parent.name == "Code.exe")
+```
+
+CS13 is the same rule on FDR. The translation:
+
+| EQL | ES\|QL on FDR | LogScale |
+|---|---|---|
+| `process.args : "tunnel"` | `cmd RLIKE ".* tunnel( .*)?"`. ES\|QL comparisons return null on multivalue fields, so test the word in the command line | `CommandLine=/ tunnel( \|$)/i` |
+| `process.name : "code*.exe"` | `pname LIKE "code*"` | `FileName=/^code/i` |
+| `process.executable : (...)` | `exe LIKE """*\\programdata\\*"""`. FDR paths start `\Device\HarddiskVolumeN\`, so match from the folder down | `ImageFileName=/\\programdata\\/i` |
+| `code_signature.subject_name` | Not in FDR process events. Say so in the rule's blind spot | Same |
+| `a or b or c` | `(a OR b OR c)` | A `case {}` with filter-only branches: an event passes if any branch matches |
+| `not (...)` | `AND NOT (...)` | `NOT (... AND ...)` |
+
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
 ES|QL has **no SQL-style subqueries**. There is no `WHERE host.name IN (SELECT ...)`. Cross-dataset correlation uses one of two commands, both of which join on a **key, not a time window**.

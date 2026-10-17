@@ -116,7 +116,7 @@ Suppress by `host.id`, `finding` for 24h.
 
 - **No `NOT user.name:*$` filter.** Falcon generally records SYSTEM processes under the machine account, so that filter hides tunnels started from a service or scheduled task.
 - **ssh flags are matched on the original-case command line.** `-R` (reverse) and `-D` (SOCKS) are what tunnels use. Lower-case `-l` (login name) and `-L` (local forward, common for developers reaching databases) are deliberately not matched.
-- **VS Code and dev tunnels are library rule CS13**, which matches the CLI's own tunnel arguments whatever the binary is called. The earlier branch here matched `code-tunnel.exe` with any `tunnel` argument, which fires on the `code-tunnel.exe tunnel status` check the VS Code desktop app runs routinely.
+- **VS Code tunnels are library rule CS13** and `devtunnel.exe` is W10. CS13 anchors on the `tunnel` argument and needs the licence flag, a `code*` name or a staging folder with it. The earlier branch here matched `code-tunnel.exe` with any `tunnel` argument, which fires on the `code-tunnel.exe tunnel status` check the VS Code desktop app runs routinely.
 - **The ngrok-style pattern** catches a renamed binary run as `<anything> tcp 3389`, `<anything> http localhost:8080` or `<anything> tcp 10.0.0.5:3389`. If one of your internal tools uses that argument shape, exclude it by `pname`.
 
 ## Before vs after
@@ -127,7 +127,7 @@ Suppress by `host.id`, `finding` for 24h.
 | Tunnel services | 3 | 12, plus "visited a tunnel-hosted site" |
 | cloudflared over QUIC | Missed | Caught on the endpoint (port 7844) |
 | Renamed agent binary | Missed | Caught by command-line shape |
-| `code tunnel` / dev tunnels | Missed | Caught (Zscaler here, Falcon in library rule CS13) |
+| `code tunnel` / dev tunnels | Missed | Caught (Zscaler here; Falcon in library rules CS13 and W10) |
 | Process in the alert | No | Yes (After B) |
 | Duplicate rules | Two near-identical copies | One per data source |
 
