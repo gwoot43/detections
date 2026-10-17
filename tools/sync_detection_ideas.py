@@ -32,6 +32,7 @@ SOURCES = [
     ("Tunnelling", "rules/07-crowdstrike-fdr/CS10-web-server-new-internal-admin-connection.md"),
     ("Tunnelling", "rules/07-crowdstrike-fdr/CS11-rare-program-accepting-internal-connections.md"),
     ("Tunnelling", "rules/07-crowdstrike-fdr/CS13-vscode-tunnel.md"),
+    ("Tunnelling", "rules/07-crowdstrike-fdr/CS14-tunnel-service-agent.md"),
     ("Tunnelling", "rules/06-network/N09-zscaler-tunnel-and-policy-evasion.md"),
     ("Tunnelling", "rules/03-endpoint-windows/W10-unauthorised-rmm-or-tunnel.md"),
     ("Tunnelling", "fixed-detections/01-tunnel-service-connection.md"),

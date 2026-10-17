@@ -106,6 +106,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS11** Rare program starts accepting connections from internal hosts (implant listener or pivot) _(P2)_ · `suppress: host.id, pname / 24h`
 - [ ] **CS12** Network scanner tool run (nmap, masscan, Advanced IP Scanner, NetScan...) _(P1)_ · `suppress: host.id, process.executable / 1h`
 - [ ] **CS13** VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access) _(P1)_ · `suppress: host.id / 24h`
+- [ ] **CS14** Tunnel service agent running on an endpoint (Cloudflare 7844, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore) _(P1)_ · `suppress: host.id, service / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)

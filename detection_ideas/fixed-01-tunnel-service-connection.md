@@ -36,8 +36,8 @@ FROM logs-yourorg-zscaler*                       // the index your current KQL r
 | EVAL service = CASE(
     d IN ("api.trycloudflare.com", "update.argotunnel.com", "cftunnel.com")
       OR ENDS_WITH(d, ".argotunnel.com") OR ENDS_WITH(d, ".cftunnel.com"), "cloudflare tunnel agent",
-    d IN ("connect.ngrok-agent.com", "tunnel.ngrok.com")
-      OR ENDS_WITH(d, ".connect.ngrok-agent.com") OR ENDS_WITH(d, ".tunnel.ngrok.com"), "ngrok agent",
+    d == "ngrok-agent.com" OR ENDS_WITH(d, ".ngrok-agent.com")
+      OR (STARTS_WITH(d, "tunnel.") AND ENDS_WITH(d, ".ngrok.com")), "ngrok agent",
     d == "global.rel.tunnels.api.visualstudio.com"
       OR ENDS_WITH(d, ".rel.tunnels.api.visualstudio.com"), "microsoft dev tunnel host (code tunnel)",
     d IN ("opentunnel.xyz", "service.tunnelmole.com", "localhost.run", "admin.localhost.run", "serveo.net",
@@ -64,17 +64,13 @@ If you'd rather keep a KQL rule, the minimal fix to copy 2 is: delete copy 1, re
 
 ```esql
 FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
-// Anchor: process starts and outbound connections on the endpoint.
-| WHERE event.action IN ("processrollup2", "networkconnectip4")
+// Anchor: process starts on the endpoint. Connections to tunnel relays (Cloudflare's port 7844 and others) are CS14.
+| WHERE event.action == "processrollup2"
 | EVAL raw = COALESCE(process.command_line, ""),
        cmd = TO_LOWER(raw),
        pname = MV_LAST(SPLIT(MV_LAST(SPLIT(TO_LOWER(COALESCE(process.executable, "")), "\\")), "/"))
 // Each branch is the shape of one tunnel tool, matched whatever the binary is called. The label says which.
 | EVAL finding = CASE(
-    // cloudflared's default QUIC transport, which never reaches the web proxy
-    event.action == "networkconnectip4" AND destination.port == 7844
-      AND NOT CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"),
-      "cloudflare tunnel edge connection (port 7844)",
     event.action == "processrollup2" AND cmd LIKE "* tunnel*"
       AND (cmd LIKE "*--url*" OR cmd LIKE "* run*" OR cmd LIKE "*--token*"),
       "cloudflared-style tunnel started",
@@ -91,44 +87,37 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     NULL)
 | WHERE finding IS NOT NULL
 | KEEP @timestamp, host.id, host.name, user.name, finding, process.executable, process.command_line,
-       destination.ip, destination.port, data.ContextBaseFileName, data.ParentBaseFileName, _id, _version, _index
+       data.ParentBaseFileName, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
-#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|NetworkConnectIP4)$/
+#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
 | cmd := lower(CommandLine)
 | regex("(?<pname>[^\\\\/]*)$", field=ImageFileName, strict=false)
 | pname := lower(pname)
 // Each branch is the shape of one tunnel tool, matched whatever the binary is called. The label says which.
 | case {
-    // cloudflared's default QUIC transport, which never reaches the web proxy
-    #event_simpleName=NetworkConnectIP4 RemotePort=7844
-      !cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
-      | finding := "cloudflare tunnel edge connection (port 7844)";
-    #event_simpleName=/ProcessRollup2$/
-      | case {
-          cmd=/ tunnel/ cmd=/--url| run|--token/
-            | finding := "cloudflared-style tunnel started";
-          // "<anything> tcp 3389" or "<anything> http localhost:8080": the ngrok argument shape
-          cmd=/ (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( |$)/
-            | finding := "ngrok-style tunnel started (any binary name)";
-          cmd=/ client / cmd=/ r:/
-            | finding := "chisel-style reverse tunnel";
-          cmd=/ server / cmd=/--reverse/
-            | finding := "chisel-style reverse tunnel";
-          // original case: -R (reverse) and -D (socks), not -L or -l
-          in(field="pname", values=["plink.exe", "plink", "ssh.exe", "ssh"]) CommandLine=/ -R| -D/
-            | finding := "ssh or plink reverse / socks tunnel";
-        };
+    cmd=/ tunnel/ cmd=/--url| run|--token/
+      | finding := "cloudflared-style tunnel started";
+    // "<anything> tcp 3389" or "<anything> http localhost:8080": the ngrok argument shape
+    cmd=/ (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( |$)/
+      | finding := "ngrok-style tunnel started (any binary name)";
+    cmd=/ client / cmd=/ r:/
+      | finding := "chisel-style reverse tunnel";
+    cmd=/ server / cmd=/--reverse/
+      | finding := "chisel-style reverse tunnel";
+    // original case: -R (reverse) and -D (socks), not -L or -l
+    in(field="pname", values=["plink.exe", "plink", "ssh.exe", "ssh"]) CommandLine=/ -R| -D/
+      | finding := "ssh or plink reverse / socks tunnel";
   }
-| table([@timestamp, aid, ComputerName, UserName, finding, ImageFileName, CommandLine,
-         RemoteAddressIP4, RemotePort, ContextBaseFileName, ParentBaseFileName])
+| table([@timestamp, aid, ComputerName, UserName, finding, ImageFileName, CommandLine, ParentBaseFileName])
 ```
 Suppress by `host.id`, `finding` for 24h.
 
 - **No `NOT user.name:*$` filter.** Falcon generally records SYSTEM processes under the machine account, so that filter hides tunnels started from a service or scheduled task.
 - **ssh flags are matched on the original-case command line.** `-R` (reverse) and `-D` (SOCKS) are what tunnels use. Lower-case `-l` (login name) and `-L` (local forward, common for developers reaching databases) are deliberately not matched.
+- **Connections to tunnel relays are library rule CS14**: Cloudflare's port 7844 (its default QUIC transport never reaches the web proxy), and the fixed ports and agent hosts of ngrok, Tailscale, ZeroTier, the SSH tunnel services and bore. This rule keeps the command-line shapes.
 - **VS Code tunnels are library rule CS13** and `devtunnel.exe` is W10. CS13 anchors on the `tunnel` argument and needs the licence flag, a `code*` name or a staging folder with it. The earlier branch here matched `code-tunnel.exe` with any `tunnel` argument, which fires on the `code-tunnel.exe tunnel status` check the VS Code desktop app runs routinely.
 - **The ngrok-style pattern** catches a renamed binary run as `<anything> tcp 3389`, `<anything> http localhost:8080` or `<anything> tcp 10.0.0.5:3389`. If one of your internal tools uses that argument shape, exclude it by `pname`.
 
@@ -138,7 +127,7 @@ Suppress by `host.id`, `finding` for 24h.
 |---|---|---|
 | Can fire | Copy 2 only | Yes |
 | Tunnel services | 3 | 12, plus "visited a tunnel-hosted site" |
-| cloudflared over QUIC | Missed | Caught on the endpoint (port 7844) |
+| cloudflared over QUIC | Missed | Caught on the endpoint (port 7844, library rule CS14) |
 | Renamed agent binary | Missed | Caught by command-line shape |
 | `code tunnel` / dev tunnels | Missed | Caught (Zscaler here; Falcon in library rules CS13 and W10) |
 | Process in the alert | No | Yes (After B) |
