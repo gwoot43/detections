@@ -82,6 +82,11 @@ CS13 is the same rule on FDR. The translation:
 | `a or b or c` | `(a OR b OR c)` | A `case {}` with filter-only branches: an event passes if any branch matches |
 | `not (...)` | `AND NOT (...)` | `NOT (... AND ...)` |
 
+B10 has the same shape with no command lines at all:
+- **Anchor:** allowed Zscaler traffic to domains with no reputation.
+- **Corroborating property:** steady presence, in 72 of the 96 five-minute slots in 8 hours.
+- **Exclusion:** rarity (three users or fewer) instead of a domain allowlist.
+
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
 ES|QL has **no SQL-style subqueries**. There is no `WHERE host.name IN (SELECT ...)`. Cross-dataset correlation uses one of two commands, both of which join on a **key, not a time window**.

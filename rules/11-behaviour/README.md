@@ -18,3 +18,4 @@ Design constraints for this folder:
 | B07 | One process reads very many files fast | TruffleHog, gitleaks, data collection, stealers |
 | B08 | One process reads many credential stores | LaZagne, infostealers, secret scanners |
 | B09 | Burst of distinct discovery commands; high when it includes domain enumeration (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) | post-exploitation orientation, loaders, operators enumerating the domain |
+| B10 | Steady callbacks from one to three users to an uncategorised or newly registered domain (Zscaler) | HTTP(S) C2 on fresh domains, whatever the implant, including devices without Falcon |

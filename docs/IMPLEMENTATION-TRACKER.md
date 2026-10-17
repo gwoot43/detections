@@ -191,6 +191,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **B07** Mass file read / collection _(medium)_ · `suppress: host.id, process.entity_id / 1h`
 - [ ] **B08** Credential store harvesting _(high)_ · `suppress: host.id, process.entity_id / 2h`
 - [ ] **B09** Discovery command burst, high with domain-enumeration arguments _(high/medium)_ · `suppress: host.id, user.name, severity / 1h`
+- [ ] **B10** C2 beaconing to an uncategorised or newly registered domain, rare across users (Zscaler) _(high)_ · `suppress: who, domain / 24h`
 
 ## Insider risk (rules/12-insider) — strongest when joined to HR context
 - [ ] **IN01** Mass SharePoint/OneDrive download, lower threshold after hours _(high)_ · `suppress: usr / 12h`

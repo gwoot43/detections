@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v19.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**174 rules · 102 techniques covered** (189 technique and sub-technique IDs).
+**175 rules · 102 techniques covered** (189 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -26,7 +26,7 @@ flowchart LR
   T9["Discovery<br/>14/34 techniques · 12 rules"]:::high
   T10["Lateral Movement<br/>6/9 techniques · 28 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
-  T12["Command and Control<br/>9/18 techniques · 19 rules"]:::high
+  T12["Command and Control<br/>9/18 techniques · 20 rules"]:::high
   T13["Exfiltration<br/>6/9 techniques · 7 rules"]:::high
   T14["Impact<br/>4/15 techniques · 5 rules"]:::mid
   T0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8 --> T9 --> T10 --> T11 --> T12 --> T13 --> T14
@@ -54,7 +54,7 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 12 |
 | Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 28 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
-| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 19 |
+| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 20 |
 | Exfiltration (TA0010) | 6 / 9 | `█████████████░░░░░░░` 67% | 7 |
 | Impact (TA0040) | 4 / 15 | `█████░░░░░░░░░░░░░░░` 27% | 5 |
 
@@ -116,7 +116,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1114.002 Remote Email Collection | Collection | IN04 |
 | T1213.002 Sharepoint | Collection | D03, IN01, IN02, IN07, IN09 |
 | T1005 Data from Local System | Collection | B07, C10 |
-| T1071.001 Web Protocols | Command and Control | B06, N07 |
+| T1071.001 Web Protocols | Command and Control | B06, B10, N07 |
 | T1105 Ingress Tool Transfer | Command and Control | L02, N07, W03, W04, W10 |
 | T1219 Remote Access Tools | Command and Control | CS13, W10, X06 |
 | T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, CS13, N09, W10 |
@@ -302,7 +302,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 |---|---|---|
 | T1090 Proxy | CS09, CS10, CS11, N09, S07, S14, S15, W10 | T1090.001 Internal Proxy (CS09, CS10, CS11); T1090.002 External Proxy (S14, S15); T1090.003 Multi-hop Proxy (N09, S07) |
 | T1572 Protocol Tunneling | CS03, CS09, CS10, CS11, CS13, N09, W10 | - |
-| T1071 Application Layer Protocol | B06, CS03, L01, N07, WE10 | T1071.001 Web Protocols (B06, N07); T1071.004 DNS (CS03) |
+| T1071 Application Layer Protocol | B06, B10, CS03, L01, N07, WE10 | T1071.001 Web Protocols (B06, B10, N07); T1071.004 DNS (CS03) |
 | T1105 Ingress Tool Transfer | L02, N07, W03, W04, W10 | - |
 | T1219 Remote Access Tools | CS13, W10, X06 | T1219.001 IDE Tunneling (CS13) |
 | T1573 Encrypted Channel | B06, N09 | - |
@@ -472,6 +472,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | B07 | Mass file read or collection - catches TruffleHog, gitleaks and data-collection tools by behaviour | T1005, T1119, T1552.001 |
 | B08 | Credential store harvesting - catches LaZagne and infostealers by behaviour | T1539, T1552.001, T1555, T1555.003 |
 | B09 | Host discovery command burst, high when it includes domain enumeration - catches post-exploitation recon and loaders by behaviour | T1016, T1033, T1049, T1057, T1069.002, T1082, T1087, T1482 |
+| B10 | Steady beaconing to an uncategorised or newly registered domain, by at most three users (Zscaler) | T1071.001 |
 | IN01 | Mass SharePoint or OneDrive download by one user, at any hour or as a smaller after-hours burst | T1119, T1213.002, T1530 |
 | IN02 | External or anonymous sharing of SharePoint/OneDrive content at volume | T1213.002, T1537, T1567 |
 | IN03 | Confluence space or site export, or page export at volume | T1119, T1213.001 |

@@ -15,7 +15,7 @@ rules/
   08-correlation/           X01-X07   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
   10-windows-event-logs/    WE01-WE15 Windows Security/System/Defender event-code detections
-  11-behaviour/             B01-B09   behavioural (what a tool does, not its name)
+  11-behaviour/             B01-B10   behavioural (what a tool does, not its name)
   12-insider/               IN01-IN09 insider risk (SharePoint/OneDrive/Confluence/mail)
   13-controlplane/          CP01-CP06 weakening/blinding of security controls (Defender, EDR)
   14-ad-attack/             AD01-AD13 Active Directory attack paths, ranked by criticality
@@ -35,7 +35,7 @@ Each rule file is self-contained: front-matter (id, severity, MITRE, data source
 3. **Correlate across domains.** The X-series turns two medium signals into one certain one. These are the rules that justify having everything in Elastic.
 4. **Exclude by identity, never by muting a technique.** Exclusions are service accounts, pipelines and known hosts, kept in lookups, never "turn the rule off because it's noisy".
 5. **Vendor alerts are inputs, not the whole story.** CS04 routes Falcon detections in on day one; the custom rules cover what the vendors cannot see (non-endpoint sources and cross-source chains).
-6. **One anchor and a corroborating property, not a list of command strings.** Anchor on what every variant of the behaviour must do. Require one property that makes it this tool or this risk, and exclude the known benign case in one precise clause. Lists of command-line variants miss the next variant and keep growing. Pattern and worked example: `docs/ESQL-CONVENTIONS.md` (Detection shape) and CS13.
+6. **One anchor and a corroborating property, not a list of command strings.** Anchor on what every variant of the behaviour must do. Require one property that makes it this tool or this risk, and exclude the known benign case in one precise clause. Lists of command-line variants miss the next variant and keep growing. Pattern and worked examples: `docs/ESQL-CONVENTIONS.md` (Detection shape), CS13 and B10.
 
 ## Field-name caveat
 Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names; the mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).
