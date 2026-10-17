@@ -84,8 +84,8 @@ CS13 is the same rule on FDR. The translation:
 
 B10 has the same shape with no command lines at all:
 - **Anchor:** allowed Zscaler traffic to domains with no reputation.
-- **Corroborating property:** steady presence, in 72 of the 96 five-minute slots in 8 hours.
-- **Exclusion:** rarity (three users or fewer) instead of a domain allowlist.
+- **Corroborating property:** sustained presence, 72 five-minute slots spread over at least 12 different hours. A browser tab polls just as steadily, but only while it's open, so the hours separate the two where request rate can't.
+- **Exclusion:** rarity (three users or fewer reach the domain at all) instead of a domain allowlist.
 
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
