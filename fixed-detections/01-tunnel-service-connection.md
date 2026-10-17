@@ -73,10 +73,6 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     event.action == "processrollup2" AND cmd RLIKE ".* (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( .*)?",
       "ngrok-style tunnel started (any binary name)",
     event.action == "processrollup2"
-      AND ((pname IN ("code.exe", "code", "code-tunnel.exe", "code-tunnel") AND cmd LIKE "* tunnel*")
-           OR (pname IN ("devtunnel.exe", "devtunnel") AND cmd LIKE "* host*")),
-      "vs code / dev tunnel host",
-    event.action == "processrollup2"
       AND ((cmd LIKE "* client *" AND cmd LIKE "* r:*") OR (cmd LIKE "* server *" AND cmd LIKE "*--reverse*")),
       "chisel-style reverse tunnel",
     event.action == "processrollup2" AND pname IN ("plink.exe", "plink", "ssh.exe", "ssh")
@@ -104,10 +100,6 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
             | finding := "cloudflared-style tunnel started";
           cmd=/ (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( |$)/
             | finding := "ngrok-style tunnel started (any binary name)";
-          in(field="pname", values=["code.exe", "code", "code-tunnel.exe", "code-tunnel"]) cmd=/ tunnel/
-            | finding := "vs code / dev tunnel host";
-          in(field="pname", values=["devtunnel.exe", "devtunnel"]) cmd=/ host/
-            | finding := "vs code / dev tunnel host";
           cmd=/ client / cmd=/ r:/
             | finding := "chisel-style reverse tunnel";
           cmd=/ server / cmd=/--reverse/
@@ -124,6 +116,7 @@ Suppress by `host.id`, `finding` for 24h.
 
 - **No `NOT user.name:*$` filter.** Falcon generally records SYSTEM processes under the machine account, so that filter hides tunnels started from a service or scheduled task.
 - **ssh flags are matched on the original-case command line.** `-R` (reverse) and `-D` (SOCKS) are what tunnels use. Lower-case `-l` (login name) and `-L` (local forward, common for developers reaching databases) are deliberately not matched.
+- **VS Code and dev tunnels are library rule CS13**, which matches the CLI's own tunnel arguments whatever the binary is called. The earlier branch here matched `code-tunnel.exe` with any `tunnel` argument, which fires on the `code-tunnel.exe tunnel status` check the VS Code desktop app runs routinely.
 - **The ngrok-style pattern** catches a renamed binary run as `<anything> tcp 3389`, `<anything> http localhost:8080` or `<anything> tcp 10.0.0.5:3389`. If one of your internal tools uses that argument shape, exclude it by `pname`.
 
 ## Before vs after
@@ -134,7 +127,7 @@ Suppress by `host.id`, `finding` for 24h.
 | Tunnel services | 3 | 12, plus "visited a tunnel-hosted site" |
 | cloudflared over QUIC | Missed | Caught on the endpoint (port 7844) |
 | Renamed agent binary | Missed | Caught by command-line shape |
-| `code tunnel` / dev tunnels | Missed | Caught (Zscaler and Falcon) |
+| `code tunnel` / dev tunnels | Missed | Caught (Zscaler here, Falcon in library rule CS13) |
 | Process in the alert | No | Yes (After B) |
 | Duplicate rules | Two near-identical copies | One per data source |
 
@@ -142,4 +135,4 @@ Suppress by `host.id`, `finding` for 24h.
 - If your organisation runs Cloudflare Tunnel or Tailscale itself, exclude the connector hosts in After B (`host.id`) and the service in After A.
 
 ## Test
-On a lab host: run `cloudflared tunnel --url http://localhost:8080`, then `code tunnel`, and browse to any `*.trycloudflare.com` URL. Each should alert once.
+On a lab host: run `cloudflared tunnel --url http://localhost:8080` and browse to any `*.trycloudflare.com` URL. Each should alert once. Run `code tunnel` too: After A should alert on the relay domain, and CS13 on the endpoint.

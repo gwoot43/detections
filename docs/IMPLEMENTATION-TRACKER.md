@@ -105,6 +105,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS10** Web server process reaches a new internal admin port (webshell tunnel or pivot) _(P1)_ · `suppress: host.id, process.name / 24h`
 - [ ] **CS11** Rare program starts accepting connections from internal hosts (implant listener or pivot) _(P2)_ · `suppress: host.id, pname / 24h`
 - [ ] **CS12** Network scanner tool run (nmap, masscan, Advanced IP Scanner, NetScan...) _(P1)_ · `suppress: host.id, process.executable / 1h`
+- [ ] **CS13** VS Code or dev tunnel opened on an endpoint (code tunnel, Remote Tunnel Access, devtunnel host) _(P1)_ · `suppress: host.id, finding / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
