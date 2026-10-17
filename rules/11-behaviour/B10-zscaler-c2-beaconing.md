@@ -29,15 +29,20 @@ B06 is the endpoint view of the same behaviour: the process and destination IP, 
 Run hourly with a 48-hour lookback.
 ```esql
 FROM logs-zscaler_zia.web-*
+// Anchor: allowed traffic to domains Zscaler has no reputation for, where fresh C2 domains sit.
+// Filtering here cuts the volume before any counting.
 | WHERE event.action == "allowed" AND url.domain IS NOT NULL
-  AND url.path IS NOT NULL   // no path = CONNECT, not decrypted
   AND zscaler_zia.web.url.category.sub IN ("Miscellaneous or Unknown", "Newly Registered Domains")
-  // BYOD users have no access to the corporate network (placeholder prefix)
+  // No path means a CONNECT that Zscaler didn't decrypt: nothing to investigate at the proxy.
+  AND url.path IS NOT NULL
+  // BYOD users have no access to the corporate network (placeholder prefix).
   AND NOT TO_LOWER(COALESCE(user.name, "")) LIKE "<byod_user_prefix>*"
-  // Windows Update peer-to-peer delivery
+  // Windows Update peer-to-peer delivery polls steadily. IS NULL keeps requests with no user agent.
   AND (user_agent.original IS NULL OR NOT user_agent.original LIKE "Microsoft-Delivery-Optimization*")
+// Method, response code and path as one value (GET-200 /api/x), so the alert shows the beacon's pattern.
 | EVAL user.name = TO_LOWER(user.name), url.domain = TO_LOWER(url.domain),
        uriPath = CONCAT(COALESCE(http.request.method, "?"), "-", COALESCE(TO_STRING(zscaler_zia.web.response.code), "?"), " ", url.path)
+// One row per user and domain. Slots are 5-minute windows with traffic; hours are clock hours with traffic.
 | STATS requests = COUNT(), active_slots = COUNT_DISTINCT(DATE_TRUNC(5 minutes, @timestamp)),
         active_hours = COUNT_DISTINCT(DATE_TRUNC(1 hour, @timestamp)), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
         uri.path = VALUES(uriPath), uripaths = COUNT_DISTINCT(uriPath), http.request.referrer = VALUES(http.request.referrer),
@@ -45,14 +50,18 @@ FROM logs-zscaler_zia.web-*
         destination.ip = VALUES(destination.ip), destination.geo.country_name = VALUES(destination.geo.country_name),
         urlcat = VALUES(zscaler_zia.web.url.category.sub), urlclass = VALUES(zscaler_zia.web.url.class)
     BY user.name, url.domain
-// rarity: every user who reached the domain, counted before the beacon checks
+// Rarity: every user who reached the domain, counted before the beacon checks,
+// so a site many people visit drops out even if only one of them left it open.
 | INLINE STATS domain_users = COUNT_DISTINCT(user.name) BY url.domain
+// Average requests per active slot. ::double stops whole-number division (445 / 82 gives 5.4, not 5).
 | EVAL avg_per_slot = ROUND(requests / active_slots::double, 1)
+// Beacon: 72+ active slots spread over 12+ hours (a tab left open for an afternoon is about 7),
+// 2+ requests per slot, on a domain at most 3 users reach.
 | WHERE active_slots >= 72 AND active_hours >= 12 AND avg_per_slot >= 2 AND domain_users <= 3
+// Key columns first, then everything else.
 | KEEP user.name, url.domain, domain_users, requests, active_slots, active_hours, avg_per_slot, *
 ```
-- `uri.path` reads as method, response code and path (`GET-200 /api/x`). Steady GETs to poll and POSTs to send results back is a beacon. `uripaths` near 1 is a fixed profile (Cobalt Strike style); hundreds is a profile that randomises its paths (Sliver), or browsing.
-- Traffic Zscaler doesn't decrypt is left out on purpose: it's logged as a `CONNECT` with no path, so there's nothing to investigate at the proxy.
+- In `uri.path`, steady GETs to poll and POSTs to send results back is a beacon. `uripaths` near 1 is a fixed profile (Cobalt Strike style); hundreds is a profile that randomises its paths (Sliver), or browsing.
 - The Elastic Zscaler integration keeps the response code in `zscaler_zia.web.response.code`. If your pipeline maps it to `http.response.status_code`, use that.
 
 ## Suppression

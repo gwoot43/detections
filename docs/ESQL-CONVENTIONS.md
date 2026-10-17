@@ -96,6 +96,7 @@ Not every detection can meet all of these, but aim for them, and say in the rule
 5. **Rarity instead of allowlists**, counted across everyone before the behaviour checks.
 6. **Few exclusions**, each one precise clause with a comment saying why, written so a missing field doesn't drop the row (`COALESCE`, `IS NULL OR`).
 7. **Output that answers the first triage questions** without another search.
+8. **A one- or two-line comment on each key step** of the query, so it explains itself when pasted into Kibana on its own.
 
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
