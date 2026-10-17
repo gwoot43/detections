@@ -16,53 +16,67 @@ suppression:
 ## Why this is high fidelity
 A host making very many distinct lookups under one parent domain, a steady share of them with a long encoded first label, is DNS tunnelling or data exfiltration over DNS, which endpoint process rules miss. It does not look for DGA or known C2 domains; those are reputation problems for Zscaler (N07). Falcon's own `SuspiciousDnsRequest` events are included in the count.
 
-The parent is the registrable domain the integration computes from the public suffix list (`dns.question.registered_domain`), so `co.uk`-style suffixes do not merge unrelated sites. Reverse lookups (`.arpa`), the cluster-internal domain and the CDN, cloud and security-vendor domains that legitimately generate thousands of subdomains are excluded inline. Tunnelling tools encode data in the first label (`4f2a9c….t.evil.com`), so the gate is 20 or more names whose first label is 30 characters or longer. One long name is not enough: CDNs and telemetry produce the odd long name every day, a tunnel produces them continuously.
+- **Anchor:** DNS lookups, minus reverse lookups (`.arpa`).
+- **Corroborating property:** the tunnel's shape. 100 or more distinct names under one parent, 20 or more of them with a first label of 30 characters or more. Tunnelling tools encode data in the first label (`4f2a9c….t.evil.com`). One long name isn't enough: CDNs and telemetry produce the odd one every day, a tunnel produces them continuously.
+- **Exclusion by rarity:** the parent must be looked up by at most three hosts. CDN, cloud and security-vendor domains that generate thousands of subdomains are looked up across the fleet, so they drop out with no list to keep. The one exclusion left is mail servers' DNS blocklist lookups: they're tunnel-shaped by design and run on only a few hosts.
+
+The parent is the registrable domain the integration computes from the public suffix list (`dns.question.registered_domain`), so `co.uk`-style suffixes do not merge unrelated sites.
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
+// Anchor: DNS lookups, minus reverse lookups.
 | WHERE event.action IN ("DnsRequest", "SuspiciousDnsRequest")
 | EVAL domain = TO_LOWER(TO_STRING(dns.question.name))
 | WHERE domain IS NOT NULL AND NOT domain LIKE "*.arpa"
-| EVAL parts = SPLIT(domain, "."), n = MV_COUNT(parts)
-| WHERE n >= 2
-// registrable domain from the public suffix list; fall back to the last two labels
-| EVAL parent = TO_LOWER(COALESCE(dns.question.registered_domain, MV_CONCAT(MV_SLICE(parts, -2, -1), "."))),
+// The parent is the registrable domain (public suffix list), falling back to the last two labels.
+// Tunnels encode data in the first label, so its length is the tell.
+| EVAL parts = SPLIT(domain, "."),
+       parent = TO_LOWER(COALESCE(dns.question.registered_domain, MV_CONCAT(MV_SLICE(parts, -2, -1), "."))),
        label_len = LENGTH(MV_FIRST(parts))
-// high-volume benign parents; add your own AD and internal DNS domains
-| WHERE parent NOT IN ("akamaiedge.net", "akamai.net", "akamaihd.net", "cloudfront.net", "amazonaws.com", "azureedge.net", "trafficmanager.net",
-                       "windows.net", "microsoft.com", "office.com", "office365.com", "office.net", "live.com", "msftncsi.com",
-                       "googleapis.com", "gvt1.com", "gstatic.com", "1e100.net", "cluster.local",
-                       "sophosxl.net", "mcafee.com", "spamhaus.org", "crowdstrike.com")
+// Mail servers' DNS blocklist lookups are tunnel-shaped by design and run on only a few hosts, so rarity can't remove them.
+| WHERE NOT parent IN ("spamhaus.org", "spamcop.net", "surbl.org", "uribl.com", "barracudacentral.org")
+// One row per host and parent: distinct names, and how many of them have a long first label.
 | STATS distinct_sub = COUNT_DISTINCT(domain), total = COUNT(*),
         long_names = COUNT_DISTINCT(CASE(label_len >= 30, domain, NULL)), max_label = MAX(label_len),
         sample = VALUES(domain), pids = VALUES(process.entity_id), host.name = VALUES(host.name),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY host.id, parent
-| WHERE distinct_sub >= 100 AND long_names >= 20
+// Rarity: every host that looked up names under this parent, counted before the tunnel checks.
+// CDN, cloud and security-vendor domains are looked up across the fleet and drop out here.
+| INLINE STATS hosts = COUNT_DISTINCT(host.id) BY parent
+// Tunnel: 100+ distinct names, 20+ with a first label of 30+ characters, under a parent at most 3 hosts look up.
+| WHERE distinct_sub >= 100 AND long_names >= 20 AND hosts <= 3
 | EVAL sample = MV_SLICE(sample, 0, 9)
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
 #event_simpleName=/^(DnsRequest|SuspiciousDnsRequest)$/
+// Anchor: DNS lookups, minus reverse lookups.
 | domain := lower(DomainName)
 | domain!=/\.arpa$/
+// Falcon has no registered-domain field, so the parent is the last two labels.
 | domain=/(?<parent>[^.]*\.[^.]*)$/
-| !in(field="parent", ignoreCase=true, values=["akamaiedge.net", "akamai.net", "akamaihd.net", "cloudfront.net", "amazonaws.com", "azureedge.net", "trafficmanager.net",
-                                               "windows.net", "microsoft.com", "office.com", "office365.com", "office.net", "live.com", "msftncsi.com",
-                                               "googleapis.com", "gvt1.com", "gstatic.com", "1e100.net", "cluster.local",
-                                               "sophosxl.net", "mcafee.com", "spamhaus.org", "crowdstrike.com"])
+// Mail servers' DNS blocklist lookups are tunnel-shaped by design and run on only a few hosts, so rarity can't remove them.
+| !in(field="parent", ignoreCase=true, values=["spamhaus.org", "spamcop.net", "surbl.org", "uribl.com", "barracudacentral.org"])
+// Tunnels encode data in the first label, so its length is the tell.
 | domain=/^(?<label1>[^.]*)/
 | label_len := length(label1)
 | case { test(label_len >= 30) | long_name := domain; * ; }
-| groupBy([aid, parent], function=[count(domain, distinct=true, as=distinct_sub), count(as=total),
-                                   count(long_name, distinct=true, as=long_names), max(label_len, as=max_label),
-                                   collect([ContextProcessId, ComputerName])], limit=max)
-| test(distinct_sub >= 100 AND long_names >= 20)
+// One row per host and parent.
+| groupBy([aid, parent], function=[count(domain, distinct=true, as=distinct_sub), count(long_name, distinct=true, as=long_names),
+                                   max(label_len, as=max_label), collect([ComputerName, ContextProcessId])], limit=max)
+// Mark the tunnel-shaped rows. Every host still counts towards rarity below.
+| case { test(distinct_sub >= 100 AND long_names >= 20) | tunnel_host := aid; * ; }
+// Rarity: one row per parent, counting every host that looked it up. Keep parents with a tunnel and at most 3 hosts.
+| groupBy([parent], function=[count(aid, distinct=true, as=hosts), max(distinct_sub, as=distinct_sub), max(long_names, as=long_names),
+                              max(max_label, as=max_label), collect([tunnel_host, ComputerName, ContextProcessId])], limit=max)
+| test(hosts <= 3)
+| tunnel_host=*
 ```
-Falcon has no registered-domain field, so `parent` here is the last two labels of the name, a simplification that groups unrelated sites under suffixes like `co.uk`.
+Falcon has no registered-domain field, so `parent` here is the last two labels of the name, a simplification that groups unrelated sites under suffixes like `co.uk`. LogScale has no `INLINE STATS`, so this version rolls up to one row per parent, listing the tunnel host and the at most three hosts that looked it up.
 
 `SuspiciousDnsRequest` on its own is already curated by CrowdStrike and reaches Elastic as a Falcon detection through CS04 when it is alertable.
 
@@ -70,7 +84,8 @@ Falcon has no registered-domain field, so `parent` here is the last two labels o
 Suppress by `host.id`, `parent` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: each run overlaps the last and tunnelling runs continuously, so the repeats fold into the open alert. Counts run over the whole lookback, not fixed buckets.
 
 ## Known false positives / exclusions
-- CDNs, telemetry and antivirus cloud lookups generate many subdomains under one parent. The common ones are excluded inline; extend the list from a week of baseline. Your own AD domain belongs on it if servers resolve many internal hosts.
+- A security or monitoring tool on one to three hosts that looks up hashes or encoded values under its vendor's domain. Rarity can't remove it. Exclude that parent by exact name once confirmed.
+- A mail gateway other than the ones covered by the blocklist exclusion. Add its blocklist provider to the same line.
 
 ## Triage
 - DNS events carry no process name. Find the process through `pids`: its ProcessRollup2 has the same `process.entity_id`. A browser is probably benign CDN traffic; `powershell.exe`, `rundll32.exe` or an unsigned binary doing dozens of long, distinct subdomain lookups is tunnelling. `max_label` near 63 (the DNS label limit) is a tunnel filling every label. Block the parent domain and investigate the host.

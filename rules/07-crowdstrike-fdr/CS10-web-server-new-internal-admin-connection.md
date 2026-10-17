@@ -24,14 +24,18 @@ Database (1433, 3306, 5432) and directory (88, 389, 636) ports are left out beca
 Run hourly with a 7-day lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
+// Anchor: a web server process connecting to SSH, RPC, SMB, RDP or WinRM on an internal address.
 | WHERE event.action == "NetworkConnectIP4"
   AND process.name IN ("w3wp.exe", "php-cgi.exe", "php-fpm", "httpd", "httpd.exe", "apache2", "nginx", "nginx.exe",
                        "tomcat8.exe", "tomcat9.exe", "tomcat10.exe")
   AND destination.port IN (22, 135, 445, 3389, 5985, 5986)
   AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+// One row per server, process and target: when it first made this connection in the 7 days.
 | STATS first_seen = MIN(@timestamp), host.name = VALUES(host.name)
     BY host.id, process.name, destination.ip, destination.port
+// New in the last 2 hours (two hourly runs). Everything the application does routinely is in the history.
 | WHERE first_seen >= NOW() - 2 hours
+// One row per server and process, listing every new target.
 | STATS new_targets = COUNT_DISTINCT(destination.ip),
         targets = VALUES(destination.ip),
         ports = VALUES(destination.port),
@@ -44,12 +48,15 @@ FROM logs-crowdstrike.fdr-*
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 7 days:
 ```logscale
 #event_simpleName=NetworkConnectIP4
+// Anchor: a web server process connecting to SSH, RPC, SMB, RDP or WinRM on an internal address.
 | in(field="ContextBaseFileName", ignoreCase=true, values=["w3wp.exe", "php-cgi.exe", "php-fpm", "httpd", "httpd.exe", "apache2",
                                                           "nginx", "nginx.exe", "tomcat8.exe", "tomcat9.exe", "tomcat10.exe"])
 | in(field="RemotePort", values=["22", "135", "445", "3389", "5985", "5986"])
 | cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+// One row per server, process and target: when it first made this connection in the 7 days.
 | groupBy([aid, ContextBaseFileName, RemoteAddressIP4, RemotePort], function=[min(@timestamp, as=first_seen), collect([ComputerName])],
           limit=max)
+// New in the last 2 hours (two hourly runs), then one row per server and process listing every new target.
 | _now := now()
 | test(first_seen > _now - 7200000)
 | groupBy([aid, ContextBaseFileName], function=[count(RemoteAddressIP4, distinct=true, as=new_targets),

@@ -26,10 +26,13 @@ Port forwarding with `netsh portproxy` is CS09: the forward is accepted by a Win
 Run hourly with a 7-day lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
+// Anchor: a program accepting a TCP connection from another internal host,
+// on a port no core service (DNS, Kerberos, LDAP, SMB, RPC, SQL Server, global catalog) already holds.
 | WHERE event.action == "NetworkReceiveAcceptIP4" AND network.transport == "tcp"
   AND CIDR_MATCH(source.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
   AND NOT destination.port IN (53, 88, 135, 389, 445, 636, 1433, 3268, 3269)
 | EVAL pname = TO_LOWER(COALESCE(process.name, "unknown"))
+// One row per host and program: when it first accepted an internal connection in the 7 days, and from whom.
 | STATS first_seen = MIN(@timestamp),
         last_seen = MAX(@timestamp),
         accepts = COUNT(*),
@@ -38,7 +41,9 @@ FROM logs-crowdstrike.fdr-*
         ports = VALUES(destination.port),
         host.name = VALUES(host.name)
     BY host.id, pname
+// Rarity: how many hosts had this program accept internal connections, counted before the newness check.
 | INLINE STATS hosts = COUNT_DISTINCT(host.id) BY pname
+// New on this host in the last 2 hours (two hourly runs), and on at most 3 hosts in the fleet.
 | WHERE first_seen >= NOW() - 2 hours AND hosts <= 3
 | KEEP host.id, host.name, pname, ports, peers, peer_ips, accepts, first_seen, last_seen, hosts
 ```
@@ -46,11 +51,14 @@ FROM logs-crowdstrike.fdr-*
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 7 days:
 ```logscale
 #event_simpleName=NetworkReceiveAcceptIP4 Protocol=6
+// Anchor: a program accepting a TCP connection from another internal host, on a port no core service already holds.
 | cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
 | !in(field="LocalPort", values=["53", "88", "135", "389", "445", "636", "1433", "3268", "3269"])
 | pname := lower(ContextBaseFileName)
 | default(field=pname, value="unknown", replaceEmpty=true)
+// One row per host and program: when it first accepted an internal connection in the 7 days.
 | groupBy([pname, aid], function=[min(@timestamp, as=first_seen), collect([ComputerName, RemoteAddressIP4, LocalPort])], limit=max)
+// Rarity: one row per program, counting its hosts. Alert when it's on at most 3 and the newest started in the last 2 hours.
 | groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
                              collect([ComputerName, RemoteAddressIP4, LocalPort])])
 | _now := now()

@@ -30,10 +30,12 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | WHERE event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),
        exe = TO_LOWER(COALESCE(process.executable, "")), parent = TO_LOWER(COALESCE(process.parent.name, ""))
+// Anchor: "tunnel" as an argument of its own, which every VS Code tunnel action passes.
 | WHERE cmd RLIKE ".* tunnel( .*)?"
+  // Corroborating property, any one: the licence flag unattended starts need, the flag the persistent service passes,
+  // a code* binary, or a copy in a staging folder (FDR paths start \Device\HarddiskVolumeN\, so match from the folder down)
   AND (cmd LIKE "*--accept-server-license-terms*" OR cmd LIKE "*--cli-data-dir*"
        OR pname LIKE "code*"
-       // FDR paths start \Device\HarddiskVolumeN\, so match from the folder down
        OR exe LIKE """*\\programdata\\*""" OR exe LIKE """*\\users\\public\\*""" OR exe LIKE """*\\windows\\debug\\*""")
   // the desktop app checks tunnel status on its own
   AND NOT (pname LIKE "code-tunnel*" AND parent LIKE "code*" AND cmd RLIKE ".* status( .*)?")
@@ -46,7 +48,9 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
+// Anchor: "tunnel" as an argument of its own, which every VS Code tunnel action passes.
 | CommandLine=/ tunnel( |$)/i
+// Corroborating property, any one: the licence or service flag, a code* binary, or a copy in a staging folder.
 | case {
     CommandLine=/--accept-server-license-terms|--cli-data-dir/i;
     FileName=/^code/i;

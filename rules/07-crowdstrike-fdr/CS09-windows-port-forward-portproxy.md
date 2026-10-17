@@ -18,13 +18,18 @@ suppression:
 
 The rule watches both ends: the `netsh` command that adds or changes a forward, and the registry key the forward is stored in (`HKLM\SYSTEM\CurrentControlSet\Services\PortProxy`), which catches forwards written directly to the registry.
 
+There's nothing to count and no rarity to apply: one forward is the event, and forwards are rare on every host.
+
 ## Query
 ```esql
 FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+// Anchor: Windows process starts and registry writes, the two places a port forward shows up.
 | WHERE host.os.type == "windows"
   AND event.action IN ("ProcessRollup2", "RegGenericValueUpdate", "RegSystemConfigValueUpdate", "AsepValueUpdate")
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")),
        key = TO_LOWER(COALESCE(registry.path, ""))
+// A netsh command that adds or changes a forward (show and delete don't match),
+// or any write to the key forwards are stored in, which catches forwards written straight to the registry.
 | WHERE (cmd LIKE "*portproxy*" AND (cmd LIKE "* add *" OR cmd LIKE "* set *"))
      OR key LIKE """*\\services\\portproxy\\*"""
 | KEEP @timestamp, host.id, host.name, user.name, event.action, process.parent.name, process.command_line,
@@ -35,8 +40,10 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2|RegGenericValueUpdate|RegSystemConfigValueUpdate|AsepValueUpdate)$/ event_platform=Win
 | case {
+    // a netsh command that adds or changes a forward (show and delete don't match)
     #event_simpleName=/ProcessRollup2$/ CommandLine=/portproxy/i CommandLine=/\s(add|set)\s/i
       | finding := "netsh portproxy command";
+    // any write to the key forwards are stored in, including forwards written straight to the registry
     RegObjectName=/\\Services\\PortProxy\\/i
       | finding := "PortProxy registry write";
   }

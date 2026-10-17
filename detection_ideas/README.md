@@ -6,7 +6,7 @@ Copies of the library's C2 and tunnelling detections, gathered in one folder. Ea
 |---|---|---|---|
 | [B06](B06-c2-beaconing.md) | C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour | C2 | `rules/11-behaviour/B06-c2-beaconing.md` |
 | [B10](B10-zscaler-c2-beaconing.md) | Steady beaconing to an uncategorised or newly registered domain, by at most three users (Zscaler) | C2 | `rules/11-behaviour/B10-zscaler-c2-beaconing.md` |
-| [N07](N07-zscaler-c2-and-malware-callback.md) | Zscaler blocked C2, malware callback or known-bad category from an endpoint | C2 | `rules/06-network/N07-zscaler-c2-and-malware-callback.md` |
+| [N07](N07-zscaler-c2-and-malware-callback.md) | Zscaler C2, malware callback or known-bad category from an endpoint, allowed or blocked | C2 | `rules/06-network/N07-zscaler-c2-and-malware-callback.md` |
 | [L01](L01-reverse-shell.md) | Reverse shell launched | C2 | `rules/04-endpoint-linux/L01-reverse-shell.md` |
 | [CS03](CS03-dns-tunnelling.md) | DNS tunnelling - many long, distinct names under one parent domain from one host | Tunnelling | `rules/07-crowdstrike-fdr/CS03-dns-tunnelling.md` |
 | [CS09](CS09-windows-port-forward-portproxy.md) | Windows port forward created with netsh portproxy (traffic relayed through this host) | Tunnelling | `rules/07-crowdstrike-fdr/CS09-windows-port-forward-portproxy.md` |

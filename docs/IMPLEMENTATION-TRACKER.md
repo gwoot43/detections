@@ -87,7 +87,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **N04** F5 APM/TMOS admin or policy change **(blocked: needs a custom F5 APM parser, see the rule's Prerequisite)** _(P2)_ · `suppress: usr / 1h`
 - [ ] **N05** Imperva high-severity attack not blocked _(P1)_ · `suppress: source.ip, url.domain / 1h`
 - [ ] **N06** Imperva block-then-success (bypass) _(P1)_ · `suppress: source.ip, url.domain / 1h`
-- [ ] **N07** Zscaler C2 / malware callback _(P1)_ · `suppress: source.ip, destination.domain / 24h`
+- [ ] **N07** Zscaler C2 / malware callback, critical when allowed _(P1)_ · `suppress: source.ip, destination.domain, severity / 24h`
 - [ ] **N08** Zscaler large upload / exfil _(P2)_ · `suppress: user.name, destination.domain / 24h`
 - [ ] **N09** Zscaler anonymizer / proxy avoidance / VPN / DoH _(P2)_ · `suppress: user.name, destination.domain, severity / 24h`
 - [ ] **N10** External scanning against the Imperva edge (internal fan-out: B01/B04) _(P2)_ · `suppress: src / 1h`

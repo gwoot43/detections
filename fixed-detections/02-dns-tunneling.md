@@ -35,65 +35,75 @@ from logs-yourorg-crowdstrike* metadata _id, _index, _version
 ## After
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
+// Anchor: DNS lookups that carry a name.
 | WHERE event.action == "dnsrequest" AND data.DomainName IS NOT NULL
+// Lower-case, drop a trailing dot, and keep names with three or more labels.
 | EVAL q = TO_LOWER(data.DomainName)
 | EVAL q = CASE(ENDS_WITH(q, "."), SUBSTRING(q, 1, LENGTH(q) - 1), q)
-| EVAL parts = SPLIT(q, "."), n = MV_COUNT(parts)
-| WHERE n >= 3
-// registrable parent: last three labels for com.au-style suffixes, otherwise last two
+| EVAL parts = SPLIT(q, ".")
+| WHERE MV_COUNT(parts) >= 3
+// Registrable parent: last three labels for com.au-style suffixes, otherwise last two.
 | EVAL sld = MV_SLICE(parts, -2, -2)
 | EVAL parent = CASE(sld IN ("com", "net", "org", "gov", "edu", "asn", "id", "co", "ac"),
                      MV_CONCAT(MV_SLICE(parts, -3, -1), "."), MV_CONCAT(MV_SLICE(parts, -2, -1), "."))
-| WHERE NOT parent IN ("corp-internal.example", "corp-legacy.example", "in-addr.arpa", "ip6.arpa",
-                       // DNS-as-an-API services that legitimately look like tunnels
-                       "sophosxl.net", "spamhaus.org", "spamcop.net", "barracudacentral.org", "surbl.org", "uribl.com")
-  AND NOT COALESCE(data.ContextBaseFileName, "") IN ("MSExchangeTransport.exe", "MSExchangeFrontendTransport.exe",
-                                                     "MSExchangeSubmission.exe", "MSExchangeDelivery.exe")
+// Exchange's DNS blocklist and SPF lookups are tunnel-shaped by design and run on only a few servers, so rarity can't remove them.
+| WHERE NOT COALESCE(data.ContextBaseFileName, "") IN ("MSExchangeTransport.exe", "MSExchangeFrontendTransport.exe",
+                                                       "MSExchangeSubmission.exe", "MSExchangeDelivery.exe")
+// Tunnels encode data in a long first label, or use TXT (16) and NULL (10) records.
 | EVAL label_len = LENGTH(MV_FIRST(parts)),
        long_label = CASE(label_len >= 30, 1, 0),
-       odd_type = CASE(TO_STRING(data.RequestType) IN ("16", "10"), 1, 0)      // 16 = TXT, 10 = NULL
+       odd_type = CASE(TO_STRING(data.RequestType) IN ("16", "10"), 1, 0)
+// One row per host and parent.
 | STATS names = COUNT_DISTINCT(q), queries = COUNT(*), long_names = SUM(long_label), odd_types = SUM(odd_type),
         max_label = MAX(label_len), hostnames = VALUES(host.name), procs = VALUES(data.ContextBaseFileName),
         sample = VALUES(q), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY host.id, parent
-| WHERE names >= 100 AND (long_names >= 20 OR odd_types >= 20)
+// Rarity: every host that looked up names under this parent, counted before the tunnel checks.
+// Your internal domains, CDNs and security-vendor lookups run across the fleet and drop out here.
+| INLINE STATS hosts = COUNT_DISTINCT(host.id) BY parent
+// Tunnel: 100+ distinct names with 20+ long labels or 20+ TXT/NULL queries, under a parent at most 3 hosts look up.
+| WHERE names >= 100 AND (long_names >= 20 OR odd_types >= 20) AND hosts <= 3
 | EVAL sample = MV_SLICE(sample, 0, 9)
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search), run over the last 1 hour**
 ```logscale
 #event_simpleName=DnsRequest DomainName=*
-// lower-case, drop a trailing dot, keep names with three or more labels
+// Lower-case, drop a trailing dot, and keep names with three or more labels.
 | DomainName=/^(?<q>.+?)\.?$/
 | q := lower(q)
 | q=/\..*\./
-// registrable parent: last three labels for com.au-style suffixes, otherwise last two
+// Registrable parent: last three labels for com.au-style suffixes, otherwise last two.
 | q=/(?<sld>[^.]*)\.[^.]*$/
 | case {
     in(field="sld", values=["com", "net", "org", "gov", "edu", "asn", "id", "co", "ac"]) | q=/(?<parent>[^.]*\.[^.]*\.[^.]*)$/;
     * | q=/(?<parent>[^.]*\.[^.]*)$/;
   }
-| !in(field="parent", values=["corp-internal.example", "corp-legacy.example", "in-addr.arpa", "ip6.arpa",
-                             // DNS-as-an-API services that legitimately look like tunnels
-                             "sophosxl.net", "spamhaus.org", "spamcop.net", "barracudacentral.org", "surbl.org", "uribl.com"])
+// Exchange's DNS blocklist and SPF lookups are tunnel-shaped by design and run on only a few servers.
 | !in(field="ContextBaseFileName", values=["MSExchangeTransport.exe", "MSExchangeFrontendTransport.exe",
                                           "MSExchangeSubmission.exe", "MSExchangeDelivery.exe"])
+// Tunnels encode data in a long first label, or use TXT (16) and NULL (10) records.
 | q=/^(?<label1>[^.]*)/
 | label_len := length(label1)
 | case { test(label_len >= 30) | long_label := 1; * | long_label := 0; }
-// 16 = TXT, 10 = NULL
 | case { in(field="RequestType", values=["16", "10"]) | odd_type := 1; * | odd_type := 0; }
-| groupBy([aid, parent], function=[count(q, distinct=true, as=names), count(as=queries), sum(long_label, as=long_names),
-                                   sum(odd_type, as=odd_types), max(label_len, as=max_label),
-                                   min(@timestamp, as=first_seen), max(@timestamp, as=last_seen),
-                                   collect([ComputerName, ContextBaseFileName]), collect([q], limit=10)], limit=max)
-| test(names >= 100 AND (long_names >= 20 OR odd_types >= 20))
+// One row per host and parent.
+| groupBy([aid, parent], function=[count(q, distinct=true, as=names), sum(long_label, as=long_names), sum(odd_type, as=odd_types),
+                                   max(label_len, as=max_label), collect([ComputerName, ContextBaseFileName]),
+                                   collect([q], limit=10)], limit=max)
+// Mark the tunnel-shaped rows. Every host still counts towards rarity below.
+| case { test(names >= 100 AND (long_names >= 20 OR odd_types >= 20)) | tunnel_host := aid; * ; }
+// Rarity: one row per parent, counting every host that looked it up. Keep parents with a tunnel and at most 3 hosts.
+| groupBy([parent], function=[count(aid, distinct=true, as=hosts), max(names, as=names), max(long_names, as=long_names),
+                              max(odd_types, as=odd_types), collect([tunnel_host, ComputerName, ContextBaseFileName, q])], limit=max)
+| test(hosts <= 3)
+| tunnel_host=*
 ```
-Run every 15 minutes with a 1-hour lookback, and no time bucket. Suppress by `host.id`, `parent` for 24h.
+Run every 15 minutes with a 1-hour lookback, and no time bucket. Suppress by `host.id`, `parent` for 24h. LogScale has no `INLINE STATS`, so its version rolls up to one row per parent, listing the tunnel host and the at most three hosts that looked it up.
 
+- **Rarity replaces the exclusion list.** A parent that more than three hosts look up in the hour (your internal domains, CDNs, antivirus cloud lookups) is shared infrastructure, not a tunnel. The only exclusion left is Exchange, whose blocklist lookups run on just a few servers. If another mail gateway does blocklist lookups, exclude it by host.
 - **Why the parent logic matters for you:** with a plain "last two labels", every `.com.au` domain would group under `com.au` and the rule would fire on Australian web browsing.
 - **`data.RequestType`:** check it exists in your feed and holds numbers. If it doesn't, delete the `odd_type` lines and keep the long-label condition.
-- **Exchange servers** run DNS blocklist and SPF lookups that look tunnel-like, so their transport processes stay excluded. The other ~50 suffix exclusions are no longer needed.
 
 ## Before vs after
 
@@ -102,7 +112,7 @@ Run every 15 minutes with a 1-hour lookback, and no time bucket. Suppress by `ho
 | Can fire | No (`like "."`) | Yes |
 | Signal | 50 repeats of one name | 100+ distinct names under one parent, with long labels or TXT/NULL queries |
 | Catches iodine / dnscat2 / Cobalt Strike DNS beacons | No | Yes |
-| Exclusions to maintain | ~60 suffixes, duplicated with trailing dots, plus 14 processes | 6 parents plus 4 Exchange processes |
+| Exclusions to maintain | ~60 suffixes, duplicated with trailing dots, plus 14 processes | 4 Exchange processes; rarity (3 hosts or fewer) replaces the suffix list |
 | Bucket-edge splits | Yes (15-minute buckets) | No |
 | `.com.au` handling | n/a | Explicit |
 

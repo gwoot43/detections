@@ -404,7 +404,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | N04 | F5 APM/TMOS administrative change or access policy modification | T1078, T1556, T1685 |
 | N05 | Imperva WAF high-severity attack that was not blocked | T1059, T1190 |
 | N06 | Imperva source heavily blocked then receives an application success | T1190, T1595.002 |
-| N07 | Zscaler blocked C2, malware callback or known-bad category from an endpoint | T1071.001, T1105, T1571 |
+| N07 | Zscaler C2, malware callback or known-bad category from an endpoint, allowed or blocked | T1071.001, T1105, T1571 |
 | N08 | Zscaler large upload to a new or risky destination (possible exfiltration) | T1041, T1048, T1567.002 |
 | N09 | Zscaler anonymizer, proxy-avoidance, unsanctioned VPN or DNS-over-HTTPS use | T1090.003, T1572, T1573 |
 | N10 | External reconnaissance scan against the Imperva-protected web edge (one source, many URIs) | T1595.002, T1595.003 |

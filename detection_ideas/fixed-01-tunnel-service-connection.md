@@ -27,9 +27,12 @@ Copy 2 is identical except for `url.domain:(*.v2.argotunnel.com OR *.v2.argotunn
 
 ```esql
 FROM logs-yourorg-zscaler*                       // the index your current KQL rule runs on
+// Anchor: allowed requests with a domain. The trailing dot is stripped once instead of listing every domain twice.
 | WHERE event.action == "allowed" AND url.domain IS NOT NULL
 | EVAL d = TO_LOWER(url.domain)
 | EVAL d = CASE(ENDS_WITH(d, "."), SUBSTRING(d, 1, LENGTH(d) - 1), d)
+// Name the service from its agent or relay domains. The services are the signal, so the list stays.
+// A *.trycloudflare.com-style address is a visit to a site hosted on a tunnel, not an agent.
 | EVAL service = CASE(
     d IN ("api.trycloudflare.com", "update.argotunnel.com", "cftunnel.com")
       OR ENDS_WITH(d, ".argotunnel.com") OR ENDS_WITH(d, ".cftunnel.com"), "cloudflare tunnel agent",
@@ -46,7 +49,9 @@ FROM logs-yourorg-zscaler*                       // the index your current KQL r
       OR ENDS_WITH(d, ".lhr.life") OR ENDS_WITH(d, ".serveo.net"), "visited a tunnel-hosted site",
     NULL)
 | WHERE service IS NOT NULL
+// Running an agent is high; visiting a tunnel-hosted site (common in malware and ClickFix delivery) is medium.
 | EVAL severity = CASE(service == "visited a tunnel-hosted site", "medium", "high")
+// One row per user, service and severity.
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), requests = COUNT(*),
         domains = VALUES(d), source_ips = VALUES(source.ip)
     BY user.name, service, severity
@@ -59,22 +64,27 @@ If you'd rather keep a KQL rule, the minimal fix to copy 2 is: delete copy 1, re
 
 ```esql
 FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+// Anchor: process starts and outbound connections on the endpoint.
 | WHERE event.action IN ("processrollup2", "networkconnectip4")
 | EVAL raw = COALESCE(process.command_line, ""),
        cmd = TO_LOWER(raw),
        pname = MV_LAST(SPLIT(MV_LAST(SPLIT(TO_LOWER(COALESCE(process.executable, "")), "\\")), "/"))
+// Each branch is the shape of one tunnel tool, matched whatever the binary is called. The label says which.
 | EVAL finding = CASE(
+    // cloudflared's default QUIC transport, which never reaches the web proxy
     event.action == "networkconnectip4" AND destination.port == 7844
       AND NOT CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"),
       "cloudflare tunnel edge connection (port 7844)",
     event.action == "processrollup2" AND cmd LIKE "* tunnel*"
       AND (cmd LIKE "*--url*" OR cmd LIKE "* run*" OR cmd LIKE "*--token*"),
       "cloudflared-style tunnel started",
+    // "<anything> tcp 3389" or "<anything> http localhost:8080": the ngrok argument shape
     event.action == "processrollup2" AND cmd RLIKE ".* (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( .*)?",
       "ngrok-style tunnel started (any binary name)",
     event.action == "processrollup2"
       AND ((cmd LIKE "* client *" AND cmd LIKE "* r:*") OR (cmd LIKE "* server *" AND cmd LIKE "*--reverse*")),
       "chisel-style reverse tunnel",
+    // ssh flags on the original case: -R (reverse) and -D (SOCKS) are tunnels; -L and -l are everyday use
     event.action == "processrollup2" AND pname IN ("plink.exe", "plink", "ssh.exe", "ssh")
       AND (raw LIKE "* -R*" OR raw LIKE "* -D*"),
       "ssh or plink reverse / socks tunnel",
@@ -90,7 +100,9 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | cmd := lower(CommandLine)
 | regex("(?<pname>[^\\\\/]*)$", field=ImageFileName, strict=false)
 | pname := lower(pname)
+// Each branch is the shape of one tunnel tool, matched whatever the binary is called. The label says which.
 | case {
+    // cloudflared's default QUIC transport, which never reaches the web proxy
     #event_simpleName=NetworkConnectIP4 RemotePort=7844
       !cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
       | finding := "cloudflare tunnel edge connection (port 7844)";
@@ -98,6 +110,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
       | case {
           cmd=/ tunnel/ cmd=/--url| run|--token/
             | finding := "cloudflared-style tunnel started";
+          // "<anything> tcp 3389" or "<anything> http localhost:8080": the ngrok argument shape
           cmd=/ (http|tcp|tls) ([a-z0-9.-]+:)?[0-9]{2,5}( |$)/
             | finding := "ngrok-style tunnel started (any binary name)";
           cmd=/ client / cmd=/ r:/
