@@ -1,6 +1,6 @@
-# Detection ideas: C2 and tunnelling
+# Detection ideas: C2, tunnelling and post-exploitation
 
-Copies of the library's C2 and tunnelling detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.
+Copies of the library's C2, tunnelling and post-exploitation detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.
 
 [SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with severity, schedule, suppression and ATT&CK.
 
@@ -23,6 +23,10 @@ Copies of the library's C2 and tunnelling detections, gathered in one folder. Ea
 | [W10](W10-unauthorised-rmm-or-tunnel.md) | Unapproved remote management or tunnelling tool executed | Tunnelling | `rules/03-endpoint-windows/W10-unauthorised-rmm-or-tunnel.md` |
 | [Fixed 01](fixed-01-tunnel-service-connection.md) | 01 · Tunnel service connection (Zscaler) → tunnel agent detection (Zscaler + Falcon) | Tunnelling | `fixed-detections/01-tunnel-service-connection.md` |
 | [Fixed 02](fixed-02-dns-tunneling.md) | 02 · DNS tunneling (Falcon DNS requests) | Tunnelling | `fixed-detections/02-dns-tunneling.md` |
+| [L07](L07-defense-evasion-log-and-history-tamper.md) | Linux anti-forensics - logs, login records or shell history deleted or emptied, logging stopped, or system files re-dated | Post-exploitation | `rules/04-endpoint-linux/L07-defense-evasion-log-and-history-tamper.md` |
+| [L13](L13-rare-setuid-root-program.md) | Rare program runs setuid root (SUID backdoor such as a copied shell) | Post-exploitation | `rules/04-endpoint-linux/L13-rare-setuid-root-program.md` |
+| [L15](L15-passwordless-sudo-grant-written.md) | Passwordless sudo grant written to a sudoers file from the command line | Post-exploitation | `rules/04-endpoint-linux/L15-passwordless-sudo-grant-written.md` |
+| [N11](N11-imperva-new-script-page-posted-by-few-clients.md) | New script page answering POSTs from one or two clients at the Imperva edge (webshell in use) | Webshell | `rules/06-network/N11-imperva-new-script-page-posted-by-few-clients.md` |
 
 ## Keeping copies and originals identical
 - **In Claude Code:** the hook in `.claude/settings.json` copies an edited file over its twin after every edit.

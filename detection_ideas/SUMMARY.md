@@ -1,6 +1,6 @@
 # Detection ideas: what each one covers
 
-Seventeen detections for C2 and tunnelling, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
+Twenty-one detections for C2, tunnelling and post-exploitation, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
 
 ## What each one covers and how
 
@@ -36,6 +36,20 @@ Seventeen detections for C2 and tunnelling, grouped by what they're looking for.
 | [CS10](CS10-web-server-new-internal-admin-connection.md) | Webshell tunnels (reGeorg, Neo-reGeorg, Suo5) and webshell lateral movement | A web server process reaches an internal admin port on a host it hasn't contacted in 7 days | Each server's own 7-day history | CrowdStrike connections |
 | [CS09](CS09-windows-port-forward-portproxy.md) | Windows' built-in port forwarder (`netsh interface portproxy`) | A `netsh` command adds or changes a forward, or a write to the key forwards are stored in | One forward is the event; forwards are rare everywhere | CrowdStrike process starts and registry writes |
 
+### Post-exploitation on Linux: covering tracks and keeping root
+
+| Rule | Covers | How it detects | How it stays quiet | Data |
+|---|---|---|---|---|
+| [L07](L07-defense-evasion-log-and-history-tamper.md) | Anti-forensics in one rule: logs, login records or shell history deleted or emptied, history switched off, auditd or syslog stopped, system files re-dated | An action that destroys or re-dates (`rm`, `truncate`, `: >`, `unset HISTFILE`, `systemctl stop`, `touch -r`) on a live record: a log matched by name shape wherever it is, `wtmp`, history, the logging service. The label names the technique | The command is new on the host and run on at most 3 hosts; rotated logs don't count | CrowdStrike process starts (Linux) |
+| [L13](L13-rare-setuid-root-program.md) | Setuid-root backdoors, such as a shell copied to a system-looking name (`/usr/bin/dbus-authd` in the BeyondTrust intrusion) | A program starts as root for a non-root account (effective user 0, real user not 0), new on the host | Runs setuid on at most 3 hosts, so `sudo`, `su` and `passwd` drop out | CrowdStrike process starts (Linux) |
+| [L15](L15-passwordless-sudo-grant-written.md) | A `NOPASSWD` sudo rule written to give an account permanent root, including into a template that rebuilds `/etc/sudoers` | `NOPASSWD` and a sudoers path in one command, from something that writes rather than reads | The command is new on the host and run on at most 3 hosts | CrowdStrike process starts (Linux) |
+
+### Webshells at the edge
+
+| Rule | Covers | How it detects | How it stays quiet | Data |
+|---|---|---|---|---|
+| [N11](N11-imperva-new-script-page-posted-by-few-clients.md) | Webshells in use (SAWFLY in the BeyondTrust intrusion), including on servers and appliances without Falcon | A script page (`.php`, `.jsp`, `.aspx`, including an encoded `%2E` dot) that first answered a POST in the last 2 hours has had 5+ successful POSTs | At most 2 clients have POSTed to it; scanners get errors, not successes | Imperva passed requests |
+
 ## Running details
 
 | Rule | Severity | Schedule and lookback | Suppression | ATT&CK | LogScale version |
@@ -57,14 +71,21 @@ Seventeen detections for C2 and tunnelling, grouped by what they're looking for.
 | CS11 | Medium | Hourly, 7 days | `host.id`, `pname` / 24h | T1090.001, T1572, T1571 | Yes |
 | CS10 | High | Hourly, 7 days | `host.id`, `process.name` / 24h | T1090.001, T1572, T1505.003, T1021 | Yes |
 | CS09 | High | Per event | `host.id` / 1h | T1090.001, T1572 | Yes |
+| L07 | High | Hourly, 7 days | `host.id` / 24h | T1685.006, T1070.003, T1685.004, T1070.006 | Yes |
+| L13 | High | Hourly, 7 days | `host.id` / 24h | T1548.001 | Yes |
+| L15 | High | Hourly, 7 days | `host.id` / 24h | T1548.003 | Yes |
+| N11 | High | Hourly, 7 days | `url.domain`, `url.path` / 24h | T1505.003, T1190 | Not applicable (Imperva) |
 
 "Per event" rules alert on each matching event; the rule's default schedule applies. The fixed detections are reworks of rules already in your environment and use your index and field names; the rest use the Elastic integration's.
 
 ## How they fit together
 
 - **One tunnel usually trips more than one rule.** A Cloudflare tunnel exposing RDP fires CS14 (the agent) and CS15 (RDP from loopback); a chisel pivot fires W10 (if the name is unchanged) and CS16; a tunneller dropped in `/tmp` on a Linux server fires L14, and CS11 too if other hosts connect to it. Two alerts on the same `host.id` is a confirmed tunnel.
+- **One intrusion trips most of the post-exploitation rules.** ARMORY CASTLE's BeyondTrust intrusion would fire N11 (the webshell in use), then L03 (the web server starting shells), L13 (the setuid shell), L15 (the sudoers backdoor), L14 (the tunneller in `/tmp`) and L07 (the log wiping), all on one host.
 - **Endpoint and proxy see different halves.** B06 names the process and sees any protocol; B10 names the domain and URL and covers devices without Falcon.
 - **Known gaps:**
   - A tool renamed to a common binary (`svchost.exe`, `powershell.exe`) blends into that name's history in CS16 and B06.
   - B10 doesn't see C2 that Zscaler can't decrypt, or C2 on categorised domains; B06 covers both from the endpoint.
   - CS14 and CS15 depend on Falcon recording UDP and loopback connections. Each rule includes a query to check.
+  - L13 needs Falcon to send the real user ID (`RUID`), and N11 needs Imperva's logs of requests it let through, not only its security events. Each rule includes a query to check.
+  - L07 can't see shell built-ins (`unset HISTFILE`, `history -c`) typed into an interactive shell, only ones run through `sh -c` or a script, which is how a webshell runs commands.

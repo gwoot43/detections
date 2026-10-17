@@ -21,7 +21,7 @@ rules/
   14-ad-attack/             AD01-AD13 Active Directory attack paths, ranked by criticality
   15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
   16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
-detection_ideas/            copies of the C2 and tunnelling detections, kept identical to the originals (tools/sync_detection_ideas.py)
+detection_ideas/            copies of the C2, tunnelling and post-exploitation detections, kept identical to the originals (tools/sync_detection_ideas.py)
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
