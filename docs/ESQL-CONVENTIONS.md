@@ -97,6 +97,7 @@ Not every detection can meet all of these, but aim for them, and say in the rule
 6. **Few exclusions**, each one precise clause with a comment saying why, written so a missing field doesn't drop the row (`COALESCE`, `IS NULL OR`).
 7. **Output that answers the first triage questions** without another search.
 8. **A one- or two-line comment on each key step** of the query, so it explains itself when pasted into Kibana on its own.
+9. **ECS field names.** Normalise a field in place (`EVAL url.domain = TO_LOWER(url.domain)`) rather than copying it to a short alias (`d`, `port`, `pname`), and give output columns ECS names (`destination.port = VALUES(destination.port)`). Use the ECS field that fits the event: `url.domain` for web requests, `dns.question.name` for DNS lookups, `destination.domain` for a connection's target. Keep an alias only when the original value is still needed, such as case-sensitive flags. Labels and counts have no ECS field: give them a plain name that isn't an ECS object (`tunnel_service`, not `service`).
 
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
