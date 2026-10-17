@@ -1,6 +1,6 @@
 # Detection ideas: what each one covers
 
-Sixteen detections for C2 and tunnelling, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
+Seventeen detections for C2 and tunnelling, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
 
 ## What each one covers and how
 
@@ -31,6 +31,7 @@ Sixteen detections for C2 and tunnelling, grouped by what they're looking for. E
 |---|---|---|---|---|
 | [CS15](CS15-admin-service-reached-from-loopback.md) | Any tunnel exposing this host's own RDP or SSH, whatever it's called | RDP or SSH accepts a connection from the host itself (`127.0.0.1`, `::1`) | First time on this host in 7 days | CrowdStrike incoming connections; Windows 4624 type 10 as a second source |
 | [CS16](CS16-rare-program-reaches-internal-admin-services.md) | Pivots through a tunnel or implant (chisel, ligolo-ng, frp, SOCKS in a beacon) | A program connects to RDP, SSH, SMB, RPC or WinRM on other internal hosts, new on this host | The program does this on at most 3 hosts | CrowdStrike connections |
+| [L14](L14-temp-or-memory-program-listening.md) | Tunnellers, SOCKS proxies and bind shells dropped on a Linux server (BARECLAW in the BeyondTrust intrusion), including ones reached only through a local reverse proxy | A program started from `/tmp`, `/var/tmp`, `/dev/shm` or memory opens a listening port | Go's own build and test binaries excluded; real services are installed elsewhere | CrowdStrike process starts and listening sockets (Linux) |
 | [CS11](CS11-rare-program-accepting-internal-connections.md) | Implant listeners, pivot servers and bind shells | A program starts accepting connections from other internal hosts, new on this host | The program does this on at most 3 hosts | CrowdStrike incoming connections |
 | [CS10](CS10-web-server-new-internal-admin-connection.md) | Webshell tunnels (reGeorg, Neo-reGeorg, Suo5) and webshell lateral movement | A web server process reaches an internal admin port on a host it hasn't contacted in 7 days | Each server's own 7-day history | CrowdStrike connections |
 | [CS09](CS09-windows-port-forward-portproxy.md) | Windows' built-in port forwarder (`netsh interface portproxy`) | A `netsh` command adds or changes a forward, or a write to the key forwards are stored in | One forward is the event; forwards are rare everywhere | CrowdStrike process starts and registry writes |
@@ -52,6 +53,7 @@ Sixteen detections for C2 and tunnelling, grouped by what they're looking for. E
 | Fixed 02 | Not set | Every 15 min, 1 hour | `host.id`, `parent` / 24h | Not mapped | Yes |
 | CS15 | High | Hourly, 7 days | `host.id`, `destination.port` / 24h | T1572, T1021.001, T1021.004 | Yes |
 | CS16 | High | Hourly, 7 days | `host.id`, `process.name` / 24h | T1090.001, T1572, T1021 | Yes |
+| L14 | High | Every 15 min, 1 hour | `host.id`, `process.executable` / 24h | T1090.001, T1572 | Yes |
 | CS11 | Medium | Hourly, 7 days | `host.id`, `pname` / 24h | T1090.001, T1572, T1571 | Yes |
 | CS10 | High | Hourly, 7 days | `host.id`, `process.name` / 24h | T1090.001, T1572, T1505.003, T1021 | Yes |
 | CS09 | High | Per event | `host.id` / 1h | T1090.001, T1572 | Yes |
@@ -60,7 +62,7 @@ Sixteen detections for C2 and tunnelling, grouped by what they're looking for. E
 
 ## How they fit together
 
-- **One tunnel usually trips more than one rule.** A Cloudflare tunnel exposing RDP fires CS14 (the agent) and CS15 (RDP from loopback); a chisel pivot fires W10 (if the name is unchanged) and CS16. Two alerts on the same `host.id` is a confirmed tunnel.
+- **One tunnel usually trips more than one rule.** A Cloudflare tunnel exposing RDP fires CS14 (the agent) and CS15 (RDP from loopback); a chisel pivot fires W10 (if the name is unchanged) and CS16; a tunneller dropped in `/tmp` on a Linux server fires L14, and CS11 too if other hosts connect to it. Two alerts on the same `host.id` is a confirmed tunnel.
 - **Endpoint and proxy see different halves.** B06 names the process and sees any protocol; B10 names the domain and URL and covers devices without Falcon.
 - **Known gaps:**
   - A tool renamed to a common binary (`svchost.exe`, `powershell.exe`) blends into that name's history in CS16 and B06.

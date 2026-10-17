@@ -64,10 +64,13 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **L04** Persistence: cron/systemd/profile/authorized_keys _(P1)_ · `suppress: host.id, user.name / 1h`
 - [ ] **L05** Credential file / SSH key / cloud metadata access _(P1)_ · `suppress: host.id, user.name / 1h`
 - [ ] **L06** Privilege escalation (SUID/sudo/exploit) _(P2)_ · `suppress: host.id, user.name / 1h`
-- [ ] **L07** Log/history tamper, timestomping _(P2)_ · `suppress: host.id / 1h`
+- [ ] **L07** Linux anti-forensics in one rule: logs, login records or history deleted or emptied, logging stopped, system files re-dated (new and rare command) _(P1)_ · `suppress: host.id / 24h`
 - [ ] **L08** Container escape / privileged container / docker.sock _(P2)_ · `suppress: host.id / 1h`
 - [ ] **L09** Suspicious kernel module / rootkit _(P2)_ · `suppress: host.id / 24h`
 - [ ] **L10** Mass file encryption / wiper _(P1, critical)_ · `suppress: host.id / 1h`
+- [ ] **L13** Rare program runs setuid root (SUID backdoor such as a copied shell) _(P1)_ · `suppress: host.id / 24h`
+- [ ] **L14** Program from a temp folder or memory opens a listening port (tunneller, proxy, bind shell) _(P1)_ · `suppress: host.id, process.executable / 24h`
+- [ ] **L15** Passwordless sudo grant written to a sudoers file from the command line _(P2)_ · `suppress: host.id / 24h`
 
 ## Identity (AD + authentication, hybrid)
 - [ ] **I01** DCSync by non-DC principal _(P1, critical)_ · `suppress: subject / 1h`
@@ -91,6 +94,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **N08** Zscaler large upload / exfil _(P2)_ · `suppress: user.name, destination.domain / 24h`
 - [ ] **N09** Zscaler anonymizer / proxy avoidance / VPN / DoH _(P2)_ · `suppress: user.name, destination.domain, severity / 24h`
 - [ ] **N10** External scanning against the Imperva edge (internal fan-out: B01/B04) _(P2)_ · `suppress: src / 1h`
+- [ ] **N11** New script page answering POSTs from one or two clients at the Imperva edge (webshell in use; needs passed-request logs) _(P1)_ · `suppress: url.domain, url.path / 24h`
 
 ## CrowdStrike FDR (bonus, sensor-native telemetry)
 - [ ] **CS01** BYOVD vulnerable driver load _(P1, critical)_ · `suppress: host.id, img / 24h`

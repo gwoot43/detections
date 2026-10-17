@@ -8,9 +8,9 @@ rules/
   01-cloud/                 C01-C12   Azure & Entra activity/identity-plane
   02-email/                 E01-E14   Mimecast + O365 / Defender for Office
   03-endpoint-windows/      W01-W14   CrowdStrike FDR (Windows) + Defender for Endpoint alerts
-  04-endpoint-linux/        L01-L12   CrowdStrike FDR (Linux)
+  04-endpoint-linux/        L01-L15   CrowdStrike FDR (Linux)
   05-identity/              I01-I14   Active Directory + authentication (hybrid)
-  06-network/               N01-N10   F5 APM, Imperva WAF, Zscaler
+  06-network/               N01-N11   F5 APM, Imperva WAF, Zscaler
   07-crowdstrike-fdr/       CS01-CS16 Falcon sensor-native telemetry
   08-correlation/           X01-X07   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
@@ -55,4 +55,4 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 
 Technique IDs follow ATT&CK v19, where Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686.
 
-Total: 170 detections across 16 groups.
+Total: 182 detections across 16 groups.
