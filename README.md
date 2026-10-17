@@ -11,7 +11,7 @@ rules/
   04-endpoint-linux/        L01-L12   CrowdStrike FDR (Linux)
   05-identity/              I01-I14   Active Directory + authentication (hybrid)
   06-network/               N01-N10   F5 APM, Imperva WAF, Zscaler
-  07-crowdstrike-fdr/       CS01-CS15 Falcon sensor-native telemetry
+  07-crowdstrike-fdr/       CS01-CS16 Falcon sensor-native telemetry
   08-correlation/           X01-X07   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
   10-windows-event-logs/    WE01-WE15 Windows Security/System/Defender event-code detections
