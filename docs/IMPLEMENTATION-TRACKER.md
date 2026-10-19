@@ -113,7 +113,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS14** Tunnel service agent running on an endpoint (Cloudflare 7844, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore) _(P1)_ · `suppress: host.id, tunnel_service / 24h`
 - [ ] **CS15** RDP or SSH reached from the host itself (any tunnel, by behaviour) _(P1)_ · `suppress: host.id, destination.port / 24h`
 - [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour) _(P1)_ · `suppress: host.id, process.name / 24h`
-- [ ] **CS17** One process tests keys against several unrelated providers within minutes (TruffleHog as Shai-Hulud runs it, or a stealer) _(P1)_ · `suppress: host.id / 24h`
+- [ ] **CS17** Secret scanner: a process tests keys against several unrelated providers (activity), or TruffleHog scans the file system (filename fallback) _(P1)_ · `suppress: host.id / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
