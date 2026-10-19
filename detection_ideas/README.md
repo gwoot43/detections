@@ -1,6 +1,6 @@
-# Detection ideas: C2, tunnelling and post-exploitation
+# Detection ideas: C2, tunnelling, post-exploitation and AI
 
-Copies of the library's C2, tunnelling and post-exploitation detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.
+Copies of the library's C2, tunnelling, post-exploitation and AI detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.
 
 [SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with severity, schedule, suppression and ATT&CK.
 
@@ -27,6 +27,10 @@ Copies of the library's C2, tunnelling and post-exploitation detections, gathere
 | [L13](L13-rare-setuid-root-program.md) | Rare program runs setuid root (SUID backdoor such as a copied shell) | Post-exploitation | `rules/04-endpoint-linux/L13-rare-setuid-root-program.md` |
 | [L15](L15-passwordless-sudo-grant-written.md) | Passwordless sudo grant written to a sudoers file from the command line | Post-exploitation | `rules/04-endpoint-linux/L15-passwordless-sudo-grant-written.md` |
 | [N11](N11-imperva-new-script-page-posted-by-few-clients.md) | New script page answering POSTs from one or two clients at the Imperva edge (webshell in use) | Webshell | `rules/06-network/N11-imperva-new-script-page-posted-by-few-clients.md` |
+| [CS17](CS17-host-starts-calling-llm-api.md) | Host starts calling a public LLM API directly (malware or an agent using an AI model at runtime) | AI | `rules/07-crowdstrike-fdr/CS17-host-starts-calling-llm-api.md` |
+| [CS18](CS18-ai-coding-agent-run-unattended-with-approvals-off.md) | AI coding agent run unattended with every approval switched off (malware or a poisoned project driving a local agent) | AI | `rules/07-crowdstrike-fdr/CS18-ai-coding-agent-run-unattended-with-approvals-off.md` |
+| [C13](C13-m365-copilot-prompt-injection-or-jailbreak.md) | Microsoft 365 Copilot detects a prompt injection in content it read, or a jailbreak in a prompt | AI | `rules/01-cloud/C13-m365-copilot-prompt-injection-or-jailbreak.md` |
+| [C14](C14-azure-openai-keys-or-content-filter-new-identity.md) | Azure OpenAI keys listed or content filter changed by an identity new to it (LLMjacking) | AI | `rules/01-cloud/C14-azure-openai-keys-or-content-filter-new-identity.md` |
 
 ## Keeping copies and originals identical
 - **In Claude Code:** the hook in `.claude/settings.json` copies an edited file over its twin after every edit.

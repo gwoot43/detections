@@ -1,6 +1,6 @@
 # Detection ideas: what each one covers
 
-Twenty-one detections for C2, tunnelling and post-exploitation, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
+Twenty-five detections for C2, tunnelling, post-exploitation and AI, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
 
 ## What each one covers and how
 
@@ -50,6 +50,15 @@ Twenty-one detections for C2, tunnelling and post-exploitation, grouped by what 
 |---|---|---|---|---|
 | [N11](N11-imperva-new-script-page-posted-by-few-clients.md) | Webshells in use (SAWFLY in the BeyondTrust intrusion), including on servers and appliances without Falcon | A script page (`.php`, `.jsp`, `.aspx`, including an encoded `%2E` dot) that first answered a POST in the last 2 hours has had 5+ successful POSTs | At most 2 clients have POSTed to it; scanners get errors, not successes | Imperva passed requests |
 
+### AI: attacks using or aimed at AI (ATT&CK v20)
+
+| Rule | Covers | How it detects | How it stays quiet | Data |
+|---|---|---|---|---|
+| [CS17](CS17-host-starts-calling-llm-api.md) | Malware that asks a public AI model what to do next (APT28's LAMEHUG), or a rogue agent | A host looks up an LLM provider's API endpoint (`api.openai.com`, `router.huggingface.co` …) for the first time in 7 days | At most 3 hosts started on that API together, so a software rollout drops out; the chat websites people use aren't on the list | CrowdStrike DNS; Zscaler as an alternative |
+| [CS18](CS18-ai-coding-agent-run-unattended-with-approvals-off.md) | Malware or a poisoned project driving a local AI coding agent (Claude Code, Codex, Gemini CLI, Amazon Q, Copilot CLI), as in the s1ngularity npm compromise | The agent's approval-bypass switch plus a prompt on the command line: run unattended with nobody to say no | New for that parent and agent on the host; CI runners and orchestrators have a history | CrowdStrike process starts |
+| [C13](C13-m365-copilot-prompt-injection-or-jailbreak.md) | Prompt injection hidden in mail, files or pages Microsoft 365 Copilot reads (EchoLeak-style), and jailbreak attempts | Copilot's own verdicts in the audit record: `XPIADetected` on content it read, `JailbreakDetected` on a prompt | Vendor verdict, so no tuning; a jailbreak alerts at medium | Purview audit (CopilotInteraction); confirm the fields are mapped |
+| [C14](C14-azure-openai-keys-or-content-filter-new-identity.md) | LLMjacking: stolen access to your Azure OpenAI models, content filters switched off (Storm-2139) | Keys listed or regenerated, or a content filter changed, on an AI services account | New for that identity in 7 days; pipelines that read keys on every deploy have a history | Azure Activity log |
+
 ## Running details
 
 | Rule | Severity | Schedule and lookback | Suppression | ATT&CK | LogScale version |
@@ -75,6 +84,10 @@ Twenty-one detections for C2, tunnelling and post-exploitation, grouped by what 
 | L13 | High | Hourly, 7 days | `host.id` / 24h | T1548.001 | Yes |
 | L15 | High | Hourly, 7 days | `host.id` / 24h | T1548.003 | Yes |
 | N11 | High | Hourly, 7 days | `url.domain`, `url.path` / 24h | T1505.003, T1190 | Not applicable (Imperva) |
+| CS17 | Medium | Hourly, 7 days | `host.id` / 24h | T1588.007, T1071.001 | Yes |
+| CS18 | High | Hourly, 7 days | `host.id` / 24h | T1700, T1195.001, T1059 | Yes |
+| C13 | High, medium for a jailbreak | Every 15 min, 1 hour | `usr`, `finding` / 24h | T1698, T1699, T1700 | Not applicable (Microsoft 365) |
+| C14 | High for a content filter, medium for keys | Hourly, 7 days | `actor`, `action` / 24h | T1496.004, T1552 | Not applicable (Azure) |
 
 "Per event" rules alert on each matching event; the rule's default schedule applies. The fixed detections are reworks of rules already in your environment and use your index and field names; the rest use the Elastic integration's.
 
@@ -88,4 +101,5 @@ Twenty-one detections for C2, tunnelling and post-exploitation, grouped by what 
   - B10 doesn't see C2 that Zscaler can't decrypt, or C2 on categorised domains; B06 covers both from the endpoint.
   - CS14 and CS15 depend on Falcon recording UDP and loopback connections. Each rule includes a query to check.
   - L13 needs Falcon to send the real user ID (`RUID`), and N11 needs Imperva's logs of requests it let through, not only its security events. Each rule includes a query to check.
+  - C13 depends on the O365 integration indexing Copilot's audit fields, which it doesn't define; the rule has a query to check. CS18 doesn't see an agent driven through its SDK rather than its command line.
   - L07 can't see shell built-ins (`unset HISTFILE`, `history -c`) typed into an interactive shell, only ones run through `sh -c` or a script, which is how a webshell runs commands.

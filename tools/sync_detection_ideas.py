@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Keep detection_ideas/ identical to the rules it copies.
 
-detection_ideas/ holds copies of the C2, tunnelling and post-exploitation detections. Edit a copy or its
+detection_ideas/ holds copies of the C2, tunnelling, post-exploitation and AI detections. Edit a copy or its
 original and this script copies the edited file over the other. The Claude Code hook in
 .claude/settings.json runs it after every edit.
 
@@ -44,6 +44,10 @@ SOURCES = [
     ("Post-exploitation", "rules/04-endpoint-linux/L13-rare-setuid-root-program.md"),
     ("Post-exploitation", "rules/04-endpoint-linux/L15-passwordless-sudo-grant-written.md"),
     ("Webshell", "rules/06-network/N11-imperva-new-script-page-posted-by-few-clients.md"),
+    ("AI", "rules/07-crowdstrike-fdr/CS17-host-starts-calling-llm-api.md"),
+    ("AI", "rules/07-crowdstrike-fdr/CS18-ai-coding-agent-run-unattended-with-approvals-off.md"),
+    ("AI", "rules/01-cloud/C13-m365-copilot-prompt-injection-or-jailbreak.md"),
+    ("AI", "rules/01-cloud/C14-azure-openai-keys-or-content-filter-new-identity.md"),
 ]
 
 
@@ -128,9 +132,9 @@ def readme(log):
         label = "Fixed " + name.split("-")[1] if name.startswith("fixed-") else name.split("-")[0]
         rows.append(f"| [{label}]({name}) | {title(o)} | {group} | `{o}` |")
     body = "\n".join([
-        "# Detection ideas: C2, tunnelling and post-exploitation",
+        "# Detection ideas: C2, tunnelling, post-exploitation and AI",
         "",
-        "Copies of the library's C2, tunnelling and post-exploitation detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.",
+        "Copies of the library's C2, tunnelling, post-exploitation and AI detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.",
         "",
         "[SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with severity, schedule, suppression and ATT&CK.",
         "",

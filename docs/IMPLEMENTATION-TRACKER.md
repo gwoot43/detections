@@ -113,6 +113,8 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS14** Tunnel service agent running on an endpoint (Cloudflare 7844, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore) _(P1)_ · `suppress: host.id, tunnel_service / 24h`
 - [ ] **CS15** RDP or SSH reached from the host itself (any tunnel, by behaviour) _(P1)_ · `suppress: host.id, destination.port / 24h`
 - [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour) _(P1)_ · `suppress: host.id, process.name / 24h`
+- [ ] **CS17** Host starts calling a public LLM API directly (AI-enabled malware such as LAMEHUG) _(P2)_ · `suppress: host.id / 24h`
+- [ ] **CS18** AI coding agent run unattended with every approval off (malware driving local agents) _(P1)_ · `suppress: host.id / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
@@ -164,6 +166,8 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **L11** PAM / NSS authentication backdoor _(high)_ · `suppress: host.id, f / 1h`
 - [ ] **L12** SSH lateral fan-out _(high)_ · `suppress: host.id / 1h`
 - [ ] **C12** Automation runbook / webhook _(high)_ · `suppress: actor, azure.resource.name / 1h`
+- [ ] **C13** Microsoft 365 Copilot flags a prompt injection or jailbreak (confirm Copilot audit fields are mapped) _(P2)_ · `suppress: usr, finding / 24h`
+- [ ] **C14** Azure OpenAI keys listed or content filter changed by an identity new to it (LLMjacking) _(P2)_ · `suppress: actor, action / 24h`
 - [ ] **E11** Email bombing _(medium)_ · `suppress: rcpt / 24h`
 - [ ] **S11** Help-desk MFA reset then new-location sign-in _(high)_ · `suppress: uid / 24h`
 - [ ] **X06** External Teams contact then remote tool _(high)_ · `suppress: usr / 24h`

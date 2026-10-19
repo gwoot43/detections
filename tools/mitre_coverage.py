@@ -9,7 +9,7 @@ Outputs:
 
 Usage:
   curl -sSo enterprise-attack.json \
-    https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-19.2.json
+    https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-20.0.json
   python3 tools/mitre_coverage.py --stix enterprise-attack.json
 
 Revoked technique IDs in a rule (e.g. T1562.001, revoked in v19) are resolved to their

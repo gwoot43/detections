@@ -5,13 +5,13 @@ Starter detection content for a new detection & response function. Stack: **Crow
 ## Layout
 ```
 rules/
-  01-cloud/                 C01-C12   Azure & Entra activity/identity-plane
+  01-cloud/                 C01-C14   Azure & Entra activity/identity-plane
   02-email/                 E01-E14   Mimecast + O365 / Defender for Office
   03-endpoint-windows/      W01-W14   CrowdStrike FDR (Windows) + Defender for Endpoint alerts
   04-endpoint-linux/        L01-L15   CrowdStrike FDR (Linux)
   05-identity/              I01-I14   Active Directory + authentication (hybrid)
   06-network/               N01-N11   F5 APM, Imperva WAF, Zscaler
-  07-crowdstrike-fdr/       CS01-CS16 Falcon sensor-native telemetry
+  07-crowdstrike-fdr/       CS01-CS18 Falcon sensor-native telemetry
   08-correlation/           X01-X07   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
   10-windows-event-logs/    WE01-WE15 Windows Security/System/Defender event-code detections
@@ -21,10 +21,10 @@ rules/
   14-ad-attack/             AD01-AD13 Active Directory attack paths, ranked by criticality
   15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
   16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
-detection_ideas/            copies of the C2, tunnelling and post-exploitation detections, kept identical to the originals (tools/sync_detection_ideas.py)
+detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
 docs/
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
-  NEW-TTPS-2026.md               recent tradecraft & MITRE v18/v19 changes
+  NEW-TTPS-2026.md               recent tradecraft, MITRE v18-v20 changes, AI attack rules and ideas
   ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping
 ```
 
@@ -53,6 +53,6 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 - **`docs/attack-navigator-layer.json`**: import into the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) for the standard heat map (score = number of rules).
 - **`tools/mitre_coverage.py`**: regenerates all three. Run it after adding or changing a rule (usage is in the script header). The page layout lives in `tools/attack-coverage-map.template.html`.
 
-Technique IDs follow ATT&CK v19, where Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686.
+Technique IDs follow ATT&CK v20. Since v19, Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686; v20 added AI techniques (T1698-T1700).
 
-Total: 182 detections across 16 groups.
+Total: 186 detections across 16 groups.

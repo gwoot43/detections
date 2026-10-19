@@ -1,4 +1,4 @@
-# New TTPs and MITRE additions to build for (as of 2026-09)
+# New TTPs and MITRE additions to build for (as of 2026-10)
 
 This is the answer to "any new attack TTPs in the last couple of months, and new MITRE additions?" It maps recent tradecraft to the rules in this library and flags gaps to add next.
 
@@ -8,6 +8,15 @@ This is the answer to "any new attack TTPs in the last couple of months, and new
 - **Defense Evasion split into two tactics.** Defense Evasion is retired as a single tactic. It is now **Stealth (TA0005)** — obfuscation, execution guardrails, process injection, indicator removal — and **Defense Impairment (TA0112)** — disabling firewalls, killing EDR, modifying defensive infrastructure. Action: when you tag rules and build your coverage matrix, split the old Defense Evasion column. Our W05 (EDR tamper), CS01 (BYOVD) and L07 (log tamper) map to Defense Impairment; W03/W04 obfuscated execution and CS06 injection map to Stealth.
 - **New AI-enabled and social-engineering techniques** were added (see the T168x range below), reflecting adversary use of and attacks on AI systems.
 - Enterprise now stands at 15 tactics, 222 techniques, 475 sub-techniques.
+
+### ATT&CK v20 (released 2026-10-13)
+Nine new Enterprise techniques, five of them about AI. The library is now tagged against v20.
+- **T1698 Indirect Prompt Injection** and **T1699 Direct Prompt Injection** (Execution): instructions hidden in content an AI reads, or typed straight at it. Covered for Microsoft 365 Copilot by C13.
+- **T1700 AI-Enabled Exfiltration**: steering an enterprise AI agent into sending data out. Covered by C13 (Copilot) and CS18 (local coding agents driven by malware).
+- **T1608.007 AI Result Poisoning** (Resource Development): planting web content so AI assistants recommend the attacker's site or download. Happens outside your network; see the ideas below for the download that follows.
+- **T1685.007 Impair Autonomous Defenses**: prompts embedded in malware to derail LLM-assisted analysis. Only relevant if you use an LLM to triage; see the ideas below.
+- **T1696 Anti-Automation Evasion** (CAPTCHA solving and avoidance), **T1697 Steal Application Specific Passwords**: not AI-specific; not yet covered.
+- **T1195.001** now includes IDE and coding-agent configuration files (`tasks.json`, `SKILL.md`). CS18 covers an agent being driven; see the ideas below for files that run on open.
 
 ### New Enterprise techniques worth tracking (v18 Oct 2025 and v19 Apr 2026)
 - **T1677 Poisoned Pipeline Execution** — CI/CD abuse. Gap in this library (we have no CI/CD source). Add if you onboard build-system logs.
@@ -37,9 +46,34 @@ NCC Group tracked **Mini Shai-Hulud, Miasma and Hades** through mid-2026 (npm/pa
 ### Identity attacks via deepfake / help-desk social engineering — PARTIAL
 Scattered Spider-style help-desk resets and MFA fatigue remain prominent; deepfake-assisted voice is now repeatable at volume. I10 (MFA method registered), S12 (MFA fatigue), and W10 (RMM dropped after a help-desk call) cover the technical residue. The human process (help-desk verification) is a control, not a detection.
 
+## AI-related attacks: rules and ideas to investigate
+
+**Rules in the library:**
+
+| Rule | Detects | Source |
+|---|---|---|
+| CS17 | A host starts calling a public LLM API directly (malware asking a model for commands, as APT28's LAMEHUG does) | CrowdStrike DNS; Zscaler as an alternative |
+| CS18 | An AI coding agent run unattended with every approval off (malware driving local agents, as in the s1ngularity npm compromise) | CrowdStrike process starts |
+| C13 | Microsoft 365 Copilot flags a prompt injection in content it read, or a jailbreak in a prompt | Purview audit (CopilotInteraction) via the O365 integration |
+| C14 | Azure OpenAI keys listed or content filter changed by an identity new to it (LLMjacking) | Azure Activity log |
+
+**Ideas to investigate.** These aren't built yet, because each depends on a source or field that needs confirming first.
+
+| Technique | Idea | Likely source | Check first |
+|---|---|---|---|
+| T1608.007 AI Result Poisoning | An executable or installer downloaded from an uncategorised or newly registered domain right after an AI assistant linked to it (`utm_source=chatgpt.com` in the URL, or a referrer of `chatgpt.com`, `perplexity.ai`, `copilot.microsoft.com`, `gemini.google.com`) | Zscaler web logs | Whether your Zscaler logs keep the referrer, the query string and the downloaded file type |
+| T1195.001, T1027.018 (GlassWorm-style malicious VS Code extensions) | VS Code looking up a domain few other VS Code installs reach | CrowdStrike DNS joined to the process (LogScale) | The VS Code rare-DNS query being tuned now |
+| T1195.001 (project files that run on open) | VS Code starting a shell that downloads or runs code within a minute of a folder opening, with no build started (`tasks.json` with `runOn: folderOpen`, used by Contagious Interview) | CrowdStrike process starts (parent `Code.exe`) | What VS Code's normal children look like in your data (git, node, language servers) |
+| T1685.007 Impair Autonomous Defenses | Command lines or PowerShell script blocks containing chat-template tokens (`<\|im_start\|>`, `<\|system\|>`, `[INST]`) or "ignore previous instructions" | CrowdStrike command lines; Windows PowerShell 4104 | Only matters if you use an LLM to triage (Charlotte AI, Elastic AI Assistant); whether you collect 4104 |
+| T1700 (SaaS agents) | A Copilot Studio agent published or changed with a connector that sends data outside (HTTP request, external email, custom connector) | Purview audit (Copilot Studio / Power Platform records) | Whether you use Copilot Studio, and whether those records reach `logs-o365.audit-*` |
+| T1699 against your own AI apps | Prompt Shields jailbreak verdicts on your Azure OpenAI apps | Azure OpenAI diagnostic logs | Whether you host LLM apps and send their diagnostics to Elastic |
+| Exfiltration to AI apps | First large upload by a user to an unsanctioned generative-AI app | Zscaler (generative-AI cloud app category, upload bytes) | Which Zscaler field carries the AI app category; N08 already covers large uploads in general |
+| T1684, T1683.002 (AI voice and help-desk social engineering) | Already covered by what follows: S11 (help-desk MFA reset then new-location sign-in), S12, I10 | Entra | Nothing |
+| T1682, T1683, T1588.007 | Researching targets, generating lures and obtaining AI access happen outside your network | None | Nothing to log |
+
 ## Gaps to schedule next
 1. **CI/CD pipeline** detections (T1677) — needs build-system logs onboarded.
-2. **Developer endpoint / package-manager** supply-chain rules (Shai-Hulud class).
+2. **Developer endpoint / package-manager** supply-chain rules (Shai-Hulud class). CS18 covers malware driving local AI agents; package install scripts touching credentials are still open.
 3. **SaaS / Cloud App** detections beyond Entra (Defender for Cloud Apps / MDA) if licensed — mass download, OAuth app anomaly, SharePoint/OneDrive exfil.
-4. **AI system monitoring** (ATLAS) if you deploy internal LLM agents.
-5. Re-tag the whole library to the **v19 Stealth / Defense Impairment** split when you import into ATT&CK Navigator.
+4. **AI system monitoring**: C13 and C14 cover Copilot and Azure OpenAI. Use MITRE ATLAS if you deploy your own LLM agents, and work through the ideas table above.
+5. The library is tagged against **ATT&CK v20**; re-import `docs/attack-navigator-layer.json` into ATT&CK Navigator after each regeneration.
