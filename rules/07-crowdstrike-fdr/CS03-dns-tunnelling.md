@@ -1,6 +1,6 @@
 ---
 id: CS03
-name: DNS tunnelling - many long, distinct names under one parent domain from one host
+name: DNS tunnelling - many long, distinct names under one parent domain from one host (activity), or a DNS tunnel tool runs (filename fallback)
 category: crowdstrike-fdr
 status: todo
 severity: medium
@@ -26,14 +26,19 @@ The parent is the registrable domain the integration computes from the public su
 Run every 15 minutes with a 1-hour lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-// Anchor: DNS lookups, minus reverse lookups.
+// Activity: DNS lookups, minus reverse lookups. Filename fallback: a DNS tunnel tool starting (iodine, dnscat2, dns2tcp),
+// which alerts even when the tunnel is still quiet.
 | WHERE event.action IN ("DnsRequest", "SuspiciousDnsRequest")
-| EVAL domain = TO_LOWER(TO_STRING(dns.question.name))
-| WHERE domain IS NOT NULL AND NOT domain LIKE "*.arpa"
-// The parent is the registrable domain (public suffix list), falling back to the last two labels.
+     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+         AND (TO_LOWER(process.name) IN ("iodine", "iodine.exe", "dnscat", "dnscat.exe", "dnscat2", "dnscat2.exe", "dns2tcpc", "dns2tcpc.exe")
+              OR TO_LOWER(process.command_line) LIKE "*start-dnscat2*"))
+| EVAL named = event.action LIKE "*ProcessRollup2", domain = TO_LOWER(TO_STRING(dns.question.name))
+| WHERE named OR (domain IS NOT NULL AND NOT domain LIKE "*.arpa")
+// The parent is the registrable domain (public suffix list), falling back to the last two labels; for a tool's start, the tool's name.
 // Tunnels encode data in the first label, so its length is the tell.
 | EVAL parts = SPLIT(domain, "."),
-       parent = TO_LOWER(COALESCE(dns.question.registered_domain, MV_CONCAT(MV_SLICE(parts, -2, -1), "."))),
+       parent = CASE(named, CONCAT("tool:", TO_LOWER(process.name)),
+                     TO_LOWER(COALESCE(dns.question.registered_domain, MV_CONCAT(MV_SLICE(parts, -2, -1), ".")))),
        label_len = LENGTH(MV_FIRST(parts))
 // Mail servers' DNS blocklist lookups are tunnel-shaped by design and run on only a few hosts, so rarity can't remove them.
 | WHERE NOT parent IN ("spamhaus.org", "spamcop.net", "surbl.org", "uribl.com", "barracudacentral.org")
@@ -41,40 +46,53 @@ FROM logs-crowdstrike.fdr-*
 | STATS distinct_sub = COUNT_DISTINCT(domain), total = COUNT(*),
         long_names = COUNT_DISTINCT(CASE(label_len >= 30, domain, NULL)), max_label = MAX(label_len),
         sample = VALUES(domain), pids = VALUES(process.entity_id), host.name = VALUES(host.name),
+        named = MAX(CASE(named, 1, 0)), process.command_line = VALUES(process.command_line),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY host.id, parent
 // Rarity: every host that looked up names under this parent, counted before the tunnel checks.
 // CDN, cloud and security-vendor domains are looked up across the fleet and drop out here.
 | INLINE STATS hosts = COUNT_DISTINCT(host.id) BY parent
-// Tunnel: 100+ distinct names, 20+ with a first label of 30+ characters, under a parent at most 3 hosts look up.
-| WHERE distinct_sub >= 100 AND long_names >= 20 AND hosts <= 3
+// Activity first: 100+ distinct names, 20+ with a first label of 30+ characters, under a parent at most 3 hosts look up.
+// Then the filename fallback.
+| WHERE (distinct_sub >= 100 AND long_names >= 20 AND hosts <= 3) OR named == 1
+| EVAL finding = CASE(named == 1, "DNS tunnel tool started (by name)", "DNS tunnel by behaviour")
 | EVAL sample = MV_SLICE(sample, 0, 9)
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
-#event_simpleName=/^(DnsRequest|SuspiciousDnsRequest)$/
-// Anchor: DNS lookups, minus reverse lookups.
-| domain := lower(DomainName)
-| domain!=/\.arpa$/
-// Falcon has no registered-domain field, so the parent is the last two labels.
-| domain=/(?<parent>[^.]*\.[^.]*)$/
+#event_simpleName=/^(DnsRequest|SuspiciousDnsRequest|ProcessRollup2|SyntheticProcessRollup2)$/
+// Activity: DNS lookups, minus reverse lookups. Falcon has no registered-domain field, so the parent is the last two labels.
+// Filename fallback: a DNS tunnel tool starting; its name stands in for the parent.
+| case {
+    #event_simpleName=/DnsRequest$/
+      | domain := lower(DomainName)
+      | domain!=/\.arpa$/
+      | domain=/(?<parent>[^.]*\.[^.]*)$/
+      | domain=/^(?<label1>[^.]*)/
+      | label_len := length(label1);
+    #event_simpleName=/ProcessRollup2$/ (FileName=/^(iodine|dnscat2?|dns2tcpc)(\.exe)?$/i or CommandLine=/start-dnscat2/i)
+      | parent := format("tool:%s", field=[FileName]) | named_host := aid;
+  }
 // Mail servers' DNS blocklist lookups are tunnel-shaped by design and run on only a few hosts, so rarity can't remove them.
 | !in(field="parent", ignoreCase=true, values=["spamhaus.org", "spamcop.net", "surbl.org", "uribl.com", "barracudacentral.org"])
 // Tunnels encode data in the first label, so its length is the tell.
-| domain=/^(?<label1>[^.]*)/
-| label_len := length(label1)
 | case { test(label_len >= 30) | long_name := domain; * ; }
 // One row per host and parent.
 | groupBy([aid, parent], function=[count(domain, distinct=true, as=distinct_sub), count(long_name, distinct=true, as=long_names),
-                                   max(label_len, as=max_label), collect([ComputerName, ContextProcessId])], limit=max)
+                                   max(label_len, as=max_label), collect([ComputerName, ContextProcessId, named_host, CommandLine])], limit=max)
 // Mark the tunnel-shaped rows. Every host still counts towards rarity below.
 | case { test(distinct_sub >= 100 AND long_names >= 20) | tunnel_host := aid; * ; }
 // Rarity: one row per parent, counting every host that looked it up. Keep parents with a tunnel and at most 3 hosts.
 | groupBy([parent], function=[count(aid, distinct=true, as=hosts), max(distinct_sub, as=distinct_sub), max(long_names, as=long_names),
-                              max(max_label, as=max_label), collect([tunnel_host, ComputerName, ContextProcessId])], limit=max)
-| test(hosts <= 3)
-| tunnel_host=*
+                              max(max_label, as=max_label), collect([tunnel_host, named_host, ComputerName, ContextProcessId, CommandLine])],
+          limit=max)
+// Activity first: a tunnel-shaped host under a parent at most 3 hosts look up. Then the filename fallback.
+| (test(hosts <= 3) AND tunnel_host=*) or named_host=*
+| case {
+    named_host=* | finding := "DNS tunnel tool started (by name)";
+    * | finding := "DNS tunnel by behaviour";
+  }
 ```
 Falcon has no registered-domain field, so `parent` here is the last two labels of the name, a simplification that groups unrelated sites under suffixes like `co.uk`. LogScale has no `INLINE STATS`, so this version rolls up to one row per parent, listing the tunnel host and the at most three hosts that looked it up.
 

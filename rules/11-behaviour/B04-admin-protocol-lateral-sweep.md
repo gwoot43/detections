@@ -1,6 +1,6 @@
 ---
 id: B04
-name: Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (catches by behaviour: SharpHound/BloodHound collection, PsExec/Impacket sweeps, CrackMapExec/NetExec)
+name: Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (activity), or CrackMapExec, NetExec or Impacket by name (fallback)
 category: behaviour
 status: todo
 severity: high
@@ -20,16 +20,23 @@ Three labelled tiers, in the `label` and `severity` columns:
 - `ldap_and_lateral_sweep` (high): the sweep threshold is met and the same process also queried a domain controller over LDAP. This is the directory-collection shape: SharpHound queries LDAP, then connects to port 445 on every computer it found before enumerating sessions and local admins.
 - `lateral_sweep` (high): 15 or more distinct targets on SMB/RPC, WinRM or RDP.
 - `ldap_dc_fanout` (medium): one process connecting over LDAP, LDAPS or the Global Catalog to 3 or more distinct directory servers. LDAP fan-out is a different shape from SMB fan-out (an estate has a handful of domain controllers, not hundreds), so it has its own, lower threshold.
+- `lateral_tool_started_by_name` (high), the **filename fallback**: CrackMapExec or NetExec (`crackmapexec.exe`, `cme.exe`, `nxc.exe`, `netexec.exe`) or Impacket's lateral-movement scripts (`psexec.py`, `wmiexec.py`, `smbexec.py`, `atexec.py`, `dcomexec.py`) starting on a Windows host. It alerts even when the sweep is below the threshold (a single target) or the sensor doesn't name the process on connection events. `by_name` is also true on a behaviour tier when the sweeping process is one of these tools. SharpHound and other AD tools are matched by name in W09.
 
 ## Query
 Run every 10 minutes with a 15-minute lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.action == "NetworkConnectIP4"
-  AND host.os.type == "windows" AND destination.ip IS NOT NULL
-  AND destination.port IN (5985, 5986, 3389, 135, 445, 389, 636, 3268, 3269)
-  AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+// Activity: Windows connections to internal admin protocols. Filename fallback: CrackMapExec, NetExec or Impacket's
+// lateral-movement scripts starting, which alerts even when the sweep is small.
+| WHERE host.os.type == "windows"
+  AND ((event.action == "NetworkConnectIP4" AND destination.ip IS NOT NULL
+        AND destination.port IN (5985, 5986, 3389, 135, 445, 389, 636, 3268, 3269)
+        AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
+       OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+           AND (TO_LOWER(process.name) IN ("crackmapexec.exe", "cme.exe", "nxc.exe", "netexec.exe")
+                OR TO_LOWER(process.command_line) RLIKE ".*(psexec|wmiexec|smbexec|atexec|dcomexec)\\.py.*")))
 | EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown")),
+       tool_start = event.action != "NetworkConnectIP4",
        protocol = CASE(destination.port IN (5985, 5986), "winrm",
                        destination.port == 3389, "rdp",
                        destination.port IN (389, 636, 3268, 3269), "ldap",
@@ -41,23 +48,37 @@ FROM logs-crowdstrike.fdr-*
         winrm = COUNT_DISTINCT(CASE(protocol == "winrm", destination.ip, NULL)),
         rdp = COUNT_DISTINCT(CASE(protocol == "rdp", destination.ip, NULL)),
         ldap_targets = COUNT_DISTINCT(CASE(protocol == "ldap", destination.ip, NULL)),
-        protocols = VALUES(protocol),
-        conns = COUNT(*),
+        protocols = VALUES(CASE(NOT tool_start, protocol, NULL)),
+        conns = COUNT(CASE(NOT tool_start, 1, NULL)),
+        named = MAX(CASE(tool_start, 1, 0)),
+        process.command_line = VALUES(process.command_line),
         host.name = VALUES(host.name)
     BY host.id, process.name
-| WHERE targets >= 15 OR ldap_targets >= 3
+// Activity first: the sweep and LDAP tiers. Then the filename fallback.
+| WHERE targets >= 15 OR ldap_targets >= 3 OR named == 1
 | EVAL label = CASE(targets >= 15 AND ldap_targets >= 1, "ldap_and_lateral_sweep",
                     targets >= 15, "lateral_sweep",
-                    "ldap_dc_fanout"),
-       severity = CASE(targets >= 15, "high", "medium")
+                    ldap_targets >= 3, "ldap_dc_fanout",
+                    "lateral_tool_started_by_name"),
+       by_name = named == 1,
+       severity = CASE(targets >= 15 OR named == 1, "high", "medium")
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
-#event_simpleName=NetworkConnectIP4 event_platform=Win
-| in(field="RemotePort", values=["5985", "5986", "3389", "135", "445", "389", "636", "3268", "3269"])
-| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
-| pname := lower(ContextBaseFileName)
+#event_simpleName=/^(NetworkConnectIP4|ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win
+| case {
+    // Activity: connections to internal admin protocols.
+    #event_simpleName=NetworkConnectIP4
+      | in(field="RemotePort", values=["5985", "5986", "3389", "135", "445", "389", "636", "3268", "3269"])
+      | cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+      | pname := lower(ContextBaseFileName);
+    // Filename fallback: CrackMapExec, NetExec or Impacket's lateral-movement scripts starting.
+    FileName=/^(crackmapexec|cme|nxc|netexec)\.exe$/i
+      | pname := lower(FileName) | named := 1;
+    CommandLine=/(psexec|wmiexec|smbexec|atexec|dcomexec)\.py/i
+      | pname := lower(FileName) | named := 1;
+  }
 | default(field=pname, value="unknown", replaceEmpty=true)
 | case {
     in(field="RemotePort", values=["5985", "5986"])
@@ -66,20 +87,27 @@ FROM logs-crowdstrike.fdr-*
       | protocol := "rdp" | target_ip := RemoteAddressIP4 | rdp_ip := RemoteAddressIP4;
     in(field="RemotePort", values=["389", "636", "3268", "3269"])
       | protocol := "ldap" | ldap_ip := RemoteAddressIP4;
-    *
+    RemotePort=*
       | protocol := "smb_rpc" | target_ip := RemoteAddressIP4;
+    *;
   }
 // exclude admin jump hosts, patch and management servers by agent ID, e.g. | !in(field="aid", values=["<jump01_aid>", "<sccm01_aid>"])
 // Netlogon (inside lsass.exe) pings several DCs over LDAP to locate one; that is normal DC discovery, not enumeration
 | (protocol!="ldap" OR pname!="lsass.exe")
 | groupBy([aid, pname], function=[count(target_ip, distinct=true, as=targets), count(winrm_ip, distinct=true, as=winrm),
                                   count(rdp_ip, distinct=true, as=rdp), count(ldap_ip, distinct=true, as=ldap_targets),
-                                  collect([protocol, ComputerName]), count(as=conns)], limit=max)
-| test(targets >= 15 OR ldap_targets >= 3)
+                                  collect([protocol, ComputerName, CommandLine]), count(as=conns), count(named, as=named)], limit=max)
+// Activity first: the sweep and LDAP tiers. Then the filename fallback.
+| test(targets >= 15 OR ldap_targets >= 3 OR named > 0)
 | case {
-    test(targets >= 15 AND ldap_targets >= 1) | label := "ldap_and_lateral_sweep" | severity := "high";
-    test(targets >= 15) | label := "lateral_sweep" | severity := "high";
-    * | label := "ldap_dc_fanout" | severity := "medium";
+    test(targets >= 15 AND ldap_targets >= 1) | label := "ldap_and_lateral_sweep";
+    test(targets >= 15) | label := "lateral_sweep";
+    test(ldap_targets >= 3) | label := "ldap_dc_fanout";
+    * | label := "lateral_tool_started_by_name";
+  }
+| case {
+    test(targets >= 15 OR named > 0) | severity := "high";
+    * | severity := "medium";
   }
 ```
 `targets` counts SMB/RPC, WinRM and RDP destinations only; `ldap_targets` counts directory servers on 389, 636, 3268 and 3269. Keep the source scoped to workstations if your servers legitimately fan out; exclude servers inline by agent ID. Counts run over the whole 15-minute lookback, not fixed buckets, so a sweep that crosses a bucket edge isn't split in two. Lower `ldap_targets` to 2 in an estate with only two domain controllers per site, or raise it if one process normally talks to several. FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown`, the row covers every process on the host, and the `lsass.exe` exclusion cannot apply, so expect DC-locator noise in the LDAP tier on those sensors.

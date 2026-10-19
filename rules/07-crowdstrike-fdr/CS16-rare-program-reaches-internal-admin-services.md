@@ -1,6 +1,6 @@
 ---
 id: CS16
-name: Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot through a tunnel or implant)
+name: Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux or macOS (filename fallback)
 category: crowdstrike-fdr
 status: todo
 severity: high
@@ -26,39 +26,55 @@ It doesn't need the tunnel's internet connection: FDR records a connection when 
 Run hourly with a 7-day lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-// Anchor: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
-| WHERE event.action IN ("NetworkConnectIP4", "NetworkConnectIP6")
-  AND destination.port IN (22, 135, 445, 3389, 5985, 5986)
-  AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
-| EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown"))
-// One row per host and program: when it first reached an internal admin service in the 7 days, and where.
-| STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), connections = COUNT(*), targets = COUNT_DISTINCT(destination.ip),
-        destination.ip = VALUES(destination.ip), destination.port = VALUES(destination.port),
+// Activity: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
+// Filename fallback: a known pivot tool starting on Linux or macOS (W10 matches these by name on Windows).
+| WHERE (event.action IN ("NetworkConnectIP4", "NetworkConnectIP6")
+         AND destination.port IN (22, 135, 445, 3389, 5985, 5986)
+         AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"))
+     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2") AND host.os.type != "windows"
+         AND TO_LOWER(process.name) IN ("chisel", "gost", "frpc", "frps", "revsocks", "rathole", "iox"))
+| EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown")), tool_start = event.action LIKE "*ProcessRollup2"
+// One row per host and program: when it first reached an internal admin service (or started) in the 7 days, and where.
+| STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), connections = COUNT(CASE(NOT tool_start, 1, NULL)),
+        targets = COUNT_DISTINCT(destination.ip), destination.ip = VALUES(destination.ip), destination.port = VALUES(destination.port),
+        named = MAX(CASE(tool_start, 1, 0)), process.command_line = VALUES(process.command_line),
         process.entity_id = VALUES(process.entity_id), host.name = VALUES(host.name)
     BY host.id, process.name
 // Rarity: how many hosts had this program reach internal admin services, counted before the newness check.
 // Admin tools and Windows itself do this across the fleet and drop out here.
 | INLINE STATS hosts = COUNT_DISTINCT(host.id) BY process.name
-// New for this program on this host in the last 2 hours (two hourly runs), and done by it on at most 3 hosts.
-| WHERE first_seen >= NOW() - 2 hours AND hosts <= 3
+// New for this program on this host in the last 2 hours (two hourly runs). Activity first: done by it on at most 3 hosts.
+// Then the filename fallback: a known pivot tool, however many hosts run it.
+| WHERE first_seen >= NOW() - 2 hours AND (hosts <= 3 OR named == 1)
+| EVAL finding = CASE(named == 1 AND targets > 0, "known pivot tool reaching internal admin services",
+                      named == 1, "known pivot tool started (by name)",
+                      "rare program reaching internal admin services")
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 7 days:
 ```logscale
-#event_simpleName=/^(NetworkConnectIP4|NetworkConnectIP6)$/
-// Anchor: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
-| in(field="RemotePort", values=["22", "135", "445", "3389", "5985", "5986"])
-| RemoteAddress := coalesce([RemoteAddressIP4, RemoteAddressIP6])
-| cidr(RemoteAddress, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"])
-| pname := lower(ContextBaseFileName)
+#event_simpleName=/^(NetworkConnectIP4|NetworkConnectIP6|ProcessRollup2|SyntheticProcessRollup2)$/
+// Activity: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
+// Filename fallback: a known pivot tool starting on Linux or macOS (W10 matches these by name on Windows).
+| case {
+    #event_simpleName=/^NetworkConnectIP[46]$/
+      | in(field="RemotePort", values=["22", "135", "445", "3389", "5985", "5986"])
+      | RemoteAddress := coalesce([RemoteAddressIP4, RemoteAddressIP6])
+      | cidr(RemoteAddress, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"])
+      | pname := lower(ContextBaseFileName);
+    event_platform!=Win FileName=/^(chisel|gost|frpc|frps|revsocks|rathole|iox)$/i
+      | pname := lower(FileName) | named := 1;
+  }
 | default(field=pname, value="unknown", replaceEmpty=true)
-// One row per host and program: when it first reached an internal admin service in the 7 days.
-| groupBy([pname, aid], function=[min(@timestamp, as=first_seen), collect([ComputerName, RemoteAddress, RemotePort])], limit=max)
-// Rarity: one row per program, counting its hosts. Alert when it's on at most 3 and the newest started in the last 2 hours.
-| groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
-                             collect([ComputerName, RemoteAddress, RemotePort])])
+// One row per host and program: when it first reached an internal admin service (or started) in the 7 days.
+| groupBy([pname, aid], function=[min(@timestamp, as=first_seen), count(named, as=named),
+                                  collect([ComputerName, RemoteAddress, RemotePort, CommandLine])], limit=max)
+// Rarity: one row per program, counting its hosts. Activity first: on at most 3 hosts; then the filename fallback.
+// Either way, the newest host started in the last 2 hours.
+| groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start), sum(named, as=named),
+                             collect([ComputerName, RemoteAddress, RemotePort, CommandLine])])
 | _now := now()
-| test(hosts <= 3 AND newest_start > _now - 7200000)
+| test((hosts <= 3 OR named > 0) AND newest_start > _now - 7200000)
 ```
 LogScale has no `INLINE STATS`, so this version rolls up to one row per program, listing the (at most three) hosts it runs on and the targets they reached.
 

@@ -20,9 +20,16 @@ Infostealers and credential tools (LaZagne and the broad stealer family, and sec
 Run every 10 minutes with a 15-minute lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL
+// Activity: file opens. Filename fallback: a known credential-store stealer starting (LaZagne, HackBrowserData, SharpChrome,
+// SharpDPAPI), which alerts even when file-read telemetry is off or sampled.
+| WHERE (event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL)
+     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+         AND (TO_LOWER(process.name) IN ("lazagne.exe", "lazagne", "hack-browser-data.exe", "hack-browser-data", "sharpchrome.exe",
+                                         "sharpdpapi.exe")
+              OR TO_LOWER(process.command_line) LIKE "*lazagne*"))
 | EVAL p = TO_LOWER(file.path),
-       process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown"))
+       process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown")),
+       named = event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
 // browsers read their own and (on import) each other's stores; IDEs read SSH, kube and cloud config together
 | WHERE process.name NOT IN ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "code.exe", "code")
 | EVAL store = CASE(
@@ -36,24 +43,46 @@ FROM logs-crowdstrike.fdr-*
     p RLIKE """.*\.(kdbx|ppk|ovpn|keychain-db)""", "vault_or_key",
     p LIKE """*\\microsoft\\credentials\\*""" OR p LIKE """*\\microsoft\\vault\\*""" OR p LIKE """*\\microsoft\\protect\\*""", "windows_cred",
     NULL)
-| WHERE store IS NOT NULL
+| WHERE store IS NOT NULL OR named
+// One row per process and 10-minute window: the kinds of credential store it read.
 | STATS store_types = COUNT_DISTINCT(store),
         files = COUNT_DISTINCT(file.path),
         stores = VALUES(store),
+        named = MAX(CASE(named, 1, 0)),
+        process.command_line = VALUES(process.command_line),
         pname = VALUES(process.name),
         host.name = VALUES(host.name)
     BY host.id, process.entity_id, BUCKET(@timestamp, 10 minutes)
-| WHERE store_types >= 3
+// One row per process: whether any window touched three kinds of store, and whether it started as a known stealer.
+| EVAL harvest = CASE(store_types >= 3, 1, 0)
+| STATS harvest = MAX(harvest), named = MAX(named), store_types = MAX(store_types), files = MAX(files), stores = VALUES(stores),
+        process.command_line = VALUES(process.command_line), pname = VALUES(pname), host.name = VALUES(host.name)
+    BY host.id, process.entity_id
+// Activity first: three or more kinds of credential store in one window. Then the filename fallback.
+| WHERE harvest == 1 OR named == 1
+| EVAL finding = CASE(harvest == 1 AND named == 1, "known stealer reading credential stores",
+                      harvest == 1, "credential stores harvested by behaviour",
+                      "known stealer started (by name)")
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
-#event_simpleName=/^(FileOpenInfo|FsPostOpen)$/ TargetFileName=*
-| pname := lower(ContextBaseFileName)
+#event_simpleName=/^(FileOpenInfo|FsPostOpen|ProcessRollup2|SyntheticProcessRollup2)$/
+| case {
+    // Activity: file opens, grouped by process instance.
+    #event_simpleName=/^(FileOpenInfo|FsPostOpen)$/ TargetFileName=*
+      | falconPID := ContextProcessId | pname := lower(ContextBaseFileName);
+    // Filename fallback: a known credential-store stealer starting.
+    FileName=/^(lazagne|hack-browser-data|sharpchrome|sharpdpapi)(\.exe)?$/i
+      | falconPID := TargetProcessId | pname := lower(FileName) | named := 1;
+    #event_simpleName=/ProcessRollup2$/ CommandLine=/lazagne/i
+      | falconPID := TargetProcessId | pname := lower(FileName) | named := 1;
+  }
 | default(field=pname, value="unknown", replaceEmpty=true)
 // browsers read their own and (on import) each other's stores; IDEs read SSH, kube and cloud config together
 | !in(field="pname", values=["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "code.exe", "code"])
 | case {
+    named=1;
     TargetFileName=/\\user data\\.*\\(login data|cookies|web data)|\/\.config\/(google-chrome|chromium)\//i
       | store := "chromium";
     TargetFileName=/(key4\.db|logins\.json|cookies\.sqlite)$/i
@@ -70,12 +99,25 @@ FROM logs-crowdstrike.fdr-*
     TargetFileName=/\\microsoft\\(credentials|vault|protect)\\/i
       | store := "windows_cred";
   }
+// One row per process and 10-minute window: the kinds of credential store it read.
 | bucket_start := @timestamp - (@timestamp % 600000)
-| groupBy([aid, ContextProcessId, bucket_start], function=[count(store, distinct=true, as=store_types),
-                                                          count(TargetFileName, distinct=true, as=files),
-                                                          collect([store, pname, ComputerName])], limit=max)
-| test(store_types >= 3)
-| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+| groupBy([aid, falconPID, bucket_start], function=[count(store, distinct=true, as=store_types),
+                                                    count(TargetFileName, distinct=true, as=files), count(named, as=named),
+                                                    collect([store, pname, ComputerName, CommandLine])], limit=max)
+// One row per process: whether any window touched three kinds of store, and whether it started as a known stealer.
+| case {
+    test(store_types >= 3) | harvest := 1;
+    *;
+  }
+| groupBy([aid, falconPID], function=[count(harvest, as=harvest_windows), sum(named, as=named), max(store_types, as=store_types),
+                                      collect([store, pname, ComputerName, CommandLine])], limit=max)
+// Activity first: three or more kinds of credential store in one window. Then the filename fallback.
+| test(harvest_windows > 0 OR named > 0)
+| case {
+    test(harvest_windows > 0 AND named > 0) | finding := "known stealer reading credential stores";
+    test(harvest_windows > 0) | finding := "credential stores harvested by behaviour";
+    * | finding := "known stealer started (by name)";
+  }
 ```
 SSH counts only private keys (`id_rsa`, not `id_rsa.pub`, `config` or `known_hosts`), and the key-file type leaves out `.pem` and `.key`, which TLS clients and servers read constantly. Counting per process instance (`process.entity_id`) stops a browser, an SSH client and a cloud CLI on the same host from adding up to three.
 

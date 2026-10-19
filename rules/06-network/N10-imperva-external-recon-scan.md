@@ -16,7 +16,7 @@ suppression:
 ## Why this is high fidelity
 A single source touching many distinct URIs or hostnames on the edge in a short window is reconnaissance ahead of exploitation: directory and file brute forcing, or a vulnerability scanner walking the site. Normal visitors and crawlers request far fewer distinct paths in five minutes.
 
-Internal scanning is not covered here; that is B01, B04 and CS12.
+Internal scanning is not covered here; that is B01 and B04.
 
 ## Query
 Run every 5 minutes with a 10-minute lookback.

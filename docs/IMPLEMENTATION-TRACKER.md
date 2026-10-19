@@ -99,7 +99,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 ## CrowdStrike FDR (bonus, sensor-native telemetry)
 - [ ] **CS01** BYOVD vulnerable driver load _(P1, critical)_ · `suppress: host.id, img / 24h`
 - [ ] **CS02** Run key / Winlogon / IFEO / ASEP persistence (services: WE08) _(P1)_ · `suppress: host.id, k / 24h`
-- [ ] **CS03** DNS tunnelling (many long, distinct names under one parent) _(P2)_ · `suppress: host.id, parent / 24h`
+- [ ] **CS03** DNS tunnelling (many long, distinct names under one parent), falls back to iodine/dnscat2/dns2tcp by name _(P2)_ · `suppress: host.id, parent / 24h`
 - [ ] **CS04** Falcon detections passthrough _(P0)_ · `suppress: host.name, technique / 1h`
 - [ ] **CS05** Falcon sensor health / tamper _(P0)_ · `suppress: host.id / 24h`
 - [ ] **CS06** Process injection / hollowing _(P2)_ · `suppress: host.id, src / 1h`
@@ -108,11 +108,10 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS09** Windows port forward created with netsh portproxy _(P1)_ · `suppress: host.id / 1h`
 - [ ] **CS10** Web server process reaches a new internal admin port (webshell tunnel or pivot) _(P1)_ · `suppress: host.id, process.name / 24h`
 - [ ] **CS11** Rare program starts accepting connections from internal hosts (implant listener or pivot) _(P2)_ · `suppress: host.id, pname / 24h`
-- [ ] **CS12** Network scanner tool run (nmap, masscan, Advanced IP Scanner, NetScan...) _(P1)_ · `suppress: host.id, process.executable / 1h`
 - [ ] **CS13** VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access) _(P1)_ · `suppress: host.id / 24h`
 - [ ] **CS14** Tunnel service agent running on an endpoint (Cloudflare 7844, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore) _(P1)_ · `suppress: host.id, tunnel_service / 24h`
 - [ ] **CS15** RDP or SSH reached from the host itself (any tunnel, by behaviour) _(P1)_ · `suppress: host.id, destination.port / 24h`
-- [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour) _(P1)_ · `suppress: host.id, process.name / 24h`
+- [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour), falls back to chisel/gost/frp by name on Linux and macOS _(P1)_ · `suppress: host.id, process.name / 24h`
 - [ ] **CS17** Secret scanner: a process tests keys against several unrelated providers (activity), or TruffleHog scans the file system (filename fallback) _(P1)_ · `suppress: host.id / 24h`
 
 
@@ -192,12 +191,12 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 
 
 ## Behaviour-based (rules/11-behaviour) — tune thresholds on 2 weeks of data
-- [ ] **B01** Internal network or port scan (host:port endpoints, replaces B02) _(high)_ · `suppress: host.id, process.name / 1h`
-- [ ] **B04** Lateral sweep over SMB/RPC/RDP/WinRM, or LDAP fan-out to several DCs (SharpHound, PsExec, CrackMapExec) _(high/medium)_ · `suppress: host.id, process.name, severity / 2h`
+- [ ] **B01** Internal network or port scan (host:port endpoints, replaces B02), falls back to the scanner's name (absorbs CS12) _(high, medium by name)_ · `suppress: host.id, process.name / 1h`
+- [ ] **B04** Lateral sweep over SMB/RPC/RDP/WinRM, or LDAP fan-out to several DCs, falls back to CrackMapExec/NetExec/Impacket by name _(high/medium)_ · `suppress: host.id, process.name, severity / 2h`
 - [ ] **B05** Network logon sweep (one account, many hosts) _(high)_ · `suppress: acct / 2h`
 - [ ] **B06** C2 beaconing (regular cadence) _(high)_ · `suppress: host.id, process.name, destination.ip / 24h`
-- [ ] **B07** Mass file read / collection _(medium)_ · `suppress: host.id, process.entity_id / 1h`
-- [ ] **B08** Credential store harvesting _(high)_ · `suppress: host.id, process.entity_id / 2h`
+- [ ] **B07** Mass file read / collection, falls back to gitleaks or Nosey Parker on a folder _(medium)_ · `suppress: host.id, process.entity_id / 1h`
+- [ ] **B08** Credential store harvesting, falls back to LaZagne/HackBrowserData/SharpChrome/SharpDPAPI by name _(high)_ · `suppress: host.id, process.entity_id / 2h`
 - [ ] **B09** Discovery command burst, high with domain-enumeration arguments _(high/medium)_ · `suppress: host.id, user.name, severity / 1h`
 - [ ] **B10** C2 beaconing to an uncategorised or newly registered domain, rare across users (Zscaler) _(high)_ · `suppress: user.name, url.domain / 24h`
 

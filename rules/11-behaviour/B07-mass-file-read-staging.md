@@ -20,27 +20,57 @@ Secret scanners like TruffleHog and gitleaks, data-collection scripts, infosteal
 Run every 10 minutes with a 15-minute lookback.
 ```esql
 FROM logs-crowdstrike.fdr-*
-| WHERE event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL
+// Activity: file opens. Filename fallback: gitleaks or Nosey Parker starting on a folder rather than a repository,
+// which alerts even when file-read telemetry is off or sampled. TruffleHog by name is CS17.
+| WHERE (event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL)
+     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+         AND TO_LOWER(process.name) IN ("gitleaks", "gitleaks.exe", "noseyparker", "noseyparker.exe"))
 // file-open events often lack the process name; fall back to the raw context name, then group by process instance
-| EVAL process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown"))
+| EVAL process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown")),
+       cmd = TO_LOWER(COALESCE(process.command_line, "")),
+       // gitleaks scans a folder with `dir` or `detect --no-git`, Nosey Parker with `scan`; on a repository it's a team's own check
+       named = event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+               AND (cmd RLIKE ".* (dir|directory)( .*)?" OR cmd LIKE "*--no-git*" OR (process.name LIKE "noseyparker*" AND cmd RLIKE ".* scan( .*)?"))
+| WHERE named OR event.action IN ("FileOpenInfo", "FsPostOpen")
 // search indexers, AV and sync agents read many files by design; add your backup agent here
 | WHERE process.name NOT IN ("searchprotocolhost.exe", "searchfilterhost.exe", "searchindexer.exe",
                              "msmpeng.exe", "mssense.exe", "csfalconservice.exe", "onedrive.exe")
+// One row per process and 5-minute window: how many files and folders it read.
 | STATS files = COUNT_DISTINCT(file.path),
         dirs = COUNT_DISTINCT(file.directory),
         extensions = COUNT_DISTINCT(file.extension),
         sample_ext = VALUES(file.extension),
+        named = MAX(CASE(named, 1, 0)),
+        process.command_line = VALUES(process.command_line),
         pname = VALUES(process.name),
         host.name = VALUES(host.name)
     BY host.id, process.entity_id, BUCKET(@timestamp, 5 minutes)
-| WHERE files >= 300 AND dirs >= 20
+// One row per process: whether any window was a mass read, and whether it started as a scanner.
+| EVAL mass_read = CASE(files >= 300 AND dirs >= 20, 1, 0)
+| STATS mass_read = MAX(mass_read), named = MAX(named), files = MAX(files), dirs = MAX(dirs), extensions = MAX(extensions),
+        sample_ext = VALUES(sample_ext), process.command_line = VALUES(process.command_line), pname = VALUES(pname),
+        host.name = VALUES(host.name)
+    BY host.id, process.entity_id
+// Activity first: 300+ files in 20+ folders in one window. Then the filename fallback.
+| WHERE mass_read == 1 OR named == 1
+| EVAL finding = CASE(mass_read == 1 AND named == 1, "secret scanner reading a folder tree",
+                      mass_read == 1, "mass file read by behaviour",
+                      "secret scanner started on a folder (by name)")
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
-#event_simpleName=/^(FileOpenInfo|FsPostOpen)$/ TargetFileName=*
-// file-open events often lack the process name; group by process instance
-| pname := lower(ContextBaseFileName)
+#event_simpleName=/^(FileOpenInfo|FsPostOpen|ProcessRollup2|SyntheticProcessRollup2)$/
+| case {
+    // Activity: file opens, grouped by process instance (file-open events often lack the process name).
+    #event_simpleName=/^(FileOpenInfo|FsPostOpen)$/ TargetFileName=*
+      | falconPID := ContextProcessId | pname := lower(ContextBaseFileName);
+    // Filename fallback: gitleaks or Nosey Parker starting on a folder rather than a repository.
+    FileName=/^gitleaks(\.exe)?$/i CommandLine=/ (dir|directory)( |$)|--no-git/i
+      | falconPID := TargetProcessId | pname := lower(FileName) | named := 1;
+    FileName=/^noseyparker(\.exe)?$/i CommandLine=/ scan( |$)/i
+      | falconPID := TargetProcessId | pname := lower(FileName) | named := 1;
+  }
 | default(field=pname, value="unknown", replaceEmpty=true)
 // search indexers, AV and sync agents read many files by design; add your backup agent here
 | !in(field="pname", values=["searchprotocolhost.exe", "searchfilterhost.exe", "searchindexer.exe",
@@ -54,14 +84,27 @@ FROM logs-crowdstrike.fdr-*
     TargetFileName=/[\\\/][^\\\/]*\.(?<fext>[^.\\\/]*)$/;
     *;
   }
+// One row per process and 5-minute window: how many files and folders it read.
 | bucket_start := @timestamp - (@timestamp % 300000)
-| groupBy([aid, ContextProcessId, bucket_start], function=[count(TargetFileName, distinct=true, as=files), count(fdir, distinct=true, as=dirs),
-                                                          count(fext, distinct=true, as=extensions), collect([fext, pname, ComputerName])],
-          limit=max)
-| test(files >= 300 AND dirs >= 20)
-| bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
+| groupBy([aid, falconPID, bucket_start], function=[count(TargetFileName, distinct=true, as=files), count(fdir, distinct=true, as=dirs),
+                                                    count(fext, distinct=true, as=extensions), count(named, as=named),
+                                                    collect([fext, pname, ComputerName, CommandLine])], limit=max)
+// One row per process: whether any window was a mass read, and whether it started as a scanner.
+| case {
+    test(files >= 300 AND dirs >= 20) | mass_read := 1;
+    *;
+  }
+| groupBy([aid, falconPID], function=[count(mass_read, as=mass_windows), sum(named, as=named), max(files, as=files), max(dirs, as=dirs),
+                                      collect([fext, pname, ComputerName, CommandLine])], limit=max)
+// Activity first: 300+ files in 20+ folders in one window. Then the filename fallback.
+| test(mass_windows > 0 OR named > 0)
+| case {
+    test(mass_windows > 0 AND named > 0) | finding := "secret scanner reading a folder tree";
+    test(mass_windows > 0) | finding := "mass file read by behaviour";
+    * | finding := "secret scanner started on a folder (by name)";
+  }
 ```
-File-read telemetry is high volume and may be sampled or off by default in CrowdStrike. Confirm which of these events your feed sends and that collection is enabled before relying on this. Counting per process instance (`process.entity_id`) keeps two busy processes on one host from adding up. Tune `files` and `dirs` to your environment.
+File-read telemetry is high volume and may be sampled or off by default in CrowdStrike. Confirm which of these events your feed sends and that collection is enabled before relying on the activity half; the filename fallback (gitleaks or Nosey Parker run on a folder) works without it. `finding` says which fired. Counting per process instance (`process.entity_id`) keeps two busy processes on one host from adding up. Tune `files` and `dirs` to your environment.
 
 ## Suppression
 Suppress by `host.id`, `process.entity_id` for 1h. Alerts missing a key field are not suppressed. Aggregating rule. A sweep spans buckets; a different process still alerts. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.

@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v20.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**194 rules · 108 techniques covered** (198 technique and sub-technique IDs).
+**193 rules · 108 techniques covered** (198 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -23,7 +23,7 @@ flowchart LR
   T6["Stealth<br/>16/31 techniques · 49 rules"]:::high
   T7["Defense Impairment<br/>7/14 techniques · 36 rules"]:::high
   T8["Credential Access<br/>12/18 techniques · 58 rules"]:::high
-  T9["Discovery<br/>14/34 techniques · 13 rules"]:::high
+  T9["Discovery<br/>14/34 techniques · 12 rules"]:::high
   T10["Lateral Movement<br/>6/9 techniques · 30 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
   T12["Command and Control<br/>9/18 techniques · 27 rules"]:::high
@@ -51,7 +51,7 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Stealth (TA0005) | 16 / 31 | `██████████░░░░░░░░░░` 52% | 49 |
 | Defense Impairment (TA0112) | 7 / 14 | `██████████░░░░░░░░░░` 50% | 36 |
 | Credential Access (TA0006) | 12 / 18 | `█████████████░░░░░░░` 67% | 58 |
-| Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 13 |
+| Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 12 |
 | Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 30 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
 | Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 27 |
@@ -103,7 +103,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1539 Steal Web Session Cookie | Credential Access | B08, S08, S23 |
 | T1087.002 Domain Account | Discovery | B04, W09 |
 | T1482 Domain Trust Discovery | Discovery | B09, W09 |
-| T1018 Remote System Discovery | Discovery | B01, B04, CS12, D04, W09 |
+| T1018 Remote System Discovery | Discovery | B01, B04, D04, W09 |
 | T1069.002 Domain Groups | Discovery | B04, B09, W09 |
 | T1083 File and Directory Discovery | Discovery | CS17, D03, IN09 |
 | T1082 System Information Discovery | Discovery | B09 |
@@ -268,12 +268,12 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
 | T1087 Account Discovery | B04, B09, IN07, S04, S21, W09 | T1087.002 Domain Account (B04, W09); T1087.004 Cloud Account (S04, S21) |
-| T1018 Remote System Discovery | B01, B04, CS12, D04, W09 | - |
 | T1069 Permission Groups Discovery | B04, B09, S21, W09 | T1069.002 Domain Groups (B04, B09, W09); T1069.003 Cloud Groups (S21) |
+| T1018 Remote System Discovery | B01, B04, D04, W09 | - |
 | T1083 File and Directory Discovery | CS17, D03, IN09 | - |
-| T1046 Network Service Discovery | B01, CS12, D04 | - |
 | T1526 Cloud Service Discovery | S04, S21 | - |
 | T1482 Domain Trust Discovery | B09, W09 | - |
+| T1046 Network Service Discovery | B01, D04 | - |
 | T1049 System Network Connections Discovery | B04, B09 | - |
 | T1613 Container and Resource Discovery | L08 | - |
 | T1135 Network Share Discovery | D04 | - |
@@ -425,7 +425,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | N11 | New script page answering POSTs from one or two clients at the Imperva edge (webshell in use) | T1190, T1505.003 |
 | CS01 | Vulnerable or unsigned driver loaded (BYOVD) | T1068, T1211, T1685 |
 | CS02 | Persistence written to Run keys, Winlogon, IFEO or other ASEPs (not services) | T1546, T1547.001 |
-| CS03 | DNS tunnelling - many long, distinct names under one parent domain from one host | T1048.003, T1071.004, T1572 |
+| CS03 | DNS tunnelling - many long, distinct names under one parent domain from one host (activity), or a DNS tunnel tool runs (filename fallback) | T1048.003, T1071.004, T1572 |
 | CS04 | CrowdStrike Falcon platform detections (high/critical) as first-class alerts | (vendor alerts, various) |
 | CS05 | Falcon sensor uninstalled, stopped, or stopped reporting | T1070, T1685 |
 | CS06 | Process injection, hollowing or suspicious remote thread | T1055, T1055.012, T1620 |
@@ -434,12 +434,11 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS09 | Windows port forward created with netsh portproxy (traffic relayed through this host) | T1090.001, T1572 |
 | CS10 | Web server process connects to internal RDP, SMB, SSH, WinRM or RPC on a host it has never contacted (webshell tunnel or pivot) | T1021, T1090.001, T1505.003, T1572 |
 | CS11 | Program starts accepting connections from other internal hosts, new on this host and rare in the fleet (implant listener or pivot) | T1090.001, T1571, T1572 |
-| CS12 | Network scanner run (nmap, masscan, rustscan, zmap, naabu, Advanced IP/Port Scanner, SoftPerfect NetScan, Angry IP Scanner, nbtscan, fscan) | T1018, T1046 |
 | CS13 | VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access) | T1219.001, T1572 |
 | CS14 | Tunnel service agent running on an endpoint (Cloudflare, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore and others) | T1090.002, T1572 |
 | CS15 | RDP or SSH reached from the host itself (traffic relayed in by a tunnel, whatever it's called) | T1021.001, T1021.004, T1572 |
-| CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot through a tunnel or implant) | T1021, T1090.001, T1572 |
-| CS17 | One process tests credentials against several unrelated online services within minutes (secret scanner such as TruffleHog, or a stealer) | T1083, T1552.001 |
+| CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux or macOS (filename fallback) | T1021, T1090.001, T1572 |
+| CS17 | Secret scanner on a host - keys tested against several unrelated services (activity), or TruffleHog run (filename fallback); Shai-Hulud credential harvesting | T1083, T1552.001 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |
@@ -484,8 +483,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | WE13 | Domain controller machine account authenticating with NTLM to a non-DC or from an unexpected IP | T1187, T1557.001 |
 | WE14 | Admin share or remote management pipe accessed from a workstation | T1021.002, T1053.005, T1569.002 |
 | WE15 | RDP logon from one workstation to another | T1021.001 |
-| B01 | Internal network or port scan - one process probes many internal host:port endpoints | T1018, T1046 |
-| B04 | Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (catches by behaviour: SharpHound/BloodHound collection, PsExec/Impacket sweeps, CrackMapExec/NetExec) | T1018, T1021, T1049, T1069.002, T1087.002, T1570 |
+| B01 | Internal network or port scan - one process probes many internal host:port endpoints (activity), or a known scanner runs (filename fallback) | T1018, T1046 |
+| B04 | Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (activity), or CrackMapExec, NetExec or Impacket by name (fallback) | T1018, T1021, T1049, T1069.002, T1087.002, T1570 |
 | B05 | Network logon sweep - catches CrackMapExec, NetExec and pass-the-hash lateral movement by behaviour | T1021.002, T1078, T1550.002 |
 | B06 | C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour | T1071.001, T1095, T1573 |
 | B07 | Mass file read or collection - catches TruffleHog, gitleaks and data-collection tools by behaviour | T1005, T1119, T1552.001 |

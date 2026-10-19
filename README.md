@@ -56,4 +56,4 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 
 Technique IDs follow ATT&CK v20. Since v19, Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686; v20 added AI techniques (T1698-T1700).
 
-Total: 194 detections across 17 groups.
+Total: 193 detections across 17 groups.
