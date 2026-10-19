@@ -1,7 +1,7 @@
 ---
-id: CS17
+id: AI01
 name: Host starts calling a public LLM API directly (malware or an agent using an AI model at runtime)
-category: crowdstrike-fdr
+category: ai
 status: todo
 severity: medium
 language: esql

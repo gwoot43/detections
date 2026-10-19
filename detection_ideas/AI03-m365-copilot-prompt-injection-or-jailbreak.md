@@ -1,7 +1,7 @@
 ---
-id: C13
+id: AI03
 name: Microsoft 365 Copilot detects a prompt injection in content it read, or a jailbreak in a prompt
-category: cloud
+category: ai
 status: todo
 severity: high
 language: esql

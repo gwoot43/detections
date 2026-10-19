@@ -1,7 +1,7 @@
 ---
-id: C14
+id: AI04
 name: Azure OpenAI keys listed or content filter changed by an identity new to it (LLMjacking)
-category: cloud
+category: ai
 status: todo
 severity: high
 language: esql

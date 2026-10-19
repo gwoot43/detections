@@ -1,7 +1,7 @@
 ---
-id: CS18
+id: AI02
 name: AI coding agent run unattended with every approval switched off (malware or a poisoned project driving a local agent)
-category: crowdstrike-fdr
+category: ai
 status: todo
 severity: high
 language: esql

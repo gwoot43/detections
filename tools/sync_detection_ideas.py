@@ -43,11 +43,19 @@ SOURCES = [
     ("Post-exploitation", "rules/04-endpoint-linux/L07-defense-evasion-log-and-history-tamper.md"),
     ("Post-exploitation", "rules/04-endpoint-linux/L13-rare-setuid-root-program.md"),
     ("Post-exploitation", "rules/04-endpoint-linux/L15-passwordless-sudo-grant-written.md"),
+    ("Post-exploitation", "rules/07-crowdstrike-fdr/CS17-trufflehog-secret-scan.md"),
     ("Webshell", "rules/06-network/N11-imperva-new-script-page-posted-by-few-clients.md"),
-    ("AI", "rules/07-crowdstrike-fdr/CS17-host-starts-calling-llm-api.md"),
-    ("AI", "rules/07-crowdstrike-fdr/CS18-ai-coding-agent-run-unattended-with-approvals-off.md"),
-    ("AI", "rules/01-cloud/C13-m365-copilot-prompt-injection-or-jailbreak.md"),
-    ("AI", "rules/01-cloud/C14-azure-openai-keys-or-content-filter-new-identity.md"),
+    ("AI", "rules/17-ai-detections/AI01-host-starts-calling-llm-api.md"),
+    ("AI", "rules/17-ai-detections/AI02-ai-coding-agent-run-unattended-with-approvals-off.md"),
+    ("AI", "rules/17-ai-detections/AI03-m365-copilot-prompt-injection-or-jailbreak.md"),
+    ("AI", "rules/17-ai-detections/AI04-azure-openai-keys-or-content-filter-new-identity.md"),
+    ("AI", "rules/17-ai-detections/AI05-download-after-ai-assistant-link.md"),
+    ("AI", "rules/17-ai-detections/AI06-code-editor-looks-up-rare-domain.md"),
+    ("AI", "rules/17-ai-detections/AI07-ai-agent-or-editor-runs-download-and-execute.md"),
+    ("AI", "rules/17-ai-detections/AI08-prompt-for-an-ai-model-in-command-line-or-script.md"),
+    ("AI", "rules/17-ai-detections/AI09-copilot-studio-agent-published-or-auth-changed-by-new-maker.md"),
+    ("AI", "rules/17-ai-detections/AI10-defender-for-cloud-ai-threat-alerts.md"),
+    ("AI", "rules/17-ai-detections/AI11-first-large-upload-to-rarely-used-ai-app.md"),
 ]
 
 

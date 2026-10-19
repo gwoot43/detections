@@ -113,8 +113,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS14** Tunnel service agent running on an endpoint (Cloudflare 7844, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore) _(P1)_ · `suppress: host.id, tunnel_service / 24h`
 - [ ] **CS15** RDP or SSH reached from the host itself (any tunnel, by behaviour) _(P1)_ · `suppress: host.id, destination.port / 24h`
 - [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour) _(P1)_ · `suppress: host.id, process.name / 24h`
-- [ ] **CS17** Host starts calling a public LLM API directly (AI-enabled malware such as LAMEHUG) _(P2)_ · `suppress: host.id / 24h`
-- [ ] **CS18** AI coding agent run unattended with every approval off (malware driving local agents) _(P1)_ · `suppress: host.id / 24h`
+- [ ] **CS17** TruffleHog scans a host's file system for secrets (Shai-Hulud credential harvesting) _(P1)_ · `suppress: host.id / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
@@ -166,8 +165,6 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **L11** PAM / NSS authentication backdoor _(high)_ · `suppress: host.id, f / 1h`
 - [ ] **L12** SSH lateral fan-out _(high)_ · `suppress: host.id / 1h`
 - [ ] **C12** Automation runbook / webhook _(high)_ · `suppress: actor, azure.resource.name / 1h`
-- [ ] **C13** Microsoft 365 Copilot flags a prompt injection or jailbreak (confirm Copilot audit fields are mapped) _(P2)_ · `suppress: usr, finding / 24h`
-- [ ] **C14** Azure OpenAI keys listed or content filter changed by an identity new to it (LLMjacking) _(P2)_ · `suppress: actor, action / 24h`
 - [ ] **E11** Email bombing _(medium)_ · `suppress: rcpt / 24h`
 - [ ] **S11** Help-desk MFA reset then new-location sign-in _(high)_ · `suppress: uid / 24h`
 - [ ] **X06** External Teams contact then remote tool _(high)_ · `suppress: usr / 24h`
@@ -258,6 +255,19 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **D03** Decoy SharePoint file or Confluence page opened _(rank 2, critical)_ · `suppress: usr, file.name / 4h`
 - [ ] **D04** Decoy host name looked up or decoy IP connected to _(rank 2, critical)_ · `suppress: host.id, decoy / 4h`
 - [ ] Phase 5: every trap fired from a lab host and the alert confirmed
+
+## AI detections (rules/17-ai-detections): each rule states its source; confirm the "Check before deploying" items first
+- [ ] **AI01** Host starts calling a public LLM API directly (AI-enabled malware such as LAMEHUG) _(P2)_ · `suppress: host.id / 24h`
+- [ ] **AI02** AI coding agent run unattended with every approval off (malware driving local agents) _(P1)_ · `suppress: host.id / 24h`
+- [ ] **AI03** Microsoft 365 Copilot flags a prompt injection or jailbreak (confirm Copilot audit fields are mapped) _(P2)_ · `suppress: usr, finding / 24h`
+- [ ] **AI04** Azure OpenAI keys listed or content filter changed by an identity new to it (LLMjacking) _(P2)_ · `suppress: actor, action / 24h`
+- [ ] **AI05** Program downloaded from an unknown site an AI assistant sent the user to (Zscaler) _(P2)_ · `suppress: user.name, site / 24h`
+- [ ] **AI06** VS Code or an AI code editor looks up a domain few other installs reach (malicious extension) _(P2)_ · `suppress: host.id / 24h`
+- [ ] **AI07** AI coding agent or code editor runs a download-and-execute command _(P1)_ · `suppress: host.id / 24h`
+- [ ] **AI08** Text written for an AI model in a command line or PowerShell script _(P3)_ · `suppress: host.id / 24h`
+- [ ] **AI09** Copilot Studio agent published or its authentication changed by someone new to it (confirm operation names) _(P3)_ · `suppress: usr, event.action / 24h`
+- [ ] **AI10** Defender for Cloud alert on your own AI apps (needs AI threat protection on) _(P3)_ · `suppress: event.id / 24h`
+- [ ] **AI11** First large upload by a user to an AI app few people use (Zscaler) _(P2)_ · `suppress: user.name, zscaler_zia.web.app.name / 24h`
 
 ## Suggested build order
 1. Phase 0 (visibility + Falcon passthrough) — a few days.
