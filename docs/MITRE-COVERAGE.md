@@ -439,7 +439,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS14 | Tunnel service agent running on an endpoint (Cloudflare, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore and others) | T1090.002, T1572 |
 | CS15 | RDP or SSH reached from the host itself (traffic relayed in by a tunnel, whatever it's called) | T1021.001, T1021.004, T1572 |
 | CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot through a tunnel or implant) | T1021, T1090.001, T1572 |
-| CS17 | TruffleHog scans a host's file system for secrets (credential harvesting, as the Shai-Hulud worm does) | T1083, T1552.001 |
+| CS17 | One process tests credentials against several unrelated online services within minutes (secret scanner such as TruffleHog, or a stealer) | T1083, T1552.001 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |

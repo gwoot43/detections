@@ -30,6 +30,10 @@ FROM logs-crowdstrike.fdr-*
   AND (process.name IN ("Code.exe", "code", "Code - Insiders.exe", "code-tunnel.exe", "Cursor.exe", "cursor", "Windsurf.exe", "windsurf")
        OR process.name LIKE "Code Helper*" OR process.name LIKE "Cursor Helper*" OR process.name LIKE "Windsurf Helper*")
 | EVAL dns.question.name = TO_LOWER(dns.question.name)
+// Outside names only: single-label names (a host looking up itself or a neighbour), internal and reverse lookups,
+// and your own domains (placeholder) say nothing about an extension calling home.
+| WHERE dns.question.name LIKE "*.*" AND NOT dns.question.name RLIKE ".*\\.(local|internal|lan|arpa)\\.?"
+  AND NOT dns.question.name LIKE "*<your_internal_domain>*"
 // One row per host and domain: when this host's editor first looked it up in the 7 days.
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), lookups = COUNT(*), process.name = VALUES(process.name),
         process.entity_id = VALUES(process.entity_id), host.name = VALUES(host.name)
@@ -47,7 +51,12 @@ FROM logs-crowdstrike.fdr-*
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**, run over the last 7 days. DNS events don't carry the process name, so this version joins each lookup to its process:
 ```logscale
 #event_simpleName=DnsRequest
-// Anchor: lookups made by VS Code, Cursor or Windsurf, tied to the process by host and process ID.
+// Outside names only: single-label names (a host looking up itself or a neighbour), internal and reverse lookups,
+// your own domains (placeholder) and answers in private ranges say nothing about an extension calling home.
+| DomainName=/\./ DomainName!=/\.(local|internal|lan|arpa)\.?$/i DomainName!=/<your_internal_domain>/i
+| !cidr(FirstIP4Record, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "100.64.0.0/10"])
+// Anchor: lookups made by VS Code, Cursor or Windsurf, tied to the process by host and process ID. The join copies the
+// process's path and command line onto each lookup; DNS events don't carry them.
 | join({#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ ImageFileName=/[\\\/](code(-tunnel)?(\.exe)?|code - insiders\.exe|cursor(\.exe)?|windsurf(\.exe)?|(code|cursor|windsurf) helper[^\\\/]*)$/i},
        field=[aid, ContextProcessId], key=[aid, TargetProcessId],
        include=[ImageFileName, CommandLine, ParentBaseFileName], mode=inner)
