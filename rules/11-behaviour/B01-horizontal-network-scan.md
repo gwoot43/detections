@@ -19,7 +19,7 @@ suppression:
 | `finding` | What the process did in the window | Look-alikes | Severity |
 |---|---|---|---|
 | `mixed_scan` | Tried 10+ internal hosts on 10+ ports | Almost only vulnerability scanners, which are excluded by host + process | critical |
-| `port_scan` | Tried 20+ ports on at most 5 hosts | Very few: normal applications rarely touch 20 service ports on one host | high |
+| `port_scan` | Tried 20+ ports on fewer than 10 hosts (10+ hosts on 10+ ports is a mixed scan) | Very few: normal applications rarely touch 20 service ports on one host | high |
 | `host_sweep` | Tried 50+ internal hosts | Management, monitoring, domain controllers, backup and vulnerability scanners | medium |
 | `ptr_sweep` (detection B only) | Looked up the names of 50+ internal addresses | IP address management, monitoring, log collectors that name the addresses they ship | medium |
 | `named_scanner` | Started as a known scanner, with none of the shapes above | The network and security teams' own tools, excluded by host + tool | medium |
@@ -63,17 +63,19 @@ FROM logs-yourorg-crowdstrike-data-default*
         started_as = VALUES(process.name) WHERE event.action == "processrollup2",
         connected_as = VALUES(data.ContextBaseFileName), host.name = VALUES(host.name), first_seen = MIN(@timestamp)
     BY host.id, process.entity_id
-// 4 DECIDE: classify, most specific first; the name only when no shape fired. Every threshold lives here.
+// 4 DECIDE: classify, most specific first, so port_scan needs no host cap (mixed_scan has already taken 10+ hosts);
+// the name only when no shape fired. Every threshold lives here.
 // Thresholds: starting values, not yet baselined. Replace each from the baseline and top talkers (below), and record
 // the date range measured in this comment.
 | EVAL finding = CASE(targets >= 10 AND ports >= 10, "mixed_scan",
-                      targets <= 5 AND ports >= 20, "port_scan",
+                      ports >= 20, "port_scan",
                       targets >= 50, "host_sweep",
                       named_starts > 0, "named_scanner",
                       NULL)
 | WHERE finding IS NOT NULL
 // 5 ENRICH: the name from the start event, else from the connections (older sensors send none: "unknown"). Drop the
-// host + process pairs that scan by design (placeholders), then set severity.
+// host + process pairs that scan by design (placeholders; a tool that reads "unknown" needs a host + finding pair
+// instead), then set severity.
 | EVAL process.name = COALESCE(MV_MIN(started_as), MV_MIN(connected_as), "unknown")
 | WHERE NOT ((host.id == "<vuln_scanner_aid>" AND process.name == "<scanner_process>")
           OR (host.id == "<monitoring_aid>" AND process.name == "<monitoring_process>")
@@ -107,11 +109,12 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, pid], function=[count(RemoteAddressIP4, distinct=true, as=targets), count(RemotePort, distinct=true, as=ports),
                                 count(named, as=named_starts), min(@timestamp, as=first_seen),
                                 collect([ComputerName, FileName, ContextBaseFileName])], limit=max)
-// 4 DECIDE + 5 ENRICH: classify, most specific first, with severity; the name only when no shape fired.
+// 4 DECIDE + 5 ENRICH: classify, most specific first, with severity, so port_scan needs no host cap (mixed_scan has
+// already taken 10+ hosts); the name only when no shape fired.
 // Thresholds: starting values, not yet baselined. Replace each from the baseline and top talkers (below).
 | case {
     targets >= 10 ports >= 10 | finding := "mixed_scan" | severity := "critical";
-    targets <= 5 ports >= 20 | finding := "port_scan" | severity := "high";
+    ports >= 20 | finding := "port_scan" | severity := "high";
     targets >= 50 | finding := "host_sweep" | severity := "medium";
     named_starts >= 1 | finding := "named_scanner" | severity := "medium";
     * | finding := "none";
@@ -132,14 +135,13 @@ Run every 10 minutes with a 12-minute lookback. Detection A plus a third branch 
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // 1 GATE: each event type's own filters, in its own branch. Connections and the filename fallback as in detection A;
-// reverse lookups of the 10, 100, 172 and 192 ranges by exact registered domain, which the index answers, so the rest
-// of DNS is never read. Every row must carry its process ID.
+// reverse lookups by exact record type (12, PTR), which the index answers, so the rest of DNS is never read. Every row
+// must carry its process ID.
 | WHERE ((event.action == "networkconnectip4" AND destination.port < 49152
           AND NOT destination.port IN (53, 123, 137, 138, 1900, 5353, 5355)
           AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "100.64.0.0/10", "172.16.0.0/12", "192.168.0.0/16")
           AND data.ContextProcessId IS NOT NULL)
-         OR (event.action == "dnsrequest" AND data.ContextProcessId IS NOT NULL
-             AND dns.question.registered_domain IN ("10.in-addr.arpa", "100.in-addr.arpa", "172.in-addr.arpa", "192.in-addr.arpa"))
+         OR (event.action == "dnsrequest" AND data.RequestType == "12" AND data.ContextProcessId IS NOT NULL)
          OR (event.action == "processrollup2" AND data.TargetProcessId IS NOT NULL
              AND (process.name IN ("nmap.exe", "nmap", "masscan.exe", "masscan", "rustscan.exe", "rustscan", "zmap", "naabu.exe",
                                    "naabu", "advanced_ip_scanner.exe", "advanced_port_scanner.exe", "netscan.exe")
@@ -147,23 +149,24 @@ FROM logs-yourorg-crowdstrike-data-default*
   AND host.id IS NOT NULL
 // 2 SHAPE: one process ID across all three events: its own ID on its start, the ID it acts under otherwise.
 | EVAL process.entity_id = CASE(event.action == "processrollup2", data.TargetProcessId, data.ContextProcessId)
-// 3 REDUCE: one row per process instance. Conditional counts keep the events apart in one pass. The RLIKE keeps only
-// the private parts of 100, 172 and 192, and runs on the few lookups the gate let through.
+// 3 REDUCE: one row per process instance. Conditional counts keep the events apart in one pass. The RLIKE keeps
+// reverse lookups of internal ranges only, and runs on the reverse lookups the gate let through, never on all of DNS.
 | STATS targets = COUNT_DISTINCT(destination.ip) WHERE event.action == "networkconnectip4",
         ports = COUNT_DISTINCT(destination.port) WHERE event.action == "networkconnectip4",
-        ptr_names = COUNT_DISTINCT(dns.question.name) WHERE dns.question.registered_domain == "10.in-addr.arpa"
-          OR dns.question.name RLIKE ".*\\.((6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.100|(1[6-9]|2[0-9]|3[01])\\.172|168\\.192)\\.in-addr\\.arpa\\.?",
+        ptr_names = COUNT_DISTINCT(data.DomainName) WHERE data.DomainName RLIKE
+          ".*\\.(10|(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.100|(1[6-9]|2[0-9]|3[01])\\.172|168\\.192)\\.in-addr\\.arpa\\.?",
         named_starts = COUNT(*) WHERE event.action == "processrollup2",
         sample_ports = TOP(destination.port, 10, "asc") WHERE event.action == "networkconnectip4",
         sample_targets = TOP(destination.ip, 10, "asc") WHERE event.action == "networkconnectip4",
         started_as = VALUES(process.name) WHERE event.action == "processrollup2",
         connected_as = VALUES(data.ContextBaseFileName), host.name = VALUES(host.name), first_seen = MIN(@timestamp)
     BY host.id, process.entity_id
-// 4 DECIDE: classify, most specific first; the name only when no shape fired. Every threshold lives here.
+// 4 DECIDE: classify, most specific first, so port_scan needs no host cap (mixed_scan has already taken 10+ hosts);
+// the name only when no shape fired. Every threshold lives here.
 // Thresholds: starting values, not yet baselined. Replace each from the baseline and top talkers (below), and record
 // the date range measured in this comment.
 | EVAL finding = CASE(targets >= 10 AND ports >= 10, "mixed_scan",
-                      targets <= 5 AND ports >= 20, "port_scan",
+                      ports >= 20, "port_scan",
                       targets >= 50, "host_sweep",
                       ptr_names >= 50, "ptr_sweep",
                       named_starts > 0, "named_scanner",
@@ -212,11 +215,12 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, pid], function=[count(RemoteAddressIP4, distinct=true, as=targets), count(RemotePort, distinct=true, as=ports),
                                 count(DomainName, distinct=true, as=ptr_names), count(named, as=named_starts),
                                 min(@timestamp, as=first_seen), collect([ComputerName, FileName, ContextBaseFileName])], limit=max)
-// 4 DECIDE + 5 ENRICH: classify, most specific first, with severity; the name only when no shape fired.
+// 4 DECIDE + 5 ENRICH: classify, most specific first, with severity, so port_scan needs no host cap (mixed_scan has
+// already taken 10+ hosts); the name only when no shape fired.
 // Thresholds: starting values, not yet baselined. Replace each from the baseline and top talkers (below).
 | case {
     targets >= 10 ports >= 10 | finding := "mixed_scan" | severity := "critical";
-    targets <= 5 ports >= 20 | finding := "port_scan" | severity := "high";
+    ports >= 20 | finding := "port_scan" | severity := "high";
     targets >= 50 | finding := "host_sweep" | severity := "medium";
     ptr_names >= 50 | finding := "ptr_sweep" | severity := "medium";
     named_starts >= 1 | finding := "named_scanner" | severity := "medium";
@@ -236,7 +240,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 
 **What it costs.**
 - **The name fallback (A and B):** in Elastic, the names are exact or prefix matches the index answers, so only the starts of those tools are read. In LogScale, each run reads the window's `ProcessRollup2` events, far fewer than connections, and tests them with an exact `in()` match, not a regex.
-- **The DNS half (B):** what made DNS heavy before was checking every lookup's name with a regex. In Elastic, the DNS branch is exact matches on indexed fields, so only internal reverse lookups are read; the discovery query counts them. This needs `dns.question.registered_domain` to be an indexed keyword in your mapping, not a runtime field. In LogScale, each run reads the window's `DnsRequest` events, but the first test is an exact match on `RequestType`, and the regex and grouping only run on internal reverse lookups.
+- **The DNS half (B):** what made DNS heavy before was checking every lookup's name with a regex. Both versions now test the record type first, an exact match, and only reverse lookups (a small share of DNS) reach the regex and the grouping. In Elastic, the index answers the record-type match, so the rest of DNS is never read; the discovery query shows how many reverse lookups that is. This needs `data.RequestType` to be indexed in your mapping, not a runtime field. In LogScale, each run reads the window's `DnsRequest` events, but the exact `RequestType` test drops almost all of them.
 
 ## Rule settings
 | | Detection A | Detection B |
@@ -252,19 +256,17 @@ The schedule is the window: every count is "in the last 10 minutes". The two ext
 ## Telemetry assumptions
 - **Connections:** `networkconnectip4` with `destination.ip` and `destination.port`. Falcon records connections made through the operating system's network stack; raw-packet scans don't produce them.
 - **Process starts:** `processrollup2` with `process.name` (the file name) and `data.TargetProcessId`.
-- **Reverse lookups (B):** `dnsrequest` with `dns.question.name` and `dns.question.registered_domain`, matched in lowercase, which is how Windows and Linux resolvers send them. Falcon records lookups made through the operating system's resolver. nmap uses its own resolver unless run with `--system-dns`, so its lookups may never appear; the Test section checks this.
+- **Reverse lookups (B):** `dnsrequest` with Falcon's raw fields `data.RequestType` (12 is PTR) and `data.DomainName`, which may end in a dot; the regex allows for it. Names are matched in lowercase, which is how Windows and Linux resolvers send them. The rule doesn't use ECS `dns.question.*`, which a pipeline that doesn't map DNS to ECS won't have. Falcon records lookups made through the operating system's resolver. nmap uses its own resolver unless run with `--system-dns`, so its lookups may never appear; the Test section checks this.
 - **The process ID:** a process's start carries its ID as `data.TargetProcessId`; its connections and lookups carry the same value as `data.ContextProcessId`. Step 2 puts them in one column. If your pipeline already sets `process.entity_id` that way on all three events, gate on it and drop step 2.
 - **Process name:** `process.name` on starts, `data.ContextBaseFileName` on connections (older sensors don't send it). DNS events never carry one.
 
 Confirm them over the last hour before deploying. The `with_` counts should be close to `events` on the rows where the field belongs, and the `dnsrequest` row's `events` is roughly what B's DNS half reads per hour:
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-| WHERE event.action IN ("networkconnectip4", "processrollup2")
-  OR (event.action == "dnsrequest"
-      AND dns.question.registered_domain IN ("10.in-addr.arpa", "100.in-addr.arpa", "172.in-addr.arpa", "192.in-addr.arpa"))
+| WHERE event.action IN ("networkconnectip4", "processrollup2") OR (event.action == "dnsrequest" AND data.RequestType == "12")
 | STATS events = COUNT(*), hosts = COUNT_DISTINCT(host.id), with_context_pid = COUNT(data.ContextProcessId),
         with_target_pid = COUNT(data.TargetProcessId), with_address = COUNT(destination.ip), with_port = COUNT(destination.port),
-        with_name = COUNT(data.ContextBaseFileName), with_process_name = COUNT(process.name)
+        with_name = COUNT(data.ContextBaseFileName), with_process_name = COUNT(process.name), with_domain = COUNT(data.DomainName)
     BY event.action
 ```
 ```logscale
@@ -275,7 +277,18 @@ FROM logs-yourorg-crowdstrike-data-default*
                                                         count(FileName, as=with_file_name), count(RequestType, as=with_request_type)],
           limit=max)
 ```
-If the ES|QL query returns no `dnsrequest` row but LogScale shows reverse lookups, `dns.question.registered_domain` isn't populated in your index. Gate on `data.RequestType` (12 is PTR) instead, written to match its mapping (`== "12"` for a keyword, `== 12` for a number). Either is an exact match the index answers. Don't fall back to `LIKE "*.in-addr.arpa*"`: a leading wildcard reads every lookup.
+If the ES|QL query returns no `dnsrequest` row but LogScale shows reverse lookups, check how `data.RequestType` is stored. Raw FDR values are strings, hence `== "12"`; if your mapping made it a number, use `== 12`. This shows the stored values and whether `data.DomainName` is there (one hour of DNS, grouped by a handful of record types):
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action == "dnsrequest"
+| STATS lookups = COUNT(*), with_domain = COUNT(data.DomainName), with_pid = COUNT(data.ContextProcessId) BY data.RequestType
+| SORT lookups DESC
+```
+```logscale
+#event_simpleName=DnsRequest
+| groupBy([RequestType], function=[count(as=lookups), count(DomainName, as=with_domain), count(ContextProcessId, as=with_pid)], limit=max)
+```
+Don't gate on `LIKE "*.in-addr.arpa*"` instead: a leading wildcard reads every lookup.
 
 ## Baseline and threshold source
 The thresholds are starting values, not measurements. Measure each shape before enabling, and write the result next to the threshold; the name fallback has no threshold. These queries run detection B's connection and DNS stages with the window rebuilt as 10-minute buckets; the connection counts are the same as A's. Run them over one day at a time (they keep a row for every process in every window, which is heavy), on at least five working days, and record whether patch nights or a scheduled scan fell in the range.
@@ -284,29 +297,28 @@ FROM logs-yourorg-crowdstrike-data-default*
 | WHERE ((event.action == "networkconnectip4" AND destination.port < 49152
           AND NOT destination.port IN (53, 123, 137, 138, 1900, 5353, 5355)
           AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "100.64.0.0/10", "172.16.0.0/12", "192.168.0.0/16"))
-         OR (event.action == "dnsrequest"
-             AND dns.question.registered_domain IN ("10.in-addr.arpa", "100.in-addr.arpa", "172.in-addr.arpa", "192.in-addr.arpa")))
+         OR (event.action == "dnsrequest" AND data.RequestType == "12"))
   AND host.id IS NOT NULL AND data.ContextProcessId IS NOT NULL
 // The rule's 10-minute window, rebuilt as a bucket so a whole day can be measured in one search.
 | EVAL win = DATE_TRUNC(10 minutes, @timestamp)
 | STATS targets = COUNT_DISTINCT(destination.ip) WHERE event.action == "networkconnectip4",
         ports = COUNT_DISTINCT(destination.port) WHERE event.action == "networkconnectip4",
-        ptr_names = COUNT_DISTINCT(dns.question.name) WHERE dns.question.registered_domain == "10.in-addr.arpa"
-          OR dns.question.name RLIKE ".*\\.((6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.100|(1[6-9]|2[0-9]|3[01])\\.172|168\\.192)\\.in-addr\\.arpa\\.?",
+        ptr_names = COUNT_DISTINCT(data.DomainName) WHERE data.DomainName RLIKE
+          ".*\\.(10|(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\\.100|(1[6-9]|2[0-9]|3[01])\\.172|168\\.192)\\.in-addr\\.arpa\\.?",
         process.name = VALUES(data.ContextBaseFileName)
     BY host.id, data.ContextProcessId, win
 | EVAL mixed = LEAST(targets, ports), process.name = COALESCE(MV_MIN(process.name), "unknown")
 // Second STATS, baseline only: each shape's metric across the windows where that activity happened at all (counting
 // zeros would hide the tail). For top talkers instead, replace this STATS with:
-//   STATS peak_mixed = MAX(mixed), peak_ports_few_hosts = MAX(ports) WHERE targets <= 5, peak_targets = MAX(targets),
+//   STATS peak_mixed = MAX(mixed), peak_ports_few_hosts = MAX(ports) WHERE targets < 10, peak_targets = MAX(targets),
 //         peak_ptr = MAX(ptr_names), windows = COUNT(*) BY host.id, process.name
 //   | SORT peak_targets DESC | LIMIT 50
 | STATS windows = COUNT(*),
         mixed_scan_p95 = PERCENTILE(mixed, 95) WHERE mixed > 0, mixed_scan_p99 = PERCENTILE(mixed, 99) WHERE mixed > 0,
         mixed_scan_max = MAX(mixed),
-        port_scan_p95 = PERCENTILE(ports, 95) WHERE targets > 0 AND targets <= 5,
-        port_scan_p99 = PERCENTILE(ports, 99) WHERE targets > 0 AND targets <= 5,
-        port_scan_max = MAX(ports) WHERE targets > 0 AND targets <= 5,
+        port_scan_p95 = PERCENTILE(ports, 95) WHERE targets > 0 AND targets < 10,
+        port_scan_p99 = PERCENTILE(ports, 99) WHERE targets > 0 AND targets < 10,
+        port_scan_max = MAX(ports) WHERE targets > 0 AND targets < 10,
         host_sweep_p95 = PERCENTILE(targets, 95) WHERE targets > 0, host_sweep_p99 = PERCENTILE(targets, 99) WHERE targets > 0,
         host_sweep_max = MAX(targets),
         ptr_sweep_p95 = PERCENTILE(ptr_names, 95) WHERE ptr_names > 0, ptr_sweep_p99 = PERCENTILE(ptr_names, 99) WHERE ptr_names > 0,
@@ -330,7 +342,7 @@ FROM logs-yourorg-crowdstrike-data-default*
                                                   count(DomainName, distinct=true, as=ptr_names), collect([ContextBaseFileName])],
           limit=max)
 // Baseline: one shape at a time, over the windows where it happened. As written, host_sweep (targets).
-// port_scan: filter "targets >= 1 targets <= 5" and measure ports. mixed_scan: "ports >= 10", measure targets.
+// port_scan: filter "targets >= 1 targets <= 9" and measure ports. mixed_scan: "ports >= 10", measure targets.
 // ptr_sweep: "ptr_names >= 1", measure ptr_names. For top talkers instead, replace the last two lines with:
 //   default(field=ContextBaseFileName, value="unknown")
 //   | groupBy([aid, ContextBaseFileName], function=[max(targets, as=peak_targets), max(ports, as=peak_ports),
@@ -355,7 +367,7 @@ Exclusions are pairs, never a whole host: a host and the one process that scans 
 - The network and security teams' own scanners (nmap, Advanced IP Scanner): their hosts and that tool.
 - Monitoring scrapers in Kubernetes (Prometheus and similar) reach many pods on many ports in 100.64.0.0/10 or a private range: the scraper's host and process.
 - Log collectors and SIEM forwarders that add reverse-DNS names to the events they ship look like a reverse-DNS sweep (B). DNS events carry no process name, so the pair is the host and `ptr_sweep`. The host still alerts on every connection shape.
-- A process with no name (older sensors) reads `unknown`, so a host + process exclusion can't match it; it alerts until the sensor is updated.
+- **Name pairs fail when the name is `unknown`.** A tool whose connections come from a sensor that doesn't send `ContextBaseFileName` reads `unknown`, and a host + process exclusion never matches it. Spot-check in the top-talkers view that each tool you exclude resolves to a name. If it doesn't, exclude it on host + finding instead, as for log collectors.
 - A management script on a host you didn't expect (an admin's workstation running a PowerShell loop over many servers). That's still worth a look: it's also what an intruder does.
 
 The standard keeps exclusions in one central list (a lookup index or file) rather than in each rule. This library has no lookups yet, so they're written inline as placeholders; when a central list exists, replace the step 5 `WHERE NOT` (and the LogScale `NOT` lines) with a lookup on host and process.
@@ -369,7 +381,7 @@ The standard keeps exclusions in one central list (a lookup index or file) rathe
 - **A known scanner started before the lookback.** Only its start event carries the name, so a long-running scan is named in the first run's alert only; later runs judge it by its shape.
 - **nbtscan and NetBIOS name sweeps on UDP 137**, and anything else that only uses the left-out chatter ports. They're left out because ordinary Windows traffic fills them. nbtscan itself is caught by name.
 - Services on 49152 and up, and scans that only probe them.
-- **`port_scan` is an approximation** of "many ports on one host": 20+ ports across at most 5 hosts. Exact per-host port counts need a second `STATS` keyed on the address. Add it only if the approximation causes false positives.
+- **`port_scan` is an approximation** of "many ports on one host": 20+ ports across fewer than 10 hosts. Exact per-host port counts need a second `STATS` keyed on the address. Add it only if the approximation causes false positives.
 - A slow scan spread over more than the window (`--scan-delay`, `-T1`) stays under each threshold. If that's a concern, run a second copy hourly with a 65-minute lookback, baselined on 1-hour buckets (change the bucket in the baseline queries). Don't just scale the 10-minute thresholds.
 - A scan split across several processes, each below the thresholds (a worm spawning one process per target). The per-process key is what keeps busy hosts from adding up; the cost is this.
 - Reverse lookups in uppercase (`IN-ADDR.ARPA`), which some custom resolvers send (B). In ES|QL, scanner names in a different case from how they ship (`NMAP.EXE`); LogScale ignores case.
@@ -385,7 +397,7 @@ FROM logs-yourorg-crowdstrike-data-default*
   AND (data.TargetProcessId == "<process.entity_id>" OR data.ContextProcessId == "<process.entity_id>")
   AND event.action IN ("processrollup2", "syntheticprocessrollup2", "networkconnectip4", "dnsrequest")
 | KEEP @timestamp, event.action, user.name, process.executable, process.command_line, process.parent.name, destination.ip,
-       destination.port, dns.question.name
+       destination.port, data.DomainName
 | SORT @timestamp ASC
 ```
 ```logscale
@@ -402,6 +414,6 @@ From a lab host:
 - `nmap -sS <lab /24>` as admin: `named_scanner` (A and B). Then the same with the binary renamed: nothing, by design (see Blind spots).
 - A PowerShell loop testing port 445 across a lab /24 (`Test-NetConnection` in a `foreach`): `host_sweep`, with no scanner involved.
 - `nmap -sL --system-dns <lab /24>`: `ptr_sweep` (B). A list scan sends nothing to the hosts and only looks up all 256 names, so it tests the DNS half on its own.
-- `nmap -sL <lab /24>` (nmap's own resolver): check whether any `dnsrequest` events appear from the lab host. If none do, nmap's default sweeps aren't seen through DNS.
+- `nmap -sn <lab /24>` (a ping sweep with nmap's own resolver): check whether any `dnsrequest` events appear from the lab host. If none do, `ptr_sweep` is not nmap coverage on your sensors, only coverage of tools that use the system resolver.
 - Advanced IP Scanner on a lab subnet: `host_sweep` or `mixed_scan` from the ports it probes, `ptr_sweep` (B) when 50+ hosts answer, or `named_scanner` if neither.
 - Run the pivot query on one of the alerts and confirm it returns the scanner's start event: that proves the process ID links.
