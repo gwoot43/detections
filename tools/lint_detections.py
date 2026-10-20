@@ -30,8 +30,8 @@ CHECKS = {
     "C-TAG": "the query doesn't start with a tag field",
     "C-SHAPE-FIRST": "an assignment runs before the gate filters",
     "C-LIMIT": "groupBy() without an explicit limit",
-    "C-CASE": "case {} without a * branch",
-    "C-OUTPUT": "table() or sort() used for output instead of select()",
+    "C-CASE": "case {} without a * branch, and no comment saying it's a deliberate filter",
+    "C-OUTPUT": "table(), or sort() without an explicit limit, instead of select()",
     "C-JOIN": "join() without a comment justifying it",
     "C-COLLECT": "collect() on a high-cardinality field",
     "C-THRESHOLD": "a threshold with no recorded source (no 'baseline' or 'source' comment)",
@@ -43,6 +43,8 @@ ESQL_FUNCS = re.compile(r"\b(TO_LOWER|TO_UPPER|COALESCE|CONCAT|TO_STRING|TO_INTE
 ESQL_HC = r"process\.command_line|process\.executable|process\.entity_id|destination\.ip|source\.ip|file\.path|file\.name|dns\.question\.name|url\.original|url\.full|url\.path|user_agent\.original|registry\.path|registry\.data\.strings"
 CQL_HC = re.compile(r"\b(CommandLine|ImageFileName|TargetFileName|RemoteAddressIP4|RemoteAddressIP6|RemoteAddress|DomainName|FirstIP4Record|LocalAddressIP4)\b")
 THRESHOLD_SOURCE = re.compile(r"(?i)//.*\b(baseline|source:|p9[59]|percentile)")
+# a case {} used as a filter (no * branch on purpose) says so in a comment just above it
+FILTER_CASE = re.compile(r"(?i)//.*(deliberately no|no \* branch|no default branch)")
 
 
 def comments(text):
@@ -131,7 +133,18 @@ def lint_cql(block):
     for m in re.finditer(r"\bgroupBy\(", code):
         if "limit=" not in balanced(code, m.end() - 1):
             found.append("C-LIMIT"); break
-    for m in re.finditer(r"\bcase\s*\{", code):
+    # the comment lines directly above each case, in the raw block, in the same order as the cases in the code
+    raw_lines = block.split("\n")
+    marked = []
+    for i, l in enumerate(raw_lines):
+        if re.search(r"\bcase\s*\{", l) and not l.strip().startswith("//"):
+            j = i - 1
+            while j >= 0 and raw_lines[j].strip().startswith("//"):
+                j -= 1
+            marked.append(any(FILTER_CASE.search(c) for c in raw_lines[j + 1:i]))
+    for n, m in enumerate(re.finditer(r"\bcase\s*\{", code)):
+        if n < len(marked) and marked[n]:
+            continue
         body = balanced(code, m.end() - 1)
         # strip nested blocks so only this case's own branches are checked
         inner = body[1:-1]
@@ -142,7 +155,8 @@ def lint_cql(block):
             inner = inner[:n.start()] + inner[n.start() + len(balanced(inner, n.start())):]
         if not re.search(r"(^|[;\s])\*\s*(;|\||$)", inner):
             found.append("C-CASE"); break
-    if re.search(r"\|\s*(table|sort)\(", code):
+    if re.search(r"\|\s*table\(", code) or any("limit=" not in balanced(code, m.end() - 1)
+                                                for m in re.finditer(r"\|\s*sort\(", code)):
         found.append("C-OUTPUT")
     if re.search(r"\bjoin\(", code) and not re.search(r"(?i)//.*\bjoin\b", block):
         found.append("C-JOIN")

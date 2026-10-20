@@ -16,6 +16,8 @@ python3 tools/lint_detections.py -v rules/11-behaviour/B01-horizontal-network-sc
 ```
 The rest need a reviewer: a grouping key that can be null, events linked by name, a lookback shorter than what the logic measures.
 
+**A `case {}` used as a filter has no `*` branch on purpose.** LogScale can't join functions (`cidr()`, `in()`) with `or`, so a query that gates two event types differently scopes each type's filters in its own branch, and an event matching no branch is dropped. That's the one place a `case` goes without `*`. Say so in a comment on the line above (`// Deliberately no * branch: this case is the gate.`), so nobody later "fixes" it by adding one; the linter accepts a `case` with that comment. Never put a filter on one event type where another type's events also pass through it: a negated filter on a field the other event lacks lets it through by luck, not design.
+
 **Where this library departs from the standard.** Rule 7 keeps exclusions in one central lookup. This library has no lookup indexes yet, so exclusions are written inline as placeholders, as entity pairs (a host and the process that does this by design), never a whole host or user. When a central list exists, each rule's exclusion step is where the lookup goes.
 
 ## Index patterns
