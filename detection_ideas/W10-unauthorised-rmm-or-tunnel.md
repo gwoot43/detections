@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1219, T1572, T1090, T1105]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -23,9 +23,9 @@ Ransomware affiliates and help-desk social engineering crews drop a second remot
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: a remote-management or tunnelling tool starts, matched by file name.
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name)
 | WHERE pname IN ("anydesk.exe", "screenconnect.clientservice.exe", "screenconnect.windowsclient.exe", "connectwisecontrol.client.exe", "ateraagent.exe",
                   "splashtop_streamer.exe", "rustdesk.exe", "teamviewer.exe", "teamviewerqs.exe", "quickassist.exe",

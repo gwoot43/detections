@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 11
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1505.001, T1505.003, T1190]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -21,8 +21,8 @@ L03 covers the same pattern for Linux web servers; W02 covers Office and browser
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL parent = TO_LOWER(COALESCE(process.parent.name, "")),
        child = TO_LOWER(COALESCE(process.name, "")),
        cl = TO_LOWER(COALESCE(process.command_line, ""))

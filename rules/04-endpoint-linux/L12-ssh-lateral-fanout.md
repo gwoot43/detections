@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1021.004]
 data_source: CrowdStrike FDR NetworkConnectIP4 (Linux)
 suppression:
@@ -21,8 +21,8 @@ The count comes from outbound connections to port 22, not from `ssh` command lin
 ## Query
 Run every 5 minutes with a 15-minute lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE event.action == "NetworkConnectIP4" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action == "networkconnectip4" AND host.os.type == "linux"
   AND destination.port == 22
   AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
   // Ansible control nodes, jump hosts and backup orchestrators (placeholders: Falcon agent IDs)

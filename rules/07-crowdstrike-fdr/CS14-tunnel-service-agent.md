@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1572, T1090.002]
 data_source: CrowdStrike FDR NetworkConnectIP4/IP6 and DnsRequest
 suppression:
@@ -25,12 +25,12 @@ People visiting a site hosted on one of these services resolve other names (`*.t
 ## Query
 Run every 15 minutes with a 1-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: a connection to a public address on a tunnel relay's fixed port, or a DNS lookup under a tunnel service's domain.
-| WHERE ((event.action IN ("NetworkConnectIP4", "NetworkConnectIP6") AND destination.port IN (7844, 7835, 9993, 41641)
+| WHERE ((event.action IN ("networkconnectip4", "networkconnectip6") AND destination.port IN (7844, 7835, 9993, 41641)
           AND NOT CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16",
                              "100.64.0.0/10", "fc00::/7", "fe80::/10"))
-         OR (event.action == "DnsRequest"
+         OR (event.action == "dnsrequest"
              AND dns.question.registered_domain IN ("argotunnel.com", "cftunnel.com", "trycloudflare.com", "ngrok-agent.com", "ngrok.com",
                                                     "tailscale.com", "localhost.run", "serveo.net", "pinggy.io", "bore.pub",
                                                     "localtonet.com", "playit.gg", "tunnelmole.com")))
@@ -104,7 +104,7 @@ FROM logs-crowdstrike.fdr-*
                                            collect([ComputerName, DomainName, RemotePort, ContextBaseFileName, ContextProcessId])], limit=max)
 ```
 
-**Check that Falcon sees UDP.** Cloudflare's QUIC, Tailscale and ZeroTier run over UDP. Run `FROM logs-crowdstrike.fdr-* | WHERE event.action == "NetworkConnectIP4" AND destination.port IN (7844, 9993, 41641) | STATS COUNT(*) BY network.transport` over a week. If only `tcp` appears while one of these is in use, the sensor isn't recording those UDP connections; the DNS branches still fire, and your firewall logs see the ports.
+**Check that Falcon sees UDP.** Cloudflare's QUIC, Tailscale and ZeroTier run over UDP. Run `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action == "networkconnectip4" AND destination.port IN (7844, 9993, 41641) | STATS COUNT(*) BY network.transport` over a week. If only `tcp` appears while one of these is in use, the sensor isn't recording those UDP connections; the DNS branches still fire, and your firewall logs see the ports.
 
 ## Suppression
 Suppress by `host.id`, `tunnel_service` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: an agent stays connected, so each run's repeats fold into the open alert. A second service on the same host still alerts.

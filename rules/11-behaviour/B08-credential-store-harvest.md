@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1555, T1552.001, T1539, T1555.003]
 data_source: CrowdStrike FDR file access events
 suppression:
@@ -19,17 +19,17 @@ Infostealers and credential tools (LaZagne and the broad stealer family, and sec
 ## Query
 Run every 10 minutes with a 15-minute lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Activity: file opens. Filename fallback: a known credential-store stealer starting (LaZagne, HackBrowserData, SharpChrome,
 // SharpDPAPI), which alerts even when file-read telemetry is off or sampled.
-| WHERE (event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL)
-     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE (event.action IN ("fileopeninfo", "fspostopen") AND file.path IS NOT NULL)
+     OR (event.action IN ("processrollup2", "syntheticprocessrollup2")
          AND (TO_LOWER(process.name) IN ("lazagne.exe", "lazagne", "hack-browser-data.exe", "hack-browser-data", "sharpchrome.exe",
                                          "sharpdpapi.exe")
               OR TO_LOWER(process.command_line) LIKE "*lazagne*"))
 | EVAL p = TO_LOWER(file.path),
-       process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown")),
-       named = event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+       process.name = TO_LOWER(COALESCE(process.name, data.ContextBaseFileName, "unknown")),
+       named = event.action IN ("processrollup2", "syntheticprocessrollup2")
 // browsers read their own and (on import) each other's stores; IDEs read SSH, kube and cloud config together
 | WHERE process.name NOT IN ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "code.exe", "code")
 | EVAL store = CASE(

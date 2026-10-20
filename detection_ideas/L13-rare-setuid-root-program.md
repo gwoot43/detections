@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1548.001]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -27,10 +27,10 @@ L06 catches `chmod u+s` on files in temp and home folders. This rule doesn't car
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: a Linux program that started as root for an account that isn't root: only a setuid-root file starts like that.
 // user.id is the effective user (UID), process.real_user.id the account that ran it (RUID).
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
   AND user.id == "0" AND process.real_user.id != "0"
 // One row per host and program: when it first ran setuid in the 7 days, and for whom.
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), runs = COUNT(*),
@@ -65,7 +65,7 @@ FROM logs-crowdstrike.fdr-*
 ```
 LogScale has no `INLINE STATS`, so this version rolls up to one row per program, listing the (at most three) hosts it runs on.
 
-**Check before deploying:** run `FROM logs-crowdstrike.fdr-* | WHERE event.action == "ProcessRollup2" AND process.name == "sudo" | STATS COUNT(*) BY user.id, process.real_user.id` over a day. You should see `user.id` 0 with your admins' user IDs as `process.real_user.id`. If `process.real_user.id` is empty, the sensor isn't sending `RUID` and this rule can't work.
+**Check before deploying:** run `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action == "processrollup2" AND process.name == "sudo" | STATS COUNT(*) BY user.id, process.real_user.id` over a day. You should see `user.id` 0 with your admins' user IDs as `process.real_user.id`. If `process.real_user.id` is empty, the sensor isn't sending `RUID` and this rule can't work.
 
 ## Suppression
 Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: the 7-day lookback overlaps every run, and the backdoor alerts the first time it's used on a host.

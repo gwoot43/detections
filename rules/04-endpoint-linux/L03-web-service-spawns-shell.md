@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1505.003, T1190, T1059.004]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -24,8 +24,8 @@ Confluence, Jira and Tomcat run as `java` in FDR, so they fall in the second gro
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 | EVAL parent = TO_LOWER(process.parent.name), child = TO_LOWER(process.name), cmd = TO_LOWER(COALESCE(process.command_line, ""))
 | EVAL web_parent = parent IN ("nginx", "apache2", "httpd", "lighttpd", "caddy", "envoy", "traefik", "php-cgi", "gunicorn", "uwsgi", "puma", "unicorn")
                     OR parent LIKE "php-fpm*",

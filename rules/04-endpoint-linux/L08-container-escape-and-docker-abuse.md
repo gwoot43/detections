@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1611, T1610, T1613]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -20,8 +20,8 @@ Not matched, because monitoring and infrastructure agents use them by design: `-
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name)
 | WHERE (pname IN ("docker", "podman", "nerdctl") AND cmd LIKE "*run*"
          AND (cmd LIKE "*--privileged*" OR cmd LIKE "*--pid=host*" OR cmd LIKE "* -v /:/*" OR cmd LIKE "*--volume /:/*" OR cmd LIKE "*--volume=/:/*"

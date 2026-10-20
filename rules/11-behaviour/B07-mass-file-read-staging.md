@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: medium
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1119, T1005, T1552.001]
 data_source: CrowdStrike FDR file access events
 suppression:
@@ -19,19 +19,19 @@ Secret scanners like TruffleHog and gitleaks, data-collection scripts, infosteal
 ## Query
 Run every 10 minutes with a 15-minute lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Activity: file opens. Filename fallback: gitleaks or Nosey Parker starting on a folder rather than a repository,
 // which alerts even when file-read telemetry is off or sampled. TruffleHog by name is CS17.
-| WHERE (event.action IN ("FileOpenInfo", "FsPostOpen") AND file.path IS NOT NULL)
-     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE (event.action IN ("fileopeninfo", "fspostopen") AND file.path IS NOT NULL)
+     OR (event.action IN ("processrollup2", "syntheticprocessrollup2")
          AND TO_LOWER(process.name) IN ("gitleaks", "gitleaks.exe", "noseyparker", "noseyparker.exe"))
 // file-open events often lack the process name; fall back to the raw context name, then group by process instance
-| EVAL process.name = TO_LOWER(COALESCE(process.name, crowdstrike.ContextBaseFileName, "unknown")),
+| EVAL process.name = TO_LOWER(COALESCE(process.name, data.ContextBaseFileName, "unknown")),
        cmd = TO_LOWER(COALESCE(process.command_line, "")),
        // gitleaks scans a folder with `dir` or `detect --no-git`, Nosey Parker with `scan`; on a repository it's a team's own check
-       named = event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+       named = event.action IN ("processrollup2", "syntheticprocessrollup2")
                AND (cmd RLIKE ".* (dir|directory)( .*)?" OR cmd LIKE "*--no-git*" OR (process.name LIKE "noseyparker*" AND cmd RLIKE ".* scan( .*)?"))
-| WHERE named OR event.action IN ("FileOpenInfo", "FsPostOpen")
+| WHERE named OR event.action IN ("fileopeninfo", "fspostopen")
 // search indexers, AV and sync agents read many files by design; add your backup agent here
 | WHERE process.name NOT IN ("searchprotocolhost.exe", "searchfilterhost.exe", "searchindexer.exe",
                              "msmpeng.exe", "mssense.exe", "csfalconservice.exe", "onedrive.exe")

@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1033, T1016, T1057, T1082, T1087, T1049, T1069.002, T1482]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -23,12 +23,12 @@ Two tiers, in the `severity` column:
 ## Query
 Run every 10 minutes with a 15-minute lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name),
        cmd = TO_LOWER(COALESCE(process.command_line, "")),
        parent = TO_LOWER(COALESCE(process.parent.name, "")),
-       grandparent = TO_LOWER(COALESCE(crowdstrike.GrandParentBaseFileName, ""))
+       grandparent = TO_LOWER(COALESCE(data.GrandParentBaseFileName, ""))
 // SCCM and Intune scripts run inventory commands in bursts
 | WHERE parent NOT IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe")
   AND grandparent NOT IN ("ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe")

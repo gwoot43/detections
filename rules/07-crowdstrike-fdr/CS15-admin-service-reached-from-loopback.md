@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1572, T1021.001, T1021.004]
 data_source: CrowdStrike FDR NetworkReceiveAcceptIP4/IP6 (and Windows Security 4624 as a second source)
 suppression:
@@ -25,10 +25,10 @@ This covers a tunnel exposing the host it runs on. A tunnel used to pivot to oth
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: RDP or SSH on this host accepting a connection from the host itself.
 // Real RDP and SSH come from other machines, so a loopback source means something here is relaying traffic in.
-| WHERE event.action IN ("NetworkReceiveAcceptIP4", "NetworkReceiveAcceptIP6") AND destination.port IN (3389, 22)
+| WHERE event.action IN ("networkreceiveacceptip4", "networkreceiveacceptip6") AND destination.port IN (3389, 22)
   AND CIDR_MATCH(source.ip, "127.0.0.0/8", "::1/128")
 // One row per host and service: when this first happened in the 7 days, and how often.
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), connections = COUNT(*),
@@ -53,7 +53,7 @@ FROM logs-crowdstrike.fdr-*
 | test(first_seen > _now - 7200000)
 ```
 
-**Check that Falcon records loopback connections.** Run `FROM logs-crowdstrike.fdr-* | WHERE event.action == "NetworkReceiveAcceptIP4" AND CIDR_MATCH(source.ip, "127.0.0.0/8") | STATS COUNT(*) BY destination.port` over a day. Any rows at all (local services talk to each other constantly) mean it does. If there are none, use the Windows Security version below for RDP.
+**Check that Falcon records loopback connections.** Run `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action == "networkreceiveacceptip4" AND CIDR_MATCH(source.ip, "127.0.0.0/8") | STATS COUNT(*) BY destination.port` over a day. Any rows at all (local services talk to each other constantly) mean it does. If there are none, use the Windows Security version below for RDP.
 
 **Same detection in the Windows Security log (RDP only)**, run hourly with a 7-day lookback:
 ```esql

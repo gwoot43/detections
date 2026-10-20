@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1053.003, T1543.002, T1546.004, T1098.004]
 data_source: CrowdStrike FDR ProcessRollup2 and CriticalFileModified (Linux)
 suppression:
@@ -23,12 +23,12 @@ Falcon's Linux sensor emits `CriticalFileModified` for a curated set of sensitiv
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE host.os.type == "linux" AND event.action IN ("ProcessRollup2", "CriticalFileModified")
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE host.os.type == "linux" AND event.action IN ("processrollup2", "criticalfilemodified")
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),
        parent = TO_LOWER(COALESCE(process.parent.name, "")), f = TO_LOWER(COALESCE(file.path, ""))
-| WHERE (event.action == "CriticalFileModified" AND (f LIKE "*/.ssh/authorized_keys*" OR f == "/etc/ld.so.preload"))
-   OR (event.action == "ProcessRollup2" AND (
+| WHERE (event.action == "criticalfilemodified" AND (f LIKE "*/.ssh/authorized_keys*" OR f == "/etc/ld.so.preload"))
+   OR (event.action == "processrollup2" AND (
           (pname == "crontab" AND (cmd LIKE "* -" OR cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*"))
        OR (cmd LIKE "*authorized_keys*" AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*tee*" OR cmd LIKE "*curl*" OR cmd LIKE "*wget*"))
        OR (pname == "systemctl" AND cmd LIKE "* enable *" AND (cmd LIKE "*/tmp/*" OR cmd LIKE "*/dev/shm/*" OR cmd LIKE "*/var/tmp/*" OR cmd LIKE "*/home/*"))

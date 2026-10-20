@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*, logs-system.security*, logs-windows.forwarded*
+index: logs-yourorg-crowdstrike-data-default*, logs-system.security*, logs-windows.forwarded*
 mitre: [T1003.003]
 data_source: CrowdStrike FDR ProcessRollup2 (DCs) and Windows Security 4656/4663 on NTDS
 suppression:
@@ -18,8 +18,8 @@ The AD database (`ntds.dit`) holds every password hash. Attackers copy it by mak
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
   AND (TO_LOWER(host.name) LIKE "dc*" OR TO_LOWER(host.name) LIKE "*-dc*")
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | WHERE (pname == "ntdsutil.exe" AND (cmd LIKE "*ifm*" OR cmd LIKE "*create full*" OR cmd LIKE "*ac i ntds*"))

@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1546.015, T1137.006]
 data_source: CrowdStrike FDR registry and file events
 suppression:
@@ -20,18 +20,18 @@ FDR writes registry keys as `\REGISTRY\USER\<SID>...` (in `registry.path`), not 
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | WHERE host.os.type == "windows"
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key, ""))),
        v = TO_LOWER(TO_STRING(COALESCE(registry.data.strings, registry.value, ""))),
        f = TO_LOWER(TO_STRING(COALESCE(file.path, ""))),
        pname = TO_LOWER(COALESCE(process.name, ""))
 | WHERE
-     (event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegistryOperationDetectInfo")
+     (event.action IN ("asepvalueupdate", "reggenericvalueupdate", "registryoperationdetectinfo")
       AND k LIKE """\\registry\\user\\*""" AND k LIKE """*\\clsid\\*inprocserver32*"""
       AND (v LIKE """*\\appdata\\*""" OR v LIKE """*\\temp\\*""" OR v LIKE """*\\programdata\\*""" OR v LIKE """*\\users\\public\\*""")
       AND NOT (v LIKE """*\\appdata\\local\\microsoft\\onedrive\\*""" OR v LIKE """*\\appdata\\local\\microsoft\\teamsmeetingadd*"""))
-  OR (event.action LIKE "*Written"
+  OR (event.action LIKE "*written"
       AND (f LIKE """*\\microsoft\\word\\startup\\*""" OR f LIKE """*\\microsoft\\excel\\xlstart\\*"""
            OR f LIKE """*\\microsoft\\addins\\*""" OR f LIKE """*\\microsoft\\templates\\normal.dotm""")
       AND NOT (pname == "winword.exe" AND f LIKE "*normal.dotm")

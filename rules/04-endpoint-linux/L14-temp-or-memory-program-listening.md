@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572]
 data_source: CrowdStrike FDR ProcessRollup2 and NetworkListenIP4/IP6 (Linux)
 suppression:
@@ -25,18 +25,18 @@ It doesn't matter who connects, so it covers what CS11 can't see: a listener rea
 ## Query
 Run every 15 minutes with a 1-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Two event types, joined on the process below: Linux programs started from a temp folder or memory, and listening sockets.
 | WHERE host.os.type == "linux"
-  AND ((event.action == "ProcessRollup2"
+  AND ((event.action == "processrollup2"
         AND (process.executable LIKE "/tmp/*" OR process.executable LIKE "/var/tmp/*" OR process.executable LIKE "/dev/shm/*"
              OR process.executable LIKE "/memfd:*")
         // Go builds and runs its test binaries from /tmp/go-build*, and tests often listen on localhost.
         AND NOT process.executable LIKE "/tmp/go-build*")
-       OR event.action IN ("NetworkListenIP4", "NetworkListenIP6"))
+       OR event.action IN ("networklistenip4", "networklistenip6"))
 // The start event gives the path, the listen event the port (a listen event's own port is in source.port).
-| EVAL started_from = CASE(event.action == "ProcessRollup2", process.executable, NULL),
-       listen_port = CASE(event.action != "ProcessRollup2", source.port, NULL)
+| EVAL started_from = CASE(event.action == "processrollup2", process.executable, NULL),
+       listen_port = CASE(event.action != "processrollup2", source.port, NULL)
 // One row per process: where it started from and the ports it listened on.
 | STATS process.executable = VALUES(started_from), source.port = VALUES(listen_port), first_seen = MIN(@timestamp),
         process.command_line = VALUES(process.command_line), process.parent.name = VALUES(process.parent.name),

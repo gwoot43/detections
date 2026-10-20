@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1087.002, T1482, T1558.003, T1003, T1069.002, T1018]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -23,8 +23,8 @@ Other rules own the neighbouring signals, so they are not repeated here:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | EVAL tooling = CASE(
         cmd LIKE "*asktgt*" OR cmd LIKE "* /ptt*"

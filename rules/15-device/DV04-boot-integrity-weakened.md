@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 2
 language: esql
-index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
+index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*
 mitre: [T1553.006, T1542, T1014, T1685]
 data_source: Windows Security 4826 (Boot Configuration Data loaded) and CrowdStrike FDR ProcessRollup2 (bcdedit)
 suppression:
@@ -28,9 +28,9 @@ W05 already covers `bcdedit` forcing Safe Mode, and W06 covers recovery being di
 
 ## Query
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | WHERE event.code == "4826"
-   OR (event.action == "ProcessRollup2" AND TO_LOWER(process.name) == "bcdedit.exe")
+   OR (event.action == "processrollup2" AND TO_LOWER(process.name) == "bcdedit.exe")
 | EVAL msg = TO_LOWER(COALESCE(message, "")),
        cmd = TO_LOWER(COALESCE(process.command_line, "")),
        host_key = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), ".")))

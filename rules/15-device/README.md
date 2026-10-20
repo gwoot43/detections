@@ -32,8 +32,8 @@ FDR process events carry `host.name` and `user.name` only when the CrowdStrike i
 Falcon records USB and device activity in FDR, but which events carry device fields depends on your sensor version and on whether Device Control is licensed. Run this once to see what your feed has:
 
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE crowdstrike.DeviceInstanceId IS NOT NULL OR crowdstrike.IsOnRemovableDisk IN ("1", "true")
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE data.DeviceInstanceId IS NOT NULL OR data.IsOnRemovableDisk IN ("1", "true")
 | STATS events = COUNT(*), hosts = COUNT_DISTINCT(host.id) BY event.action
 | SORT events DESC
 ```

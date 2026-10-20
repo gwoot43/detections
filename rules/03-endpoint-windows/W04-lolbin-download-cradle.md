@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1105, T1218.005, T1218.010, T1218.011, T1197, T1059.001, T1218.007, T1027.010]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -20,8 +20,8 @@ When the parent is `explorer.exe` and the child is one W03 watches (PowerShell, 
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 | WHERE (pname == "certutil.exe"  AND (cmd LIKE "*urlcache*" OR cmd LIKE "*-decode*" OR cmd LIKE "*-verifyctl*"))
    OR (pname == "bitsadmin.exe"  AND (cmd LIKE "*transfer*" OR cmd LIKE "*addfile*" OR cmd LIKE "*setnotifycmdline*"))

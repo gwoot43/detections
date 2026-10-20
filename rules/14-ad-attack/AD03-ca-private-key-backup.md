@@ -6,7 +6,7 @@ status: todo
 severity: critical
 rank: 3
 language: esql
-index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
+index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*
 mitre: [T1649, T1552.004]
 data_source: AD CS audit events 4876/4877 on the CA, and CrowdStrike FDR process events
 suppression:
@@ -22,9 +22,9 @@ Events 4876 and 4877 need CA auditing enabled for backup and restore (the CA aud
 
 ## Query
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | WHERE event.code IN ("4876", "4877")                                  // CA backup started / completed
-   OR event.action == "ProcessRollup2"
+   OR event.action == "processrollup2"
 // Windows events: winlog.computer_name (with event forwarding, host.name is the collector); FDR: host.name
 | EVAL h = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
        cl = TO_LOWER(COALESCE(process.command_line, "")),

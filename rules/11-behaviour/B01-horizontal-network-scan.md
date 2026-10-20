@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1046, T1018]
 data_source: CrowdStrike FDR network connection events and ProcessRollup2
 suppression:
@@ -30,17 +30,17 @@ Both halves are grouped on the host and program name, so a known scanner that al
 ## Query
 Run every 5 minutes with a 10-minute lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Activity: connections to internal addresses. Filename fallback: a known scanner starting, which also covers
 // raw-packet scans (nmap as admin, masscan, ping sweeps) that Falcon may not record as connections.
-| WHERE ((event.action == "NetworkConnectIP4" AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
-         OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE ((event.action == "networkconnectip4" AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
+         OR (event.action IN ("processrollup2", "syntheticprocessrollup2")
              AND TO_LOWER(process.executable) RLIKE """.*[\\/](nmap|masscan|rustscan|zmap|naabu|nbtscan(-[0-9.]+)?|fscan(32|64)?(_[a-z0-9]+)?|advanced_ip_scanner|advanced_port_scanner|netscan|ipscan(-[-_.a-z0-9]+)?)(\.exe)?"""))
   // vulnerability scanners, asset discovery, SCCM, monitoring and the network and security teams (placeholders: Falcon agent IDs)
   AND NOT host.id IN ("<vuln_scanner_aid>", "<sccm_aid>", "<monitoring_aid>", "<network_team_aid>", "<security_team_aid>")
 | EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown")),
-       endpoint = CASE(event.action == "NetworkConnectIP4", CONCAT(TO_STRING(destination.ip), ":", TO_STRING(destination.port)), NULL),
-       scanner_start = event.action != "NetworkConnectIP4"
+       endpoint = CASE(event.action == "networkconnectip4", CONCAT(TO_STRING(destination.ip), ":", TO_STRING(destination.port)), NULL),
+       scanner_start = event.action != "networkconnectip4"
 // One row per host and program: the internal endpoints it probed, and whether a known scanner started under that name.
 | STATS endpoints = COUNT_DISTINCT(endpoint), targets = COUNT_DISTINCT(destination.ip), ports = COUNT_DISTINCT(destination.port),
         port_list = VALUES(destination.port), named = MAX(CASE(scanner_start, 1, 0)),

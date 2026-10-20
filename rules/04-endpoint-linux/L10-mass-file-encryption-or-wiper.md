@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1486, T1485, T1490]
 data_source: CrowdStrike FDR (Linux) file-write telemetry
 suppression:
@@ -20,8 +20,8 @@ A single `openssl enc` or `gpg --encrypt` is how backup scripts protect their ar
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 // Branch A: bulk crypto/wipe command shapes
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, ""))
 | WHERE (pname == "find" AND cmd LIKE "*-exec*" AND (cmd LIKE "*openssl*enc*" OR cmd LIKE "*gpg*"))
@@ -49,8 +49,8 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 
 Branch B (volume-based) needs file-write events. Run it as a second rule once you confirm which `*FileWritten` and `FileRenameInfo` events your Linux sensors send and that they carry the writing process name (newer sensors set `process.name` from `ContextBaseFileName`):
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE host.os.type == "linux" AND (event.action LIKE "*FileWritten" OR event.action == "FileRenameInfo")
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE host.os.type == "linux" AND (event.action LIKE "*filewritten" OR event.action == "filerenameinfo")
 | EVAL pname = TO_LOWER(COALESCE(process.name, "unknown")), ext = TO_LOWER(file.extension)
 // package managers, archivers and sync tools write thousands of files by design
 | WHERE pname NOT IN ("dpkg", "rpm", "dnf", "yum", "apt", "apt-get", "unattended-upgr", "packagekitd", "pip", "pip3", "npm", "rsync", "tar", "unzip", "cp", "git")

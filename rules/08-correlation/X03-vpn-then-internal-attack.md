@@ -20,14 +20,14 @@ Because APM is VPN-only, a VPN session is the entry point to the internal networ
 **Blocked.** The VPN side depends on F5 APM, which the stock `f5_bigip` integration doesn't parse (no user, no result on one record; see the N01 Prerequisite). Don't deploy this rule until the APM parser behind N01-N04 exists.
 
 When it does, rebuild the query below. It's kept as the original pattern only:
-- It uses `LOOKUP JOIN` against a custom `vpn_anomalies_last_4h` index, which this deployment doesn't allow. Rebuild it the way X01 and X02 work: one `FROM` over the APM data stream and `logs-crowdstrike.fdr-*`, flag each side with `EVAL`, then `STATS ... BY` the normalised user and require the VPN anomaly to come before the endpoint activity.
+- It uses `LOOKUP JOIN` against a custom `vpn_anomalies_last_4h` index, which this deployment doesn't allow. Rebuild it the way X01 and X02 work: one `FROM` over the APM data stream and `logs-yourorg-crowdstrike-data-default*`, flag each side with `EVAL`, then `STATS ... BY` the normalised user and require the VPN anomaly to come before the endpoint activity.
 - Normalise the user on both sides (lowercase, strip `DOMAIN\`, take the part before `@`). FDR `user.name` on process events is `DOMAIN\user`, and only exists when the integration's "Enrich Host and User Metadata" option is on.
 - Lowercase `process.name` before the `IN` list. FDR keeps the original case (`PSEXESVC.exe`).
 
 ## Query (pattern)
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE @timestamp > NOW() - 2 hours AND event.action == "ProcessRollup2"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE @timestamp > NOW() - 2 hours AND event.action == "processrollup2"
 | EVAL usr = TO_LOWER(user.name)
 // endpoint side: reuse W08/W09 logic or match their rule tags
 | WHERE process.name IN ("psexesvc.exe", "wmic.exe", "nltest.exe", "sharphound.exe") OR TO_LOWER(process.command_line) LIKE "*/node:*"

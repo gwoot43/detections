@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1204.002, T1566.001, T1059]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -25,8 +25,8 @@ Three benign patterns are removed in the query:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL parent = TO_LOWER(process.parent.name), child = TO_LOWER(process.name), cmd = TO_LOWER(COALESCE(process.command_line, ""))
 | EVAL doc_parent = parent IN ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "onenote.exe", "msaccess.exe", "mspub.exe", "visio.exe",
                                "acrord32.exe", "acrobat.exe", "foxitreader.exe"),

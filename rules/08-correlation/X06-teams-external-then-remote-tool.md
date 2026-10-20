@@ -5,7 +5,7 @@ category: correlation
 status: todo
 severity: high
 language: esql
-index: logs-o365.audit-*, logs-crowdstrike.fdr-*
+index: logs-o365.audit-*, logs-yourorg-crowdstrike-data-default*
 mitre: [T1566, T1219, T1204]
 data_source: Microsoft 365 audit (Teams chat created from another tenant) + CrowdStrike FDR (W10 tool list) joined on the user
 suppression:
@@ -23,7 +23,7 @@ The help-desk social engineering chain: someone in an external tenant opens a Te
 
 ## Query
 ```esql
-FROM logs-o365.audit-*, logs-crowdstrike.fdr-*
+FROM logs-o365.audit-*, logs-yourorg-crowdstrike-data-default*
 | WHERE @timestamp > NOW() - 2 hours
 | EVAL pname = TO_LOWER(process.name),
        foreign = TO_LOWER(TO_STRING(o365.audit.ParticipantInfo.HasForeignTenantUsers)),
@@ -32,7 +32,7 @@ FROM logs-o365.audit-*, logs-crowdstrike.fdr-*
 //          (placeholders: list your own domains and any sanctioned support vendor's domain)
 | EVAL contact = event.provider == "MicrosoftTeams" AND event.action == "ChatCreated" AND foreign == "true"
          AND NOT TO_LOWER(COALESCE(user.domain, "")) IN ("<your_domain>", "<your_tenant>.onmicrosoft.com", "<sanctioned_vendor_domain>"),
-       tool = event.action == "ProcessRollup2" AND host.os.type == "windows"
+       tool = event.action == "processrollup2" AND host.os.type == "windows"
          AND pname IN ("quickassist.exe", "anydesk.exe", "teamviewer.exe", "teamviewerqs.exe", "screenconnect.windowsclient.exe",
                        "rustdesk.exe", "logmein.exe", "supremo.exe", "zohoassist.exe")
 | WHERE contact OR tool

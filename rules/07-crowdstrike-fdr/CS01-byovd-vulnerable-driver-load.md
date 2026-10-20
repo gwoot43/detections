@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1068, T1211, T1685]
 data_source: CrowdStrike FDR DriverLoad events
 suppression:
@@ -18,8 +18,8 @@ BYOVD is the dominant EDR-killer delivery method in 2026 (Reynolds, RansomHub, A
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "DriverLoad" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "driverload" AND host.os.type == "windows"
 // the integration writes the driver to dll.path / dll.hash.sha256 on DriverLoad, not file.* or process.*
 | EVAL img = TO_LOWER(COALESCE(dll.path, "")),
        h = TO_LOWER(COALESCE(dll.hash.sha256, ""))

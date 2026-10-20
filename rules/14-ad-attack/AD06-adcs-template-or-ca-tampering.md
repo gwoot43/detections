@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 6
 language: esql
-index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
+index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*
 mitre: [T1649, T1484]
 data_source: Windows Security 5136 (DCs) and AD CS audit events (CA), CrowdStrike FDR process and registry events
 suppression:
@@ -23,9 +23,9 @@ I09 catches a certificate being issued for someone else. This catches the config
 
 ## Query
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | WHERE event.code IN ("5136", "4882", "4885", "4890", "4891", "4892")
-   OR event.action IN ("ProcessRollup2", "AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate")
+   OR event.action IN ("processrollup2", "asepvalueupdate", "reggenericvalueupdate", "regsystemconfigvalueupdate")
 // Windows events: winlog.computer_name (with event forwarding, host.name is the collector); FDR: host.name
 | EVAL h = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
        cls = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.ObjectClass), "")),
@@ -38,9 +38,9 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-* META
           AND attr IN ("mspki-certificate-name-flag", "mspki-enrollment-flag", "pkiextendedkeyusage",
                        "mspki-certificate-application-policy", "mspki-ra-signature", "ntsecuritydescriptor"),
        ca_setting_change = event.code IN ("4882", "4885", "4890", "4891", "4892"),
-       ca_flag_change = event.action == "ProcessRollup2" AND pname == "certutil.exe" AND cl RLIKE ".*[-/]setreg.*"
+       ca_flag_change = event.action == "processrollup2" AND pname == "certutil.exe" AND cl RLIKE ".*[-/]setreg.*"
           AND (cl LIKE "*editflags*" OR cl LIKE "*interfaceflags*" OR cl LIKE "*disableextensionlist*"),
-       mapping_weakened = event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate")
+       mapping_weakened = event.action IN ("asepvalueupdate", "reggenericvalueupdate", "regsystemconfigvalueupdate")
           AND (regpath LIKE "*kdc*strongcertificatebindingenforcement*"
                OR regpath LIKE "*schannel*certificatemappingmethods*")
 | WHERE template_change OR ca_setting_change OR ca_flag_change OR mapping_weakened

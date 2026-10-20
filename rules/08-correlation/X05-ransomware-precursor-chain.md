@@ -5,7 +5,7 @@ category: correlation
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1486, T1490, T1685, T1489]
 data_source: CrowdStrike FDR (W05/W06/CS01) on the same host in a short window
 suppression:
@@ -18,9 +18,9 @@ Ransomware detonation is a recognisable sequence: disable defenses (W05 / CS01 B
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 | WHERE @timestamp > NOW() - 30 minutes AND host.os.type == "windows"
-  AND event.action IN ("ProcessRollup2", "DriverLoad")
+  AND event.action IN ("processrollup2", "driverload")
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")),
        pname = TO_LOWER(COALESCE(process.name, "")),
        drv = TO_LOWER(COALESCE(dll.path, ""))
@@ -29,7 +29,7 @@ FROM logs-crowdstrike.fdr-*
       (cmd LIKE "*set-mppreference*-disable*" AND NOT cmd LIKE "*$false*")
         OR (pname IN ("sc.exe", "net.exe", "net1.exe") AND (cmd LIKE "*stop*" OR cmd LIKE "*disabled*")
             AND (cmd LIKE "*windefend*" OR cmd LIKE "* sense*" OR cmd LIKE "*wdnissvc*" OR cmd LIKE "*csfalcon*"))
-        OR (event.action == "DriverLoad" AND drv LIKE """*\\temp\\*"""), "defense_disable",
+        OR (event.action == "driverload" AND drv LIKE """*\\temp\\*"""), "defense_disable",
       (pname == "vssadmin.exe" AND (cmd LIKE "*delete shadows*" OR cmd LIKE "*resize shadowstorage*"))
         OR (pname == "wmic.exe" AND cmd LIKE "*shadowcopy*delete*")
         OR (pname == "wbadmin.exe" AND cmd LIKE "*delete*")

@@ -5,7 +5,7 @@ category: controlplane
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685]
 data_source: CrowdStrike FDR (OsVersionInfo, SensorMetadataUpdate, SensorHeartbeat)
 suppression:
@@ -16,7 +16,7 @@ suppression:
 ## Why this is high fidelity
 Reduced Functionality Mode (RFM) is when the Falcon sensor loads but runs with protection and visibility cut back, usually after a kernel or OS update it does not yet support. A host in RFM looks online but is lightly defended. Most RFM is transient and clears once the update completes, so this rule only alerts on hosts that are still in RFM after a grace period.
 
-The RFM state comes from the FDR stream. `OsVersionInfo` and `SensorMetadataUpdate` both carry `RFMState`, which the Elastic integration keeps as `crowdstrike.RFMState`. `SensorHeartbeat` does not carry it, so heartbeats are used only to tell whether the sensor is still alive after entering RFM.
+The RFM state comes from the FDR stream. `OsVersionInfo` and `SensorMetadataUpdate` both carry `RFMState`, which the Elastic integration keeps as `data.RFMState`. `SensorHeartbeat` does not carry it, so heartbeats are used only to tell whether the sensor is still alive after entering RFM.
 
 Status is computed per sensor:
 - **recovered**: a later event reported `RFMState` 0. Dropped by the rule.
@@ -28,11 +28,11 @@ Heartbeat freshness is measured against the current time, not against the last R
 ## Query
 Run hourly with a 24-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE event.action IN ("SensorMetadataUpdate", "OsVersionInfo", "SensorHeartbeat")
-| EVAL rfm_ts = CASE(crowdstrike.RFMState == "1", @timestamp, NULL),
-       ok_ts = CASE(crowdstrike.RFMState == "0", @timestamp, NULL),
-       hb_ts = CASE(event.action == "SensorHeartbeat", @timestamp, NULL)
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action IN ("sensormetadataupdate", "osversioninfo", "sensorheartbeat")
+| EVAL rfm_ts = CASE(data.RFMState == "1", @timestamp, NULL),
+       ok_ts = CASE(data.RFMState == "0", @timestamp, NULL),
+       hb_ts = CASE(event.action == "sensorheartbeat", @timestamp, NULL)
 | STATS hostnames = VALUES(host.name),
         rfm_events = COUNT(rfm_ts),
         first_rfm = MIN(rfm_ts),

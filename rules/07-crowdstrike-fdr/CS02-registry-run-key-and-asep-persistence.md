@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1547.001, T1546]
 data_source: CrowdStrike FDR AsepValueUpdate / registry events
 suppression:
@@ -20,8 +20,8 @@ Service keys (`\Services\`) are not watched. WE08 owns service installs (7045/46
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("AsepValueUpdate", "RegistryOperationDetectInfo") AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action IN ("asepvalueupdate", "registryoperationdetectinfo") AND host.os.type == "windows"
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
        v = TO_LOWER(TO_STRING(COALESCE(registry.data.strings, registry.value)))
 // Winlogon covers its Shell and Userinit values; a bare "*shell*" matched shell-extension and context-menu keys

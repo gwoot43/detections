@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1219.001, T1572]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -27,8 +27,8 @@ One exclusion: the desktop app runs `code-tunnel.exe tunnel status` on its own. 
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action IN ("processrollup2", "syntheticprocessrollup2")
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),
        exe = TO_LOWER(COALESCE(process.executable, "")), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 // Anchor: "tunnel" as an argument of its own, which every VS Code tunnel action passes.

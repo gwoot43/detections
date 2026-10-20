@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: medium
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1071.004, T1572, T1048.003]
 data_source: CrowdStrike FDR DnsRequest / SuspiciousDnsRequest events
 suppression:
@@ -25,14 +25,14 @@ The parent is the registrable domain the integration computes from the public su
 ## Query
 Run every 15 minutes with a 1-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Activity: DNS lookups, minus reverse lookups. Filename fallback: a DNS tunnel tool starting (iodine, dnscat2, dns2tcp),
 // which alerts even when the tunnel is still quiet.
-| WHERE event.action IN ("DnsRequest", "SuspiciousDnsRequest")
-     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE event.action IN ("dnsrequest", "suspiciousdnsrequest")
+     OR (event.action IN ("processrollup2", "syntheticprocessrollup2")
          AND (TO_LOWER(process.name) IN ("iodine", "iodine.exe", "dnscat", "dnscat.exe", "dnscat2", "dnscat2.exe", "dns2tcpc", "dns2tcpc.exe")
               OR TO_LOWER(process.command_line) LIKE "*start-dnscat2*"))
-| EVAL named = event.action LIKE "*ProcessRollup2", domain = TO_LOWER(TO_STRING(dns.question.name))
+| EVAL named = event.action LIKE "*processrollup2", domain = TO_LOWER(TO_STRING(dns.question.name))
 | WHERE named OR (domain IS NOT NULL AND NOT domain LIKE "*.arpa")
 // The parent is the registrable domain (public suffix list), falling back to the last two labels; for a tool's start, the tool's name.
 // Tunnels encode data in the first label, so its length is the tell.

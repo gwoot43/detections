@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685, T1070]
 data_source: CrowdStrike FDR sensor uninstall and tamper events, ProcessRollup2
 suppression:
@@ -18,16 +18,16 @@ An endpoint whose sensor is removed or silenced is an endpoint an attacker wants
 
 ## Query (explicit tamper)
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(COALESCE(process.name, "")),
-       tamper_src = TO_LOWER(COALESCE(crowdstrike.SourceImageFileName, ""))
+       tamper_src = TO_LOWER(COALESCE(data.SourceImageFileName, ""))
 // SensorHeartbeat and AgentConnect are routine status events and are not used.
 // systemd signals the Linux sensor on every shutdown and service restart, which Falcon records as SensorTampering.
-| WHERE event.action == "AcUninstallConfirmation"
-   OR event.action IN ("FalconHostFileTamperingInfo", "FalconHostRegTamperingInfo")
-   OR (event.action == "SensorTampering" AND tamper_src NOT IN ("/usr/lib/systemd/systemd", "/lib/systemd/systemd"))
-   OR (event.action == "ProcessRollup2" AND (cmd LIKE "*csuninstalltool*" OR (pname == "msiexec.exe" AND cmd LIKE "*falcon*" AND cmd LIKE "*/x*")))
-| KEEP @timestamp, host.id, host.name, user.name, event.action, process.name, process.command_line, crowdstrike.SourceImageFileName, crowdstrike.TamperingAction, _id, _version, _index
+| WHERE event.action == "acuninstallconfirmation"
+   OR event.action IN ("falconhostfiletamperinginfo", "falconhostregtamperinginfo")
+   OR (event.action == "sensortampering" AND tamper_src NOT IN ("/usr/lib/systemd/systemd", "/lib/systemd/systemd"))
+   OR (event.action == "processrollup2" AND (cmd LIKE "*csuninstalltool*" OR (pname == "msiexec.exe" AND cmd LIKE "*falcon*" AND cmd LIKE "*/x*")))
+| KEEP @timestamp, host.id, host.name, user.name, event.action, process.name, process.command_line, data.SourceImageFileName, data.TamperingAction, _id, _version, _index
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**

@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1553.005, T1204.002]
 data_source: CrowdStrike FDR process events
 suppression:
@@ -20,8 +20,8 @@ FDR records executables by device path (`\Device\HarddiskVolume3\...`), never by
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL exe = TO_LOWER(COALESCE(process.executable, "")), pname = TO_LOWER(process.name),
        parent = TO_LOWER(process.parent.name), cmd = TO_LOWER(COALESCE(process.command_line, ""))
 | WHERE exe LIKE """\\device\\cdrom*"""

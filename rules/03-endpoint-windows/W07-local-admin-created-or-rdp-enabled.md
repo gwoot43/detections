@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1136.001, T1098, T1021.001, T1686.003]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -18,8 +18,8 @@ Hands-on-keyboard intruders create a local backdoor admin and turn on RDP on the
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 | WHERE (pname IN ("net.exe", "net1.exe") AND ((cmd LIKE "* user *" AND cmd LIKE "*/add*") OR (cmd LIKE "*localgroup*" AND cmd LIKE "*/add*" AND (cmd LIKE "*administrators*" OR cmd LIKE "*remote desktop users*"))))
    OR (pname IN ("powershell.exe", "pwsh.exe") AND (cmd LIKE "*new-localuser*" OR (cmd LIKE "*add-localgroupmember*" AND cmd LIKE "*administrators*")))

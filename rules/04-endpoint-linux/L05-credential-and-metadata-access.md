@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1003.008, T1552.004, T1552.005, T1552.001]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -20,8 +20,8 @@ suppression:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE host.os.type == "linux" AND event.action == "ProcessRollup2"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE host.os.type == "linux" AND event.action == "processrollup2"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name)
 | WHERE (pname IN ("cat", "less", "more", "head", "tail", "cp", "vi", "vim", "nano", "python", "python3", "perl", "grep", "awk", "xxd", "base64") AND (cmd LIKE "*/etc/shadow*" OR cmd LIKE "*/etc/gshadow*"))
    // AWS / Azure / GCP instance credentials, not instance metadata in general

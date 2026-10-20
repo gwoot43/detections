@@ -12,12 +12,19 @@ Every rule targets the data stream that Elastic's own integration writes to (`lo
 | Windows System channel | System (`system`) | `logs-system.system-*` |
 | Defender AV Operational channel | Windows (`windows_defender`) | `logs-windows.windows_defender-*` |
 | Defender for Endpoint alerts | M365 Defender (`alert`) | `logs-m365_defender.alert-*` |
-| CrowdStrike FDR | CrowdStrike (`fdr`) | `logs-crowdstrike.fdr-*` |
+| CrowdStrike FDR | Your own FDR pipeline (`crowdstrike.data`), not the Elastic integration | `logs-yourorg-crowdstrike-data-default*` (replace `yourorg`) |
 | Entra sign-in and audit, Azure activity | Azure (`signinlogs`, `auditlogs`, `activitylogs`) | `logs-azure.<stream>-*` |
 | O365 unified audit | O365 (`audit`) | `logs-o365.audit-*` |
 | Zscaler ZIA web, firewall | Zscaler ZIA (`web`, `firewall`) | `logs-zscaler_zia.web-*`, `logs-zscaler_zia.firewall-*` |
 | Imperva Cloud WAF | Imperva Cloud WAF (`event`) | `logs-imperva_cloud_waf.event-*` |
 | F5 BIG-IP (incl. APM) | F5 BIG-IP (`log`) | `logs-f5_bigip.log-*`. APM is only parsed from Telemetry Streaming JSON, so see the N01-N04 prerequisites |
+
+**CrowdStrike FDR comes from your own pipeline, not the Elastic integration.** The index is `logs-yourorg-crowdstrike-data-default*`, with `yourorg` standing in for your organisation's prefix; the library is public, so the real prefix isn't committed. Three things differ from the integration's schema, and every FDR rule is written for them:
+- `event.action` is the Falcon event name **in lowercase**: `processrollup2`, `dnsrequest`, `networkconnectip4`. Compare against lowercase values.
+- Falcon's raw fields are under `data.*` (`data.ContextBaseFileName`, `data.ParentBaseFileName`, `data.GrandParentBaseFileName`), not `crowdstrike.*`.
+- `event.dataset` is `crowdstrike.data`.
+
+Falcon detections (CS04, X01) still read the integration's alert stream, `logs-crowdstrike.alert-*`. LogScale queries run in Falcon itself and keep Falcon's own names (`#event_simpleName=ProcessRollup2`).
 
 There is **no `windows.security` data stream**. Windows Security events land in `logs-system.security-*` when the Elastic Agent System integration collects them locally, or in `logs-windows.forwarded-*` when a collector reads the Forwarded Events channel. Elastic's prebuilt rules query both (`logs-system.security*, logs-windows.forwarded*, winlogbeat-*`). Add `winlogbeat-*` if any of your hosts still ship with Winlogbeat.
 
@@ -133,8 +140,8 @@ Example: "did sysprep run on this host shortly before the log was cleared" (WE01
 
 Transform source, scheduled every 10 minutes over the last hour:
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE event.action == "ProcessRollup2" AND TO_LOWER(process.name) == "sysprep.exe"
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action == "processrollup2" AND TO_LOWER(process.name) == "sysprep.exe"
 | STATS last_sysprep = MAX(@timestamp) BY host.name
 ```
 Write the output to `recent_sysprep` (lookup mode), then in the rule:

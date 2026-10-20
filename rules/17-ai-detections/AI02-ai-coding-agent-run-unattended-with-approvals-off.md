@@ -5,7 +5,7 @@ category: ai
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1700, T1195.001, T1059]
 data_source: CrowdStrike FDR ProcessRollup2 (Windows, Linux, macOS)
 suppression:
@@ -27,9 +27,9 @@ The agent's command line holds the prompt, so the alert shows what it was told t
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: an AI coding agent's switch that turns off every approval. The LIKEs are cheap (indexed); the RLIKE below makes them exact.
-| WHERE event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE event.action IN ("processrollup2", "syntheticprocessrollup2")
   AND (process.command_line LIKE "*dangerously*" OR process.command_line LIKE "*yolo*" OR process.command_line LIKE "*ypassPermissions*"
        OR process.command_line LIKE "*trust-all-tools*" OR process.command_line LIKE "*allow-all-tools*")
 | EVAL cmd = TO_LOWER(process.command_line)

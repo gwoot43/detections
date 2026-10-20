@@ -6,7 +6,7 @@ status: todo
 severity: medium
 rank: 3
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1052.001, T1074.001]
 data_source: CrowdStrike FDR file-written events flagged IsOnRemovableDisk (option A); Windows Security 4663 Removable Storage (option B)
 suppression:
@@ -20,8 +20,8 @@ Falcon records a file-written event for documents, archives, PDFs and executable
 ## Query
 **Option A: CrowdStrike FDR (recommended, no extra auditing needed)**
 ```esql
-FROM logs-crowdstrike.fdr-*
-| WHERE event.action LIKE "*FileWritten" AND crowdstrike.IsOnRemovableDisk IN ("1", "true")
+FROM logs-yourorg-crowdstrike-data-default*
+| WHERE event.action LIKE "*filewritten" AND data.IsOnRemovableDisk IN ("1", "true")
 | EVAL fpath = TO_LOWER(COALESCE(file.path, "")),
        is_archive = CASE(fpath RLIKE ".*\\.(zip|7z|rar|tar|gz|iso|vhdx?)", 1, 0)
 | STATS files = COUNT_DISTINCT(fpath), archives = SUM(is_archive), users = VALUES(user.name), host_names = VALUES(host.name),
@@ -87,4 +87,4 @@ Suppress by `host.id` (option B: `host_key`) for 12h. Alerts missing a key field
 - `devices` identifies the stick. Search FDR for the same device ID on other hosts.
 
 ## Test
-Copy 30 Office documents or 3 zip files to a USB stick on a lab host and confirm the FDR events carry `crowdstrike.IsOnRemovableDisk`.
+Copy 30 Office documents or 3 zip files to a USB stick on a lab host and confirm the FDR events carry `data.IsOnRemovableDisk`.

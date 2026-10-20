@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1548.001, T1548.003, T1068]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -23,8 +23,8 @@ What is no longer matched, because admins do it daily:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(process.name), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 // CVE-2021-3156 (Baron Samedit): sudoedit -s with a trailing backslash
 | WHERE (cmd LIKE "*sudoedit*" AND (cmd LIKE "* -s*" OR cmd LIKE "* -i*") AND cmd LIKE """*\\*""")

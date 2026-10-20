@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572, T1021]
 data_source: CrowdStrike FDR NetworkConnectIP4/IP6
 suppression:
@@ -25,15 +25,15 @@ It doesn't need the tunnel's internet connection: FDR records a connection when 
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Activity: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
 // Filename fallback: a known pivot tool starting on Linux or macOS (W10 matches these by name on Windows).
-| WHERE (event.action IN ("NetworkConnectIP4", "NetworkConnectIP6")
+| WHERE (event.action IN ("networkconnectip4", "networkconnectip6")
          AND destination.port IN (22, 135, 445, 3389, 5985, 5986)
          AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"))
-     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2") AND host.os.type != "windows"
+     OR (event.action IN ("processrollup2", "syntheticprocessrollup2") AND host.os.type != "windows"
          AND TO_LOWER(process.name) IN ("chisel", "gost", "frpc", "frps", "revsocks", "rathole", "iox"))
-| EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown")), tool_start = event.action LIKE "*ProcessRollup2"
+| EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown")), tool_start = event.action LIKE "*processrollup2"
 // One row per host and program: when it first reached an internal admin service (or started) in the 7 days, and where.
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), connections = COUNT(CASE(NOT tool_start, 1, NULL)),
         targets = COUNT_DISTINCT(destination.ip), destination.ip = VALUES(destination.ip), destination.port = VALUES(destination.port),

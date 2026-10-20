@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: medium
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572, T1571]
 data_source: CrowdStrike FDR NetworkReceiveAcceptIP4
 suppression:
@@ -25,10 +25,10 @@ Port forwarding with `netsh portproxy` is CS09: the forward is accepted by a Win
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: a program accepting a TCP connection from another internal host,
 // on a port no core service (DNS, Kerberos, LDAP, SMB, RPC, SQL Server, global catalog) already holds.
-| WHERE event.action == "NetworkReceiveAcceptIP4" AND network.transport == "tcp"
+| WHERE event.action == "networkreceiveacceptip4" AND network.transport == "tcp"
   AND CIDR_MATCH(source.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
   AND NOT destination.port IN (53, 88, 135, 389, 445, 636, 1433, 3268, 3269)
 | EVAL pname = TO_LOWER(COALESCE(process.name, "unknown"))
@@ -71,7 +71,7 @@ LogScale has no `INLINE STATS`, so this version rolls up to one row per program,
 - **`hosts`** is how many hosts in the fleet had the same program accept internal connections in the 7 days. Three or fewer means it isn't normal software.
 - **`peer_ips`** are the machines that connected in: the attacker's previous hop.
 
-**Check before deploying:** `process.name` on these events comes from `ContextBaseFileName`, which older sensors don't send. Run `FROM logs-crowdstrike.fdr-* | WHERE event.action == "NetworkReceiveAcceptIP4" | STATS COUNT(*) BY has_name = process.name IS NOT NULL` over a day. If most events have no name they all group as `unknown`, which runs on every host and never alerts, so the rule would be blind.
+**Check before deploying:** `process.name` on these events comes from `ContextBaseFileName`, which older sensors don't send. Run `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action == "networkreceiveacceptip4" | STATS COUNT(*) BY has_name = process.name IS NOT NULL` over a day. If most events have no name they all group as `unknown`, which runs on every host and never alerts, so the rule would be blind.
 
 ## Suppression
 Suppress by `host.id`, `pname` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: the 7-day lookback overlaps every run. A different host or program still alerts.

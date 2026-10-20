@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 1
 language: esql
-index: logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
+index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*
 mitre: [T1200, T1059.001, T1059.003]
 data_source: Windows Security 6416 (new external device, class Keyboard or HIDClass) and CrowdStrike FDR ProcessRollup2
 suppression:
@@ -26,19 +26,19 @@ Windows logs 6416 the first time any device instance is seen on a host. A new ke
 ## Query
 **Primary (ES|QL with INLINE STATS)**
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
+FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*
 | WHERE (event.code == "6416" AND winlog.event_data.ClassName IN ("Keyboard", "HIDClass"))
-   OR (event.action == "ProcessRollup2"
+   OR (event.action == "processrollup2"
        AND TO_LOWER(process.parent.name) == "explorer.exe"
        AND TO_LOWER(process.name) IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wt.exe", "mshta.exe",
                                       "wscript.exe", "cscript.exe", "msiexec.exe", "certutil.exe", "curl.exe"))
 | EVAL host_key = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
        kb_ts = CASE(event.code == "6416", @timestamp, NULL),
-       sh_ts = CASE(event.action == "ProcessRollup2", @timestamp, NULL),
+       sh_ts = CASE(event.action == "processrollup2", @timestamp, NULL),
        // device fields from the 6416 side only: on FDR rows device.id is the Falcon sensor ID
        kb_name = CASE(event.code == "6416", device.model.name, NULL),
        kb_id = CASE(event.code == "6416", device.id, NULL),
-       sh_user = CASE(event.action == "ProcessRollup2", user.name, NULL)
+       sh_user = CASE(event.action == "processrollup2", user.name, NULL)
 | INLINE STATS first_kb = MIN(kb_ts) BY host_key
 | WHERE first_kb IS NOT NULL
 | EVAL gap_s = DATE_DIFF("second", first_kb, @timestamp)
@@ -62,13 +62,13 @@ Run every 5 minutes with a 10-minute lookback.
 
 **Fallback (no INLINE STATS)**: two-minute buckets. This misses a pair that straddles a bucket edge, but works on 8.x.
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*, logs-crowdstrike.fdr-*
+FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*
 | WHERE (event.code == "6416" AND winlog.event_data.ClassName IN ("Keyboard", "HIDClass"))
-   OR (event.action == "ProcessRollup2" AND TO_LOWER(process.parent.name) == "explorer.exe"
+   OR (event.action == "processrollup2" AND TO_LOWER(process.parent.name) == "explorer.exe"
        AND TO_LOWER(process.name) IN ("powershell.exe", "pwsh.exe", "cmd.exe", "wt.exe", "mshta.exe", "wscript.exe", "cscript.exe"))
 | EVAL host_key = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
        kb_ts = CASE(event.code == "6416", @timestamp, NULL),
-       sh_ts = CASE(event.action == "ProcessRollup2", @timestamp, NULL)
+       sh_ts = CASE(event.action == "processrollup2", @timestamp, NULL)
 | STATS first_device = MIN(kb_ts), last_shell = MAX(sh_ts), devices = VALUES(device.model.name),
         command_lines = VALUES(process.command_line)
     BY host_key, window = BUCKET(@timestamp, 2 minutes)

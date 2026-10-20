@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1547.006, T1014, T1205.002]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -18,8 +18,8 @@ Loading a kernel module from a user-writable path, or the shape of an eBPF-based
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")), pname = TO_LOWER(process.name), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 // insmod and modprobe are symlinks to kmod on most distributions, so match the invoked name in the command line as well
 | EVAL insmod_call = pname == "insmod" OR cmd LIKE "insmod *" OR cmd LIKE "*/insmod *" OR cmd LIKE "*kmod insert *",

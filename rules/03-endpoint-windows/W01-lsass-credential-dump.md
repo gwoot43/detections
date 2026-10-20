@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1003.001]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -20,8 +20,8 @@ Dump tools that take a PID instead of a name (`sqldumper`, `createdump`, `rdrlea
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name)
 // comsvcs.dll MiniDump, by name or by its ordinal (#24)
 | WHERE (cmd LIKE "*comsvcs*" AND (cmd LIKE "*minidump*" OR cmd LIKE "*#24*"))

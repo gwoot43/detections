@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685, T1068]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -24,8 +24,8 @@ Service creation with `sc create ... type= kernel` is not matched here either: W
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | WHERE
   // -RemoveDefinitions -DynamicSignatures is a Microsoft troubleshooting step; -All wipes the engine

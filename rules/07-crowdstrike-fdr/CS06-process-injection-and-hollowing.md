@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1055, T1055.012, T1620]
 data_source: CrowdStrike FDR ReflectiveDotnetModuleLoad and DllInjection events
 suppression:
@@ -20,19 +20,19 @@ In FDR, `InjectedThread`, `ProcessInjection` and `RemoteThreadCreate` carry only
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE host.os.type == "windows" AND event.action IN ("ReflectiveDotnetModuleLoad", "DllInjection")
-// ReflectiveDotnetModuleLoad: crowdstrike.ImageFileName is the process the assembly was loaded into
-// DllInjection: crowdstrike.InjectedDll is the injected module; process.entity_id is the target, ContextProcessId the source
-| EVAL img = TO_LOWER(COALESCE(crowdstrike.ImageFileName, "")),
-       dll = TO_LOWER(COALESCE(crowdstrike.InjectedDll, "")),
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE host.os.type == "windows" AND event.action IN ("reflectivedotnetmoduleload", "dllinjection")
+// ReflectiveDotnetModuleLoad: data.ImageFileName is the process the assembly was loaded into
+// DllInjection: data.InjectedDll is the injected module; process.entity_id is the target, ContextProcessId the source
+| EVAL img = TO_LOWER(COALESCE(data.ImageFileName, "")),
+       dll = TO_LOWER(COALESCE(data.InjectedDll, "")),
        host_proc = MV_LAST(SPLIT(img, "\\")),
-       src = CASE(event.action == "DllInjection", dll, img)
-| WHERE (event.action == "ReflectiveDotnetModuleLoad"
+       src = CASE(event.action == "dllinjection", dll, img)
+| WHERE (event.action == "reflectivedotnetmoduleload"
          AND host_proc IN ("explorer.exe", "svchost.exe", "rundll32.exe", "regsvr32.exe", "notepad.exe", "werfault.exe", "dllhost.exe", "spoolsv.exe", "gpupdate.exe", "searchprotocolhost.exe", "wuauclt.exe"))
-   OR (event.action == "DllInjection"
+   OR (event.action == "dllinjection"
        AND (dll LIKE """*\\temp\\*""" OR dll LIKE """*\\appdata\\*""" OR dll LIKE """*\\programdata\\*""" OR dll LIKE """*\\users\\public\\*""" OR dll LIKE """*\\downloads\\*"""))
-| KEEP @timestamp, host.id, host.name, event.action, src, crowdstrike.AssemblyName, crowdstrike.ModuleILPath, process.entity_id, crowdstrike.ContextProcessId,
+| KEEP @timestamp, host.id, host.name, event.action, src, data.AssemblyName, data.ModuleILPath, process.entity_id, data.ContextProcessId,
        _id, _version, _index
 ```
 
@@ -58,7 +58,7 @@ Suppress by `host.id`, `src` for 1h. Alerts missing a key field are not suppress
 - Legitimate software that injects a DLL from a per-user install folder (screen-sharing and accessibility tools under `%APPDATA%`). Baseline and exclude by the exact DLL path.
 
 ## Triage
-- Find the processes behind the IDs: the target is the ProcessRollup2 with the same `process.entity_id`, the source the one whose `process.entity_id` equals `crowdstrike.ContextProcessId`. An in-memory assembly in `rundll32.exe` or `notepad.exe` is a post-exploitation framework; check its network callbacks (B06) and the parent that launched the sacrificial process.
+- Find the processes behind the IDs: the target is the ProcessRollup2 with the same `process.entity_id`, the source the one whose `process.entity_id` equals `data.ContextProcessId`. An in-memory assembly in `rundll32.exe` or `notepad.exe` is a post-exploitation framework; check its network callbacks (B06) and the parent that launched the sacrificial process.
 
 ## Test
 Run the Atomic Red Team T1055 injection tests on a lab host and confirm which of them FDR records as `DllInjection` or `ReflectiveDotnetModuleLoad`.

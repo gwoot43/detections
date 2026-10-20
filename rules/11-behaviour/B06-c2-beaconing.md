@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1071.001, T1573, T1095]
 data_source: CrowdStrike FDR network connection events
 suppression:
@@ -23,9 +23,9 @@ An implant calls home on a schedule: the same process on the same host connects 
 ## Query
 Run hourly with a 3-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: outbound connections to public addresses. DNS and NTP poll public servers on a fixed schedule by design.
-| WHERE event.action IN ("NetworkConnectIP4", "NetworkConnectIP6") AND destination.ip IS NOT NULL
+| WHERE event.action IN ("networkconnectip4", "networkconnectip6") AND destination.ip IS NOT NULL
   AND destination.port NOT IN (53, 123)
   AND NOT CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "100.64.0.0/10",
                      "224.0.0.0/4", "::1/128", "fc00::/7", "fe80::/10")

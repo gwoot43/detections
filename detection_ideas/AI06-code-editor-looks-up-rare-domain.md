@@ -5,7 +5,7 @@ category: ai
 status: todo
 severity: medium
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1195.001, T1027.018, T1071.001]
 data_source: CrowdStrike FDR DnsRequest (joined to ProcessRollup2 in the LogScale version)
 suppression:
@@ -23,10 +23,10 @@ Extensions for VS Code and its AI forks (Cursor, Windsurf) run inside the editor
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: lookups made by VS Code, Cursor or Windsurf, extensions included (they run inside the editor's processes).
 // Names as Falcon reports them on Windows, macOS and Linux.
-| WHERE event.action == "DnsRequest"
+| WHERE event.action == "dnsrequest"
   AND (process.name IN ("Code.exe", "code", "Code - Insiders.exe", "code-tunnel.exe", "Cursor.exe", "cursor", "Windsurf.exe", "windsurf")
        OR process.name LIKE "Code Helper*" OR process.name LIKE "Cursor Helper*" OR process.name LIKE "Windsurf Helper*")
 | EVAL dns.question.name = TO_LOWER(dns.question.name)
@@ -72,7 +72,7 @@ FROM logs-crowdstrike.fdr-*
 | test(hosts <= 3 AND newest_host_start > _now - 7200000)
 ```
 
-**Check before deploying:** the ES|QL version needs the process name on DNS events, which Falcon sends only on some sensor versions. Run `FROM logs-crowdstrike.fdr-* | WHERE event.action == "DnsRequest" | STATS named = COUNT(process.name), total = COUNT(*)` over an hour. If `named` is near zero, use the LogScale version, which joins each lookup to its process. In LogScale, `join` caps how many rows its inner query returns; raise its `limit` if your fleet starts more editor processes than that in 7 days.
+**Check before deploying:** the ES|QL version needs the process name on DNS events, which Falcon sends only on some sensor versions. Run `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action == "dnsrequest" | STATS named = COUNT(process.name), total = COUNT(*)` over an hour. If `named` is near zero, use the LogScale version, which joins each lookup to its process. In LogScale, `join` caps how many rows its inner query returns; raise its `limit` if your fleet starts more editor processes than that in 7 days.
 
 ## Suppression
 Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: the 7-day lookback overlaps every run, and a host alerts once, when the new lookups start.

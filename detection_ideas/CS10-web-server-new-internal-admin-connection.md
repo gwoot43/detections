@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572, T1505.003, T1021]
 data_source: CrowdStrike FDR NetworkConnectIP4
 suppression:
@@ -23,9 +23,9 @@ Database (1433, 3306, 5432) and directory (88, 389, 636) ports are left out beca
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: a web server process connecting to SSH, RPC, SMB, RDP or WinRM on an internal address.
-| WHERE event.action == "NetworkConnectIP4"
+| WHERE event.action == "networkconnectip4"
   AND process.name IN ("w3wp.exe", "php-cgi.exe", "php-fpm", "httpd", "httpd.exe", "apache2", "nginx", "nginx.exe",
                        "tomcat8.exe", "tomcat9.exe", "tomcat10.exe")
   AND destination.port IN (22, 135, 445, 3389, 5985, 5986)

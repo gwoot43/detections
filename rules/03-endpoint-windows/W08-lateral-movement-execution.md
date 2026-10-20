@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1021.002, T1047, T1021.006, T1021.003, T1053.005, T1569.002]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -20,8 +20,8 @@ The source-side branches (`wmic /node`, `schtasks /s`, `sc \\host`) catch the sa
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL parent = TO_LOWER(process.parent.name), child = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | WHERE (parent IN ("wmiprvse.exe", "wsmprovhost.exe", "mmc.exe", "psexesvc.exe", "paexec.exe", "winrshost.exe")
         AND child IN ("cmd.exe", "powershell.exe", "pwsh.exe", "rundll32.exe", "regsvr32.exe", "mshta.exe", "wscript.exe", "cscript.exe", "certutil.exe", "net.exe", "whoami.exe", "reg.exe"))

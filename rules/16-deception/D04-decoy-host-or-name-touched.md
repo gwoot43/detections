@@ -6,7 +6,7 @@ status: todo
 severity: critical
 rank: 2
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1018, T1046, T1021, T1135]
 data_source: CrowdStrike FDR DnsRequest and NetworkConnectIP4 from every managed host. OpenCanary JSON log (option B).
 suppression:
@@ -26,14 +26,14 @@ Falcon logs DNS lookups and outbound connections from every managed host, so thi
 ## Query
 **Option A: Falcon DNS and connections (recommended)**
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("DnsRequest", "NetworkConnectIP4")
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action IN ("dnsrequest", "networkconnectip4")
 | EVAL q = TO_LOWER(COALESCE(dns.question.name, "")),
        short_name = MV_FIRST(SPLIT(q, ".")),
        dst = TO_STRING(destination.ip)
 | EVAL decoy = CASE(
-         event.action == "DnsRequest" AND short_name IN ("<decoy_name_1>", "<decoy_name_2>", "<decoy_name_3>"), CONCAT("dns:", short_name),
-         event.action == "NetworkConnectIP4" AND dst IN ("<decoy_ip_1>"), CONCAT("connect:", dst),
+         event.action == "dnsrequest" AND short_name IN ("<decoy_name_1>", "<decoy_name_2>", "<decoy_name_3>"), CONCAT("dns:", short_name),
+         event.action == "networkconnectip4" AND dst IN ("<decoy_ip_1>"), CONCAT("connect:", dst),
          NULL)
 | WHERE decoy IS NOT NULL
 // scanners and monitoring that sweep every IP (placeholders: Falcon agent IDs)

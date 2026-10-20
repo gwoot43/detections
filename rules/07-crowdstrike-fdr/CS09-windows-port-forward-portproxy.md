@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572]
 data_source: CrowdStrike FDR ProcessRollup2 and registry value updates
 suppression:
@@ -22,10 +22,10 @@ There's nothing to count and no rarity to apply: one forward is the event, and f
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 // Anchor: Windows process starts and registry writes, the two places a port forward shows up.
 | WHERE host.os.type == "windows"
-  AND event.action IN ("ProcessRollup2", "RegGenericValueUpdate", "RegSystemConfigValueUpdate", "AsepValueUpdate")
+  AND event.action IN ("processrollup2", "reggenericvalueupdate", "regsystemconfigvalueupdate", "asepvalueupdate")
 | EVAL cmd = TO_LOWER(COALESCE(process.command_line, "")),
        key = TO_LOWER(COALESCE(registry.path, ""))
 // A netsh command that adds or changes a forward (show and delete don't match),

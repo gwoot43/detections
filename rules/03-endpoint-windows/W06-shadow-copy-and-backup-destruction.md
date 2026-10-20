@@ -5,7 +5,7 @@ category: endpoint-windows
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1490, T1485]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -18,8 +18,8 @@ These commands appear in nearly every ransomware playbook and in almost no admin
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(process.name), cmd = TO_LOWER(process.command_line)
 | WHERE (pname == "vssadmin.exe" AND (cmd LIKE "*delete shadows*" OR cmd LIKE "*resize shadowstorage*"))
    OR (pname == "wmic.exe"     AND cmd LIKE "*shadowcopy*" AND cmd LIKE "*delete*")

@@ -5,7 +5,7 @@ category: ai
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1698, T1195.001, T1105, T1059]
 data_source: CrowdStrike FDR ProcessRollup2 (Windows, Linux, macOS)
 suppression:
@@ -25,9 +25,9 @@ A command a developer types in the editor's terminal doesn't match. The terminal
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: process starts with a URL in the command line (cheap, indexed), narrowed below by parent and shape.
-| WHERE event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE event.action IN ("processrollup2", "syntheticprocessrollup2")
   AND (process.command_line LIKE "*http://*" OR process.command_line LIKE "*https://*")
 | EVAL cmd = TO_LOWER(process.command_line), parent = TO_LOWER(COALESCE(process.parent.name, ""))
 // Started by an AI coding agent or a code editor. node covers npm-installed agents and npm install scripts.

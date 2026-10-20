@@ -5,7 +5,7 @@ category: behaviour
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1021, T1570, T1018, T1087.002, T1069.002, T1049]
 data_source: CrowdStrike FDR network connection events
 suppression:
@@ -25,18 +25,18 @@ Three labelled tiers, in the `label` and `severity` columns:
 ## Query
 Run every 10 minutes with a 15-minute lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Activity: Windows connections to internal admin protocols. Filename fallback: CrackMapExec, NetExec or Impacket's
 // lateral-movement scripts starting, which alerts even when the sweep is small.
 | WHERE host.os.type == "windows"
-  AND ((event.action == "NetworkConnectIP4" AND destination.ip IS NOT NULL
+  AND ((event.action == "networkconnectip4" AND destination.ip IS NOT NULL
         AND destination.port IN (5985, 5986, 3389, 135, 445, 389, 636, 3268, 3269)
         AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
-       OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+       OR (event.action IN ("processrollup2", "syntheticprocessrollup2")
            AND (TO_LOWER(process.name) IN ("crackmapexec.exe", "cme.exe", "nxc.exe", "netexec.exe")
                 OR TO_LOWER(process.command_line) RLIKE ".*(psexec|wmiexec|smbexec|atexec|dcomexec)\\.py.*")))
 | EVAL process.name = TO_LOWER(COALESCE(process.name, "unknown")),
-       tool_start = event.action != "NetworkConnectIP4",
+       tool_start = event.action != "networkconnectip4",
        protocol = CASE(destination.port IN (5985, 5986), "winrm",
                        destination.port == 3389, "rdp",
                        destination.port IN (389, 636, 3268, 3269), "ldap",

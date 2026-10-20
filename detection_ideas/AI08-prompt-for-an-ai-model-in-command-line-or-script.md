@@ -5,7 +5,7 @@ category: ai
 status: todo
 severity: medium
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685.007, T1698]
 data_source: CrowdStrike FDR ProcessRollup2; Windows PowerShell Operational 4104 as a second source
 suppression:
@@ -25,9 +25,9 @@ If you don't use an AI assistant for triage (Falcon Charlotte AI, Elastic AI Ass
 ## Query
 Run every 15 minutes with a 1-hour lookback.
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 // Anchor: chat-template tokens only LLM tooling produces, or the standard order to a model to drop its instructions.
-| WHERE event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+| WHERE event.action IN ("processrollup2", "syntheticprocessrollup2")
   AND (process.command_line LIKE "*<|im_start|>*" OR process.command_line LIKE "*<|system|>*"
        OR process.command_line LIKE "*<|start_header_id|>*" OR process.command_line LIKE "*[INST]*" OR process.command_line LIKE "*<<SYS>>*"
        OR TO_LOWER(process.command_line) RLIKE ".*(ignore|disregard) (all )?(previous|prior|above) instructions.*")

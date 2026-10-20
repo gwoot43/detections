@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1105, T1059.004, T1140]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -18,8 +18,8 @@ suppression:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name), h = TO_LOWER(COALESCE(host.name, ""))
 | WHERE ((cmd LIKE "*curl *" OR cmd LIKE "*wget *") AND (cmd RLIKE """.*\| ?(sh|bash)([ ;].*)?""" OR cmd LIKE "*-o /dev/shm/*"))
    OR (cmd LIKE "*base64 -d*" AND cmd RLIKE """.*\| ?(sh|bash)([ ;].*)?""")

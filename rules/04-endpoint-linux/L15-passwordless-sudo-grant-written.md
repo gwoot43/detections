@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1548.003]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -23,9 +23,9 @@ A `NOPASSWD` sudo rule for an account the attacker controls turns any foothold o
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: a Linux command holding a passwordless sudo grant (case-sensitive, as sudo is) and naming a sudoers file.
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
   AND process.command_line LIKE "*NOPASSWD*" AND process.command_line LIKE "*sudoers*"
   // Readers only check for a grant. A shell that checks and then writes (grep … || echo … >>) still counts.
   AND NOT process.name IN ("grep", "egrep", "fgrep", "cat", "less", "awk")

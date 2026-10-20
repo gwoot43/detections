@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685.006, T1070.003, T1685.004, T1070.006]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -27,10 +27,10 @@ Shell built-ins (`history -c`, `unset HISTFILE`) typed in an interactive shell d
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: Linux starts of the programs that delete, empty, stop or re-date files, and of shells (redirects, history settings).
 // Filtering on the name first keeps the 7-day scan cheap.
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
   AND process.name IN ("rm", "unlink", "shred", "truncate", "cp", "ln", "journalctl", "systemctl", "service", "auditctl",
                        "pkill", "killall", "touch", "sh", "bash", "dash", "zsh", "ksh")
 | EVAL cmd = TO_LOWER(process.command_line)

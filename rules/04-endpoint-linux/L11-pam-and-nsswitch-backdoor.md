@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1556.003, T1543]
 data_source: CrowdStrike FDR file and process events (Linux)
 suppression:
@@ -22,16 +22,16 @@ Two branches:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE host.os.type == "linux" AND (event.action == "ProcessRollup2" OR event.action LIKE "*FileWritten")
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE host.os.type == "linux" AND (event.action == "processrollup2" OR event.action LIKE "*filewritten")
 | EVAL cmd = TO_LOWER(TO_STRING(COALESCE(process.command_line, ""))),
        pname = TO_LOWER(TO_STRING(COALESCE(process.name, ""))),
        parent = TO_LOWER(TO_STRING(COALESCE(process.parent.name, ""))),
        f = TO_LOWER(TO_STRING(COALESCE(file.path, "")))
-| WHERE (event.action LIKE "*FileWritten" AND pname != ""
+| WHERE (event.action LIKE "*filewritten" AND pname != ""
          AND (f LIKE "/etc/pam.d/*" OR f LIKE "*/pam_*.so" OR f == "/etc/nsswitch.conf")
          AND pname NOT IN ("dpkg", "rpm", "yum", "dnf", "apt", "apt-get", "unattended-upgr", "packagekitd", "authselect", "pam-auth-update", "authconfig"))
-   OR (event.action == "ProcessRollup2"
+   OR (event.action == "processrollup2"
        AND (cmd LIKE "*/etc/pam.d/*" OR cmd LIKE "*pam_*.so*" OR cmd LIKE "*nsswitch.conf*")
        AND (cmd LIKE "*echo*" OR cmd LIKE "*>>*" OR cmd LIKE "*tee*" OR cmd LIKE "*sed -i*" OR cmd LIKE "*cp *" OR cmd LIKE "*mv *" OR pname IN ("vi", "vim", "nano"))
        AND parent NOT IN ("apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "ansible", "ansible-playbook", "puppet", "chef-client", "salt-minion", "cloud-init", "authselect", "pam-auth-update"))

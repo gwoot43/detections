@@ -5,7 +5,7 @@ category: windows-events
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1112, T1003.001, T1685, T1547.002, T1547.005, T1556.002]
 data_source: CrowdStrike FDR registry events (RegSystemConfigValueUpdate / AsepValueUpdate / RegGenericValueUpdate)
 suppression:
@@ -22,13 +22,13 @@ Two more LSA settings give persistent credential access and are covered here rat
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action IN ("RegSystemConfigValueUpdate", "AsepValueUpdate", "RegGenericValueUpdate", "RegistryOperationDetectInfo")
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action IN ("regsystemconfigvalueupdate", "asepvalueupdate", "reggenericvalueupdate", "registryoperationdetectinfo")
   AND host.os.type == "windows"
 // registry.path is RegObjectName\RegValueName. String data is in registry.data.strings; DWORD data is only in
-// crowdstrike.RegNumericValue, which the integration does not map to ECS (registry.value is the value NAME).
+// data.RegNumericValue, which the integration does not map to ECS (registry.value is the value NAME).
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
-       num = TO_STRING(crowdstrike.RegNumericValue),
+       num = TO_STRING(data.RegNumericValue),
        v = TO_LOWER(MV_CONCAT(TO_STRING(registry.data.strings), " "))
 | WHERE (k LIKE """*securityproviders\\wdigest\\uselogoncredential""" AND num == "1")
    OR (k LIKE """*control\\lsa\\runasppl""" AND num == "0")
@@ -67,7 +67,7 @@ FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
 | table([@timestamp, aid, ComputerName, UserName, k, RegNumericValue, RegStringValue, ContextBaseFileName, CommandLine])
 ```
 
-Value checks are exact, so a hardening write (for example `RunAsPPL` set to 1 by Group Policy) does not match. `crowdstrike.RegNumericValue` is not in the integration's predefined fields; the query fails with "Unknown column" until an FDR registry event carrying it has been indexed. Confirm the field name in your FDR data first.
+Value checks are exact, so a hardening write (for example `RunAsPPL` set to 1 by Group Policy) does not match. `data.RegNumericValue` is not in the integration's predefined fields; the query fails with "Unknown column" until an FDR registry event carrying it has been indexed. Confirm the field name in your FDR data first.
 
 This is a registry rule, so it runs on FDR, not the Windows Security channel. It belongs with the credential-access group but is grouped here because it is the registry twin of the event-log credential signals.
 

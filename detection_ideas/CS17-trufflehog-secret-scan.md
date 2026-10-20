@@ -5,7 +5,7 @@ category: crowdstrike-fdr
 status: todo
 severity: high
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1552.001, T1083]
 data_source: CrowdStrike FDR DnsRequest and ProcessRollup2 (Zscaler as an alternative for the activity half)
 suppression:
@@ -28,17 +28,17 @@ The tester is often not the scanner (the worm's `node` tests what TruffleHog fou
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Three kinds of event, joined below on the process (host.id + process.entity_id):
 // - lookups of the endpoints a program calls to test a key (filtered on the indexed registered domain first);
 // - TruffleHog starting, by name, Docker image or its own flags (the filename fallback);
 // - for context, starts in the last day of the programs that usually do the testing (script runtimes, anything in a
 //   temp or cache folder) and of code editors, which test keys for their extensions and are dropped below.
-| WHERE (event.action == "DnsRequest"
+| WHERE (event.action == "dnsrequest"
          AND dns.question.registered_domain IN ("amazonaws.com", "github.com", "npmjs.org", "openai.com", "anthropic.com", "stripe.com",
                                                 "datadoghq.com", "datadoghq.eu", "cloudflare.com", "sendgrid.com", "twilio.com",
                                                 "mailgun.net", "heroku.com", "digitalocean.com"))
-     OR (event.action IN ("ProcessRollup2", "SyntheticProcessRollup2")
+     OR (event.action IN ("processrollup2", "syntheticprocessrollup2")
          AND (process.name IN ("trufflehog", "trufflehog.exe") OR process.command_line LIKE "*trufflesecurity/trufflehog*"
               OR process.command_line LIKE "*--only-verified*" OR process.command_line LIKE "*--no-verification*"
               OR process.command_line LIKE "*--results*"
@@ -59,13 +59,13 @@ FROM logs-crowdstrike.fdr-*
        // Mail, SMS and hosting APIs rarely show up on a developer's machine; GitHub, npm, AWS and the AI APIs do.
        rare = provider IN ("sendgrid", "twilio", "mailgun", "heroku", "digitalocean"),
        // Filename fallback: TruffleHog by name, Docker image or its own flags, any scan source; CI and AppSec hosts excluded.
-       named = event.action != "DnsRequest" AND NOT host.id IN ("<ci_runner_aid>", "<appsec_aid>")
+       named = event.action != "dnsrequest" AND NOT host.id IN ("<ci_runner_aid>", "<appsec_aid>")
                AND (process.name IN ("trufflehog", "trufflehog.exe") OR cmd LIKE "*trufflesecurity/trufflehog*"
                     OR cmd RLIKE ".*--(only-verified|no-verification|results[ =](verified|unknown|unverified|filtered)).*"),
        editor = process.name IN ("Code.exe", "code", "Cursor.exe", "cursor", "Windsurf.exe", "windsurf")
                 OR process.name LIKE "Code Helper*" OR process.name LIKE "Cursor Helper*",
        win = DATE_TRUNC(15 minutes, @timestamp)
-| WHERE provider IS NOT NULL OR event.action != "DnsRequest"
+| WHERE provider IS NOT NULL OR event.action != "dnsrequest"
 // One row per process and 15-minute window: the providers it tested in that window.
 | STATS providers = COUNT_DISTINCT(provider), rare_providers = COUNT_DISTINCT(CASE(rare, provider, NULL)), tested = VALUES(provider),
         named = MAX(CASE(named, 1, 0)), editor = MAX(CASE(editor, 1, 0)), first_seen = MIN(@timestamp), ingested = MIN(event.ingested),

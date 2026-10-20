@@ -6,7 +6,7 @@ status: todo
 severity: medium
 rank: 13
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1563.002]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
@@ -19,8 +19,8 @@ suppression:
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "windows"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "windows"
 | EVAL pname = TO_LOWER(COALESCE(process.name, "")),
        sid = TO_STRING(user.id)
 | WHERE pname == "tscon.exe" AND sid == "S-1-5-18"

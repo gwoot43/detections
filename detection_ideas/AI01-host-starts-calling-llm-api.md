@@ -5,7 +5,7 @@ category: ai
 status: todo
 severity: medium
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1588.007, T1071.001]
 data_source: CrowdStrike FDR DnsRequest (Zscaler web logs as an alternative, see below)
 suppression:
@@ -25,9 +25,9 @@ FDR DNS events carry the process ID but often not the process name, so the alert
 ## Query
 Run hourly with a 7-day lookback.
 ```esql
-FROM logs-crowdstrike.fdr-*
+FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: lookups in the LLM providers' domains (cheap, indexed), narrowed below to their API endpoints.
-| WHERE event.action == "DnsRequest"
+| WHERE event.action == "dnsrequest"
   AND dns.question.registered_domain IN ("openai.com", "anthropic.com", "googleapis.com", "huggingface.co", "mistral.ai", "deepseek.com",
                                          "openrouter.ai", "groq.com", "together.xyz", "x.ai", "cohere.com", "cohere.ai", "perplexity.ai")
 | EVAL dns.question.name = TO_LOWER(dns.question.name)

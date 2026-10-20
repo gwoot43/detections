@@ -6,7 +6,7 @@ status: todo
 severity: high
 rank: 7
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1574, T1068]
 data_source: CrowdStrike FDR registry and process events
 suppression:
@@ -21,15 +21,15 @@ Membership changes to DnsAdmins itself are already covered by I02.
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | WHERE host.os.type == "windows"
-  AND event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate", "ProcessRollup2")
+  AND event.action IN ("asepvalueupdate", "reggenericvalueupdate", "regsystemconfigvalueupdate", "processrollup2")
 | EVAL regpath = TO_LOWER(COALESCE(TO_STRING(registry.path), "")),
        cl = TO_LOWER(COALESCE(process.command_line, "")),
        pname = TO_LOWER(COALESCE(process.name, ""))
-| WHERE (event.action IN ("AsepValueUpdate", "RegGenericValueUpdate", "RegSystemConfigValueUpdate")
+| WHERE (event.action IN ("asepvalueupdate", "reggenericvalueupdate", "regsystemconfigvalueupdate")
          AND regpath LIKE "*services*dns*parameters*serverlevelplugindll*")
-     OR (event.action == "ProcessRollup2" AND pname == "dnscmd.exe" AND cl LIKE "*serverlevelplugindll*")
+     OR (event.action == "processrollup2" AND pname == "dnscmd.exe" AND cl LIKE "*serverlevelplugindll*")
 | KEEP @timestamp, host.name, user.name, event.action, regpath, registry.data.strings, process.command_line, process.parent.name, _id, _version, _index
 ```
 

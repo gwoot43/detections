@@ -5,7 +5,7 @@ category: endpoint-linux
 status: todo
 severity: critical
 language: esql
-index: logs-crowdstrike.fdr-*
+index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1059.004, T1071]
 data_source: CrowdStrike FDR ProcessRollup2 (Linux)
 suppression:
@@ -24,8 +24,8 @@ This rule matches command shapes rather than counting a behaviour: FDR doesn't r
 
 ## Query
 ```esql
-FROM logs-crowdstrike.fdr-* METADATA _id, _index, _version
-| WHERE event.action == "ProcessRollup2" AND host.os.type == "linux"
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "processrollup2" AND host.os.type == "linux"
 | EVAL cmd = TO_LOWER(process.command_line), pname = TO_LOWER(process.name),
        // an interactive shell (sh, bash, zsh, dash, ksh -i) as its own word, so "ssh -i keyfile" doesn't count
        shell_i = cmd RLIKE """(.*[ /\"'\|;])?(ba|z|da|k)?sh -i.*"""

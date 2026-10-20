@@ -15,6 +15,6 @@ All rules use the Microsoft 365 Unified Audit Log, the Windows Defender operatio
 
 Data-source notes:
 - **CP01-CP03** read Exchange cmdlet parameters as `o365.audit.Parameters.<Name>`. Most of those fields are mapped only when a parameter is first used, and a query that names an unmapped field fails. Each rule lists the fields it needs; map them as `keyword` in the `logs-o365.audit@custom` component template. CP02 joins the release to the message's original `TIMailData` record for the verdict.
-- **CP04** reads RFM state straight from FDR: `OsVersionInfo` and `SensorMetadataUpdate` carry it as `crowdstrike.RFMState`, and heartbeats show whether the sensor is still alive. No API feed is needed.
+- **CP04** reads RFM state straight from FDR: `OsVersionInfo` and `SensorMetadataUpdate` carry it as `data.RFMState`, and heartbeats show whether the sensor is still alive. No API feed is needed.
 - **CP05** and **CP06** need the **Windows Defender** stream turned on in the Elastic Windows integration (it ships disabled), which writes to `logs-windows.windows_defender-*`. CP05 also reads the System channel (`logs-system.system-*`). Both rules parse the rendered `message`, so they don't depend on event data fields that are only mapped after the first matching event.
 - **CP06** owns Defender settings changes and sees the *result* however it was made. W05 covers the process side it cannot see (Defender services stopped, engine wiped, safe boot set); Falcon tamper is CS05. Detections and Exploit Guard blocks are in WE10.
