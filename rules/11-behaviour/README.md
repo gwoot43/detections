@@ -14,7 +14,7 @@ Design constraints for this folder:
 
 | Rule | Behaviour | Tools it catches by behaviour |
 |---|---|---|
-| B01 | One process scans: 10+ hosts on 10+ ports (mixed, critical), 20+ ports on at most 5 hosts (high), or 50+ hosts (medium); reverse-DNS lookups of 50+ internal addresses in a separate query (medium); in Palo Alto, the same shapes counted on unanswered probes. Known scanner names in an optional separate query | Any scanner, script or implant scanning internally with connections; raw-packet scans and devices without Falcon through the firewall |
+| B01 | One process scans: 10+ hosts on 10+ ports (mixed, critical), 20+ ports on at most 5 hosts (high), or 50+ hosts (medium); detection B adds reverse-DNS lookups of 50+ internal addresses (medium). Falls back to known scanners by name in the same query | Any scanner, script or implant scanning internally with connections; known scanners by name, including raw-packet scans |
 | B04 | Fan-out on remote-admin ports (SMB/RPC, WinRM, RDP), or LDAP fan-out to several domain controllers; falls back to CrackMapExec, NetExec or Impacket by name | CrackMapExec/NetExec, Impacket, PsExec loops, BloodHound/SharpHound, ADExplorer |
 | B05 | One account authenticates to many hosts | pass-the-hash tooling, credential-spray lateral movement |
 | B06 | Regular outbound callbacks to one destination | Cobalt Strike, Sliver, Mythic, Havoc beacons |
