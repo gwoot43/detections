@@ -44,7 +44,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
                                                "whoami.exe", "net.exe", "net1.exe", "nltest.exe", "systeminfo.exe", "tasklist.exe", "ipconfig.exe"])
 // baseline two weeks, then exclude exact legitimate command lines here
 | !in(field="CommandLine", ignoreCase=true, values=["cmd.exe /c echo ok"])
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

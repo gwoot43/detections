@@ -71,7 +71,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 // Explorer-launched script hosts and downloaders are W03 (ClickFix/FileFix); one pasted cradle should alert once
 | NOT (ParentBaseFileName=/^explorer\.exe$/i
        AND FileName=/^(powershell|pwsh|mshta|cmd|curl|msiexec|wscript|cscript|bitsadmin|certutil|hh)\.exe$/i)
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

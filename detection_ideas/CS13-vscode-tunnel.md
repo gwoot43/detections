@@ -61,7 +61,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 // the desktop app checks tunnel status on its own
 | NOT (FileName=/^code-tunnel/i AND ParentBaseFileName=/^code/i AND CommandLine=/ status( |$)/i)
 | !in(field="aid", values=["<approved_tunnel_host_aid>"])
-| table([@timestamp, aid, ComputerName, UserName, ImageFileName, CommandLine, ParentBaseFileName, TargetProcessId])
+| select([@timestamp, aid, ComputerName, UserName, ImageFileName, CommandLine, ParentBaseFileName, TargetProcessId])
 ```
 
 ## Suppression

@@ -89,7 +89,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     FileName=/^openssl$/i CommandLine=/s_client/i CommandLine=/\| (\/bin\/sh|bash)/i
       | finding := "openssl s_client piped to shell";
   }
-| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+| select([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
 ```
 
 ## Suppression

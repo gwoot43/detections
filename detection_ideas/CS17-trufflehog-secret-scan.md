@@ -147,7 +147,7 @@ defineTable(name="bursts", include=[aid, falconPID, providers, provider, burst_i
 // Host level, per hour: the worm's node often tests the keys TruffleHog found, so pair the halves on the host.
 | hour := math:floor(first_seen / 3600000)
 | groupBy([aid, hour], function=[max(providers, as=providers), sum(named, as=named), min(ingest, as=ingest),
-                                 collect([ComputerName, falconPID, provider, ImageFileName, CommandLine, ParentBaseFileName])])
+                                 collect([ComputerName, falconPID, provider, ImageFileName, CommandLine, ParentBaseFileName])], limit=max)
 | case {
     test(providers > 0 AND named > 0) | finding := "TruffleHog run and keys tested on the same host";
     test(providers > 0) | finding := "keys tested against several providers";
@@ -155,7 +155,7 @@ defineTable(name="bursts", include=[aid, falconPID, providers, provider, burst_i
   }
 // Newness per host and finding, by arrival: the first time this finding reached LogScale for this host was in the last 2 hours.
 | groupBy([aid, finding], function=[min(ingest, as=first_arrival),
-                                    collect([ComputerName, falconPID, provider, ImageFileName, CommandLine, ParentBaseFileName])])
+                                    collect([ComputerName, falconPID, provider, ImageFileName, CommandLine, ParentBaseFileName])], limit=max)
 | _now := now()
 | test(first_arrival > _now - 7200000)
 ```

@@ -47,7 +47,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     RegObjectName=/\\Services\\PortProxy\\/i
       | finding := "PortProxy registry write";
   }
-| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, CommandLine, RegObjectName, RegValueName, RegStringValue])
+| select([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, CommandLine, RegObjectName, RegValueName, RegStringValue])
 ```
 
 The `netsh` command line holds the whole forward (`listenport=`, `connectaddress=`, `connectport=`). In the registry the value name is the listen address and port, and the data is the target. Whether the registry branch fires depends on your sensor reporting writes to that key; the process branch doesn't depend on it.

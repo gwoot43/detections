@@ -49,7 +49,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     in(field="SHA256HashData", ignoreCase=true, values=["PUT_LOLDRIVERS_HASHES_HERE"])
       | finding := "vulnerable driver hash";
   }
-| table([@timestamp, aid, ComputerName, finding, ImageFileName, SHA256HashData, OriginalFilename, CertificatePublisher])
+| select([@timestamp, aid, ComputerName, finding, ImageFileName, SHA256HashData, OriginalFilename, CertificatePublisher])
 ```
 Populate the hash branch from a scheduled import of the loldrivers.io hash list. Names alone miss renamed drivers; hashes catch them. Keep the hashes lowercase, since `h` is lowercased.
 

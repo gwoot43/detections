@@ -46,7 +46,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     FileName=/^diskshadow\.exe$/i CommandLine=/delete shadows/i;
     FileName=/^fsutil\.exe$/i CommandLine=/usn deletejournal/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

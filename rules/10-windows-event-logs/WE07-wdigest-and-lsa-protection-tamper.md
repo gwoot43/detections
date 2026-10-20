@@ -64,7 +64,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     k=/control\\lsa\\authentication packages$/;
     k=/control\\lsa\\notification packages$/;
   }
-| table([@timestamp, aid, ComputerName, UserName, k, RegNumericValue, RegStringValue, ContextBaseFileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, k, RegNumericValue, RegStringValue, ContextBaseFileName, CommandLine])
 ```
 
 Value checks are exact, so a hardening write (for example `RunAsPPL` set to 1 by Group Policy) does not match. `data.RegNumericValue` is not in the integration's predefined fields; the query fails with "Unknown column" until an FDR registry event carrying it has been indexed. Confirm the field name in your FDR data first.

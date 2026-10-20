@@ -69,7 +69,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
                                                            "puppet", "chef-client", "salt-minion", "cloud-init", "packer", "falcon-sensor"])
 | UserName := lower(UserName)
 | replace(regex="^.*\\\\", with="", field=UserName, as=UserName)
-| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, ParentBaseFileName, FileName, CommandLine, TargetFileName])
+| select([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, ParentBaseFileName, FileName, CommandLine, TargetFileName])
 ```
 
 ## Suppression

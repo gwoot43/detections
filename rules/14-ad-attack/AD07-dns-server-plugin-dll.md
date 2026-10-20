@@ -42,7 +42,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
       | regpath=/services.*dns.*parameters.*serverlevelplugindll/i;
     #event_simpleName=/ProcessRollup2$/ FileName=/^dnscmd\.exe$/i CommandLine=/serverlevelplugindll/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, regpath, RegStringValue, CommandLine, ParentBaseFileName])
+| select([@timestamp, aid, ComputerName, UserName, #event_simpleName, regpath, RegStringValue, CommandLine, ParentBaseFileName])
 ```
 
 The DNS Server event log also records the plugin loading (event 770 in the DNS Server channel) if you ship that channel; it is a useful confirmation during triage.

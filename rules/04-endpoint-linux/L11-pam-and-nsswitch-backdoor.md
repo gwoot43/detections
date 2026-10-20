@@ -54,7 +54,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
                                                                  "pam-auth-update"])
       | finding := "PAM or NSS file edited from shell or editor";
   }
-| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, ParentBaseFileName, FileName, ContextBaseFileName, CommandLine,
+| select([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, ParentBaseFileName, FileName, ContextBaseFileName, CommandLine,
          TargetFileName])
 ```
 

@@ -65,7 +65,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | _now := now()
 | test(first_seen > _now - 7200000)
 // One row per API, counting the hosts that started on it together: a rollout starts many at once.
-| groupBy([DomainName], function=[count(aid, distinct=true, as=new_hosts), collect([aid, ComputerName, ContextProcessId])])
+| groupBy([DomainName], function=[count(aid, distinct=true, as=new_hosts), collect([aid, ComputerName, ContextProcessId])], limit=max)
 | test(new_hosts <= 3)
 ```
 

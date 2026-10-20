@@ -53,7 +53,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
       | NOT (ContextBaseFileName=/^winword\.exe$/i AND TargetFileName=/normal\.dotm$/i)
       | NOT (ContextBaseFileName=/^excel\.exe$/i AND TargetFileName=/personal\.xlsb$/i);
   }
-| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, RegObjectName, RegValueName, RegStringValue, TargetFileName,
+| select([@timestamp, aid, ComputerName, UserName, #event_simpleName, RegObjectName, RegValueName, RegStringValue, TargetFileName,
          ContextBaseFileName, CommandLine])
 ```
 

@@ -43,7 +43,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     CommandLine=/lsass/i CommandLine=/ -ma |\.dmp/i;
     CommandLine=/sekurlsa|lsadump/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, SHA256HashData])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, SHA256HashData])
 ```
 
 ## Suppression

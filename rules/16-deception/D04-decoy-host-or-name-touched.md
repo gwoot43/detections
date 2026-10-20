@@ -54,7 +54,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
   }
 // scanners and monitoring that sweep every IP (placeholders: Falcon agent IDs)
 | !in(field="aid", values=["<vuln_scanner_aid>", "<monitoring_aid>"])
-| table([@timestamp, aid, ComputerName, UserName, decoy, DomainName, RemoteAddressIP4, RemotePort, ContextBaseFileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, decoy, DomainName, RemoteAddressIP4, RemotePort, ContextBaseFileName, CommandLine])
 ```
 Matching on the **first DNS label** catches both `vault-prod` and `vault-prod.corp.local`. If a decoy name could collide with a real public host name, match on the full name instead.
 

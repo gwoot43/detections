@@ -64,7 +64,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     in(field="FileName", ignoreCase=true, values=["wscript.exe", "cscript.exe", "mshta.exe", "hh.exe", "cmd.exe", "powershell.exe", "pwsh.exe"])
       | CommandLine=/\\downloads\\|\\temp\\|\\7zo|\\rar\$/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
 ```
 The same technique also leaves `RunMRU` and `TypedPaths` registry values containing `powershell`, `mshta` or `http`. Those keys are not ASEPs, so CS02 does not watch them; add a registry branch only if your FDR feed records them.
 

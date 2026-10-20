@@ -60,7 +60,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
   }
 | NOT (FileName=/^cmd\.exe$/i AND CommandLine=/chrome-extension:\/\//i)
 | NOT (FileName=/^rundll32\.exe$/i AND CommandLine=/shell32\.dll.*openas_rundll/i)
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
 ```
 
 ## Suppression

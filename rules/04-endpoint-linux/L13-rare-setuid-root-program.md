@@ -59,7 +59,7 @@ FROM logs-yourorg-crowdstrike-data-default*
           limit=max)
 // Rarity: one row per program, counting its hosts. Alert when it's on at most 3 and the newest started in the last 2 hours.
 | groupBy([ImageFileName], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
-                                     collect([aid, ComputerName, RUID, ParentBaseFileName, CommandLine, SHA256HashData])])
+                                     collect([aid, ComputerName, RUID, ParentBaseFileName, CommandLine, SHA256HashData])], limit=max)
 | _now := now()
 | test(hosts <= 3 AND newest_start > _now - 7200000)
 ```

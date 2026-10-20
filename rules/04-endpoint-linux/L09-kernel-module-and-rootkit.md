@@ -51,7 +51,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
   }
 | !in(field="ParentBaseFileName", ignoreCase=true, values=["dkms", "apt", "apt-get", "dpkg", "yum", "dnf", "rpm", "systemd-udevd",
                                                            "cloud-init", "falcon-sensor", "falcond"])
-| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

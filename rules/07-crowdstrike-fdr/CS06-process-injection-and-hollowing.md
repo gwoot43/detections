@@ -47,7 +47,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
       InjectedDll=/\\temp\\|\\appdata\\|\\programdata\\|\\users\\public\\|\\downloads\\/i
       | src := lower(InjectedDll);
   }
-| table([@timestamp, aid, ComputerName, #event_simpleName, src, AssemblyName, ModuleILPath, TargetProcessId, ContextProcessId])
+| select([@timestamp, aid, ComputerName, #event_simpleName, src, AssemblyName, ModuleILPath, TargetProcessId, ContextProcessId])
 ```
 `msbuild.exe` is not on the list: it compiles inline tasks in memory by design (W04 covers its abuse). PowerShell is not either: `Add-Type` loads assemblies from memory all the time.
 

@@ -24,9 +24,15 @@ rules/
   17-ai-detections/         AI01-AI11 attacks using or aimed at AI: malware calling models, hijacked coding agents, Copilot, shadow AI
 detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
 docs/
+  DETECTION-STRUCTURE-ESQL.md    the detection standard for ES|QL: funnel stages, gate rules, baselines, output contract
+  DETECTION-STRUCTURE-CQL.md     the same standard for Falcon LogScale (CQL)
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft, MITRE v18-v20 changes, AI attack rules and ideas
-  ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping
+  ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping, rule checklist
+tools/
+  lint_detections.py             checks every rule against the standards' reject criteria
+  sync_detection_ideas.py        keeps detection_ideas/ identical to the originals
+  mitre_coverage.py              regenerates the ATT&CK coverage map
 ```
 
 Each rule file is self-contained: front-matter (id, severity, MITRE, data source), a "why this is high fidelity" note, the ES|QL/EQL query, known false positives and exclusions, triage steps, and a test method.
@@ -35,9 +41,10 @@ Each rule file is self-contained: front-matter (id, severity, MITRE, data source
 1. **Alert on the improbable, not the merely suspicious.** Every rule targets behaviour with a small, knowable legitimate population you can exclude by name, not by guesswork.
 2. **Prefer the transition over the state.** Block-then-success (C11, N02, N06), spray-then-success (S13-S15), disable-then-destroy (X05). Sequences are far cleaner than single events.
 3. **Correlate across domains.** The X-series turns two medium signals into one certain one. These are the rules that justify having everything in Elastic.
-4. **Exclude by identity, never by muting a technique.** Exclusions are service accounts, pipelines and known hosts, kept in lookups, never "turn the rule off because it's noisy".
+4. **Exclude by identity, never by muting a technique.** Exclusions are entity pairs (a host and the process or service account that does this by design), never a whole host or user, and never "turn the rule off because it's noisy". The standard keeps them in one central lookup; until one exists here, they're inline placeholders.
 5. **Vendor alerts are inputs, not the whole story.** CS04 routes Falcon detections in on day one; the custom rules cover what the vendors cannot see (non-endpoint sources and cross-source chains).
 6. **One anchor and a corroborating property, not a list of command strings.** Anchor on what every variant of the behaviour must do. Require one property that makes it this tool or this risk, and exclude the known benign case in one precise clause. Lists of command-line variants miss the next variant and keep growing. Pattern, worked examples and a checklist for new rules: `docs/ESQL-CONVENTIONS.md` (Detection shape). B10 is the reference rule.
+7. **Every query is a funnel, and every threshold has a source.** Gate on what the index answers, reduce once per alert entity, decide, then enrich the survivors only. Thresholds come from a measured baseline, recorded next to them. Each rule carries its telemetry checks, blind spots and a triage pivot query. The standards are `docs/DETECTION-STRUCTURE-ESQL.md` and `docs/DETECTION-STRUCTURE-CQL.md`; B01 is the worked example, and `tools/lint_detections.py` checks rules against them.
 
 ## Field-name caveat
 Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names, except CrowdStrike FDR, which comes from your own pipeline: `logs-yourorg-crowdstrike-data-default*` (replace `yourorg`), with lowercase `event.action` and raw fields under `data.*`. The mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).

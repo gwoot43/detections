@@ -48,7 +48,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | v := coalesce([RegStringValue, RegValueName])
 | v=/\\temp\\|\\appdata\\|\\programdata\\|\\users\\public\\|\\downloads\\|powershell|mshta|rundll32|regsvr32|wscript|cscript|-enc|frombase64|http|cmd \/c|\.hta/i
 | v!=/\\programdata\\microsoft\\windows defender\\platform\\|\\appdata\\local\\microsoft\\onedrive\\|\\appdata\\local\\microsoft\\teams\\/i
-| table([@timestamp, aid, ComputerName, UserName, k, v, ImageFileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, k, v, ImageFileName, CommandLine])
 ```
 `image file execution options` with a `debugger` value is the accessibility-tool backdoor (sethc/utilman); keep it high.
 

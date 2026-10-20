@@ -63,7 +63,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-da
       | regpath=/kdc.*strongcertificatebindingenforcement|schannel.*certificatemappingmethods/i
       | finding := "certificate_mapping_weakened";
   }
-| table([@timestamp, aid, ComputerName, UserName, finding, CommandLine, regpath])
+| select([@timestamp, aid, ComputerName, UserName, finding, CommandLine, regpath])
 ```
 The template and CA-setting branches (5136 and the CA audit events) aren't in the LogScale version because Windows Security events from the DCs and the CA aren't in Falcon.
 

@@ -60,7 +60,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | _now := now()
 | test(first_seen > _now - 7200000)
 | groupBy([aid, ContextBaseFileName], function=[count(RemoteAddressIP4, distinct=true, as=new_targets),
-                                              collect([ComputerName, RemoteAddressIP4, RemotePort]), min(first_seen, as=first_seen)])
+                                              collect([ComputerName, RemoteAddressIP4, RemotePort]), min(first_seen, as=first_seen)], limit=max)
 | first_seen := formatTime(format="%F %T", field=first_seen, timezone="Australia/Sydney")
 ```
 

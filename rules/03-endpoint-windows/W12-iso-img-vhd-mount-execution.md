@@ -41,7 +41,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
                                                  "powershell.exe", "pwsh.exe"])
       | CommandLine=/[d-z]:\\[^\\]*\.(vbs|vbe|js|jse|wsf|hta|chm|bat|cmd|ps1|dll|cpl)([\", ]|$)/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, ImageFileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, ImageFileName, CommandLine])
 ```
 
 ## Suppression

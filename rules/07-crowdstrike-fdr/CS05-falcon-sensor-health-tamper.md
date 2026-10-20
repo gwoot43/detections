@@ -45,7 +45,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     #event_simpleName=/ProcessRollup2$/ FileName=/^msiexec\.exe$/i CommandLine=/falcon/i CommandLine=/\/x/i
       | finding := "msiexec uninstall of Falcon";
   }
-| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, FileName, CommandLine, SourceImageFileName, TamperingAction])
+| select([@timestamp, aid, ComputerName, UserName, #event_simpleName, finding, FileName, CommandLine, SourceImageFileName, TamperingAction])
 ```
 Silent-host companion (run daily): compare hosts seen in the last 24h against the asset inventory / AD computer list, and alert on managed hosts that stopped sending FDR while still appearing active in AD authentication (event 4624) or DHCP.
 

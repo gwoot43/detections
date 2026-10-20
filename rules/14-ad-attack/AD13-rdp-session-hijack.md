@@ -30,7 +30,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ event_platform=Win FileName=/^tscon\.exe$/i UserSid="S-1-5-18"
-| table([@timestamp, aid, ComputerName, UserName, UserSid, CommandLine, ParentBaseFileName])
+| select([@timestamp, aid, ComputerName, UserName, UserSid, CommandLine, ParentBaseFileName])
 ```
 `S-1-5-18` is the SYSTEM account. A `tscon` started by `services.exe` or `cmd.exe` running as SYSTEM is the typical hijack shape. `tscon` run as an ordinary user (for example `tscon 1 /dest:console`, which test-automation hosts use to keep a desktop alive) needs that user's own session or password, so it is left out.
 

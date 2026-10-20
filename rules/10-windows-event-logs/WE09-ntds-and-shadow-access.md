@@ -45,7 +45,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     FileName=/^(cmd|powershell|pwsh|robocopy|xcopy|esentutl)\.exe$/i CommandLine=/harddiskvolumeshadowcopy/i;
     FileName=/^reg\.exe$/i CommandLine=/save/i CommandLine=/hklm\\(system|sam|security)/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
 ```
 
 Companion via the Security channel: 4656/4663 (object access) on the `ntds.dit` file by a process other than `lsass.exe` or the backup agent, if you audit that file's SACL.

@@ -44,7 +44,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | payload=/\\temp\\|\\appdata\\|\\programdata\\|\\users\\public\\|\\downloads\\|mshta|\.hta|frombase64/
     OR (payload=/powershell|pwsh|wscript|cscript|rundll32|regsvr32|certutil|bitsadmin|curl/ AND payload=/http| -enc| -e |hidden/)
 | payload!=/\\programdata\\microsoft\\windows defender\\platform\\|\\appdata\\local\\microsoft\\onedrive\\/
-| table([@timestamp, aid, ComputerName, UserName, #event_simpleName, TaskName, payload])
+| select([@timestamp, aid, ComputerName, UserName, #event_simpleName, TaskName, payload])
 ```
 
 ## Suppression

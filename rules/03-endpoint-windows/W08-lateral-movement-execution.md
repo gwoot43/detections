@@ -47,7 +47,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     FileName=/^schtasks\.exe$/i CommandLine=/\/s /i CommandLine=/\/create/i;
     FileName=/^sc\.exe$/i CommandLine=/\\\\/ CommandLine=/create|start/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
 ```
 
 ## Suppression

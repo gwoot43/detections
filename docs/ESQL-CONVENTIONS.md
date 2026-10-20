@@ -2,6 +2,22 @@
 
 Reference for the recurring ES|QL patterns across the rule files. Rules link here instead of re-explaining.
 
+## The detection standard comes first
+
+How a detection is structured is set by two standards, one per language:
+- [`DETECTION-STRUCTURE-ESQL.md`](DETECTION-STRUCTURE-ESQL.md) for Elastic.
+- [`DETECTION-STRUCTURE-CQL.md`](DETECTION-STRUCTURE-CQL.md) for Falcon LogScale.
+
+Every query is a funnel in a fixed order: scope, gate, shape, reduce, decide, enrich, output. Expensive work only happens on rows that survived the stage before. Every rule ships with its settings, telemetry assumptions and a discovery query, a baseline query and the source of each threshold, its blind spots, and a triage pivot query. Where this file and the standards disagree, the standards win. B01 is the worked example.
+
+`tools/lint_detections.py` checks every rule against the standards' reject criteria that can be read from the query text (functions in the gate, `VALUES()` on high-cardinality fields, thresholds with no source, whole-host exclusions, `groupBy` with no limit, `case` with no `*` branch, and so on). Run it after changing a rule:
+```
+python3 tools/lint_detections.py -v rules/11-behaviour/B01-horizontal-network-scan.md
+```
+The rest need a reviewer: a grouping key that can be null, events linked by name, a lookback shorter than what the logic measures.
+
+**Where this library departs from the standard.** Rule 7 keeps exclusions in one central lookup. This library has no lookup indexes yet, so exclusions are written inline as placeholders, as entity pairs (a host and the process that does this by design), never a whole host or user. When a central list exists, each rule's exclusion step is where the lookup goes.
+
 ## Index patterns
 
 Every rule targets the data stream that Elastic's own integration writes to (`logs-<package>.<data_stream>-<namespace>`). If you ship a source another way, change the `FROM` line and the `index:` front-matter together.
@@ -94,19 +110,20 @@ B10 has the same shape with no command lines at all:
 - **Corroborating property:** sustained presence, 72 five-minute slots spread over at least 12 different hours. A browser tab polls just as steadily, but only while it's open, so the hours separate the two where request rate can't.
 - **Exclusion:** rarity (three users or fewer reach the domain at all) instead of a domain allowlist.
 
-### Checklist for a new or reworked rule (B10 is the reference)
-Not every detection can meet all of these, but aim for them, and say in the rule which ones it can't meet and why.
-1. **One goal**, stated in one sentence under "Why this is high fidelity".
-2. **A cheap anchor first:** a filter that cuts the volume before any aggregation.
+### Checklist for a new or reworked rule (B01 and B10 are the reference)
+These add to the standards' stage rules; they don't replace them. Not every detection can meet all of these, but aim for them, and say in the rule which ones it can't meet and why.
+1. **One goal**, stated in one sentence under "Why this is high fidelity". If the labels answer unrelated questions, split the rule.
+2. **A cheap anchor first:** the gate. Only filters the index answers (`==`, `IN`, ranges, `CIDR_MATCH`, prefix `LIKE`), with no function around a field. List case variants instead of lowercasing; a leading-wildcard `LIKE` or `RLIKE` needs a comment saying why nothing cheaper works.
 3. **Measure the behaviour, not strings:** count what the attacker can't avoid doing (hours of presence, fan-out, first seen), in one aggregation per entity.
-4. **Thresholds that split the behaviour from its nearest look-alike**, checked against a known true positive and the real false positives. Don't tune a rate to one sample.
+4. **Thresholds that split the behaviour from its nearest look-alike**, checked against a known true positive and the real false positives. Don't tune a rate to one sample. Measure the distribution first (p50, p95, p99, max) with a baseline query, and record the source in a comment next to the threshold. Until that's done, the comment says the value is a starting point.
 5. **Rarity instead of allowlists**, counted across everyone before the behaviour checks.
-6. **Few exclusions**, each one precise clause with a comment saying why, written so a missing field doesn't drop the row (`COALESCE`, `IS NULL OR`).
+6. **Few exclusions**, each one an entity pair (host + process, host + finding), never a whole host, user or address, with a comment saying why. Write them so a missing field doesn't drop the row: `IS NULL OR` in the gate, `COALESCE` only after the reduce, on the survivors.
 7. **Output that answers the first triage questions** without another search.
 8. **A one- or two-line comment on each key step** of the query, so it explains itself when pasted into Kibana on its own.
-9. **ECS field names.** Normalise a field in place (`EVAL url.domain = TO_LOWER(url.domain)`) rather than copying it to a short alias (`d`, `port`, `pname`), and give output columns ECS names (`destination.port = VALUES(destination.port)`). Use the ECS field that fits the event: `url.domain` for web requests, `dns.question.name` for DNS lookups, `destination.domain` for a connection's target. Keep an alias only when the original value is still needed, such as case-sensitive flags. Labels and counts have no ECS field: give them a plain name that isn't an ECS object (`tunnel_service`, not `service`).
+9. **ECS field names.** Normalise only after the gate, and only a value that's grouped or counted; then do it in place (`EVAL url.domain = TO_LOWER(url.domain)`) rather than copying it to a short alias (`d`, `port`, `pname`), and give output columns ECS names (`destination.port = VALUES(destination.port)`). Use the ECS field that fits the event: `url.domain` for web requests, `dns.question.name` for DNS lookups, `destination.domain` for a connection's target. Keep an alias only when the original value is still needed, such as case-sensitive flags. Labels and counts have no ECS field: give them a plain name that isn't an ECS object (`tunnel_service`, not `service`).
 10. **Activity first, filename fallback.** When the behaviour belongs to a known tool family (scanners, lateral-movement kits, secret scanners, stealers, tunnel tools), also match the tool starting by name, in the same query, grouped on the same host and process. The name catches what the behaviour can't see (raw-packet scans, telemetry switched off, a run below the threshold); the behaviour catches what the name can't (a renamed copy). A `finding` column says which fired. Skip the fallback when another rule already matches those names (W09, W10).
-11. **Pair signals where they actually meet, and judge bursts by window.** If one process can hand the work to another (a worm's `node` testing the keys TruffleHog found), pair the halves on the host within a time window, not on the process ID. Measure a burst in fixed windows per process (`DATE_TRUNC(15 minutes, …)`), not the spread of all its events, which measures its lifetime. Key newness on host *and* finding, and on arrival time (`event.ingested`), so late events still alert and one kind of finding doesn't hide another. CS17 is the worked example.
+11. **Pair signals where they actually meet, and judge bursts by window.** If one process can hand the work to another (a worm's `node` testing the keys TruffleHog found), pair the halves on the host within a time window, not on the process ID. The rule's schedule is its window: by default, run every N minutes over the last N (plus a little for ingest lag) and count over the whole lookback, as B01 does. Bucket in the query (`DATE_TRUNC(15 minutes, …)`) only when the lookback has to be longer than the burst, for newness or pairing, and say so in a comment; then measure the burst per bucket, not the spread of all its events, which measures its lifetime. Key newness on host *and* finding, and on arrival time (`event.ingested`), so late events still alert and one kind of finding doesn't hide another. CS17 is the worked example.
+12. **The output contract.** Rule settings (interval, lookback, suppression, severity), telemetry assumptions with the discovery query that confirms them, the baseline query, blind spots, and a triage pivot query keyed on the alert entity. Detail goes in the pivot, not the alert: the alert keeps the entity, the decision counts and a short bounded sample (`TOP(…, 10)`, `MV_SLICE`), never an unbounded `VALUES()` of command lines or addresses.
 
 ## No subqueries: use LOOKUP JOIN or ENRICH
 
@@ -141,7 +158,7 @@ Example: "did sysprep run on this host shortly before the log was cleared" (WE01
 Transform source, scheduled every 10 minutes over the last hour:
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-| WHERE event.action == "processrollup2" AND TO_LOWER(process.name) == "sysprep.exe"
+| WHERE event.action == "processrollup2" AND process.name IN ("sysprep.exe", "Sysprep.exe")
 | STATS last_sysprep = MAX(@timestamp) BY host.name
 ```
 Write the output to `recent_sysprep` (lookup mode), then in the rule:

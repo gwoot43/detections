@@ -72,7 +72,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 // Rarity: one row per program, counting its hosts. Activity first: on at most 3 hosts; then the filename fallback.
 // Either way, the newest host started in the last 2 hours.
 | groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start), sum(named, as=named),
-                             collect([ComputerName, RemoteAddress, RemotePort, CommandLine])])
+                             collect([ComputerName, RemoteAddress, RemotePort, CommandLine])], limit=max)
 | _now := now()
 | test((hosts <= 3 OR named > 0) AND newest_start > _now - 7200000)
 ```

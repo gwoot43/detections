@@ -52,7 +52,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 // net.exe re-launches itself as net1.exe; keep only the net.exe event
 | NOT (FileName=/^net1\.exe$/i AND ParentBaseFileName=/^net\.exe$/i)
 | !in(field="ParentBaseFileName", ignoreCase=true, values=["ccmexec.exe", "intunemanagementextension.exe", "agentexecutor.exe"])
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

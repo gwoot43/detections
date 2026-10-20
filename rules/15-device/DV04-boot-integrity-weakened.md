@@ -65,7 +65,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-da
     CommandLine=/debugtype/i CommandLine!=/\/deletevalue/i
       | finding := "bcdedit enabled kernel debugging";
   }
-| table([@timestamp, aid, ComputerName, finding, UserName, ParentBaseFileName, CommandLine])
+| select([@timestamp, aid, ComputerName, finding, UserName, ParentBaseFileName, CommandLine])
 ```
 The 4826 branch (booted with test signing, integrity checks off or kernel debugging) isn't in the LogScale version because Windows Security events aren't in Falcon.
 

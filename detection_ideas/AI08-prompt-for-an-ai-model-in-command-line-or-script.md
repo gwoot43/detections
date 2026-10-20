@@ -40,7 +40,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/
 // Anchor: chat-template tokens only LLM tooling produces, or the standard order to a model to drop its instructions.
 | CommandLine=/<\|im_start\|>|<\|system\|>|<\|start_header_id\|>|\[INST\]|<<SYS>>|(ignore|disregard) (all )?(previous|prior|above) instructions/i
-| table([@timestamp, aid, ComputerName, UserName, FileName, ParentBaseFileName, CommandLine, TargetProcessId])
+| select([@timestamp, aid, ComputerName, UserName, FileName, ParentBaseFileName, CommandLine, TargetProcessId])
 ```
 
 **Same detection in PowerShell script blocks (Windows)**, run every 15 minutes with a 1-hour lookback. This sees scripts' contents, which a command line often doesn't:

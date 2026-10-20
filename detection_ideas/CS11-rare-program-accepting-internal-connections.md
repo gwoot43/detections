@@ -60,7 +60,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([pname, aid], function=[min(@timestamp, as=first_seen), collect([ComputerName, RemoteAddressIP4, LocalPort])], limit=max)
 // Rarity: one row per program, counting its hosts. Alert when it's on at most 3 and the newest started in the last 2 hours.
 | groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
-                             collect([ComputerName, RemoteAddressIP4, LocalPort])])
+                             collect([ComputerName, RemoteAddressIP4, LocalPort])], limit=max)
 | _now := now()
 | test(hosts <= 3 AND newest_start > _now - 7200000)
 | newest_start := formatTime(format="%F %T", field=newest_start, timezone="Australia/Sydney")

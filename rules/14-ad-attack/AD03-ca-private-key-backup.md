@@ -47,7 +47,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-da
     CommandLine=/[-\/]backup /i;
     in(field="h", ignoreCase=true, values=["ca01", "ca02"]) | CommandLine=/[-\/]exportpfx/i;   // your CA servers
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, CommandLine])
 ```
 The 4876/4877 branch isn't in the LogScale version because the CA's Windows Security events aren't in Falcon.
 

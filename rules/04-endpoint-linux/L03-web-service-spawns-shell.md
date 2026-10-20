@@ -59,7 +59,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
       | finding := "runtime spawned shell with reverse-shell or recon command";
   }
 // add exact benign command lines found while baselining, e.g. | !in(field="CommandLine", ignoreCase=true, values=["sh -c /usr/bin/convert ..."])
-| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
+| select([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine, ParentProcessId])
 ```
 
 ## Suppression

@@ -51,7 +51,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | NOT ComputerName=/^dev-|-laptop/i
 | UserName := lower(UserName)
 | replace(regex="^.*\\\\", with="", field=UserName, as=UserName)
-| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

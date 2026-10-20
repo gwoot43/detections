@@ -53,7 +53,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     CommandLine=/release_agent|cgroup.*notify_on_release/i
       | finding := "cgroup release_agent escape";
   }
-| table([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
+| select([@timestamp, aid, ComputerName, UserName, finding, ParentBaseFileName, FileName, CommandLine])
 ```
 
 ## Suppression

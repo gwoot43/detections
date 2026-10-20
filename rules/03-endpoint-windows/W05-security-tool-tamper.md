@@ -46,7 +46,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
     FileName=/^(sc|net|net1)\.exe$/i CommandLine=/stop|delete|config/i CommandLine=/windefend|wdnissvc| sense/i;
     FileName=/^bcdedit\.exe$/i CommandLine=/\/set.*safeboot/i;
   }
-| table([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, SHA256HashData])
+| select([@timestamp, aid, ComputerName, UserName, ParentBaseFileName, FileName, CommandLine, SHA256HashData])
 ```
 Maintain a value list of EDR-killer tool hashes from your threat intel feed and add `process.hash.sha256 IN (...)` as a further branch; names change too often to hard-code.
 
