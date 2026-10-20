@@ -13,7 +13,7 @@ Design constraints for this folder:
 
 | Rule | Behaviour | Tools it catches by behaviour |
 |---|---|---|
-| B01 | One process probes many internal host:port endpoints (horizontal, vertical or mixed scan); falls back to the scanner's name | nmap, masscan, rustscan, custom scanners; raw-packet scans by known scanners through the name fallback |
+| B01 | One process scans: 30+ ports on one host, 50+ hosts (or 100+ endpoints), or reverse-DNS lookups of 50+ internal addresses; in Palo Alto, the same shapes with most probes unanswered. Falls back to known scanner names | Any scanner, script or implant scanning internally, including raw-packet scans (reverse DNS, firewall) and devices without Falcon (firewall) |
 | B04 | Fan-out on remote-admin ports (SMB/RPC, WinRM, RDP), or LDAP fan-out to several domain controllers; falls back to CrackMapExec, NetExec or Impacket by name | CrackMapExec/NetExec, Impacket, PsExec loops, BloodHound/SharpHound, ADExplorer |
 | B05 | One account authenticates to many hosts | pass-the-hash tooling, credential-spray lateral movement |
 | B06 | Regular outbound callbacks to one destination | Cobalt Strike, Sliver, Mythic, Havoc beacons |

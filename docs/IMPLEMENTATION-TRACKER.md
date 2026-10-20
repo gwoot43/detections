@@ -191,7 +191,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 
 
 ## Behaviour-based (rules/11-behaviour) — tune thresholds on 2 weeks of data
-- [ ] **B01** Internal network or port scan (host:port endpoints, replaces B02), falls back to the scanner's name (absorbs CS12) _(high, medium by name)_ · `suppress: host.id, process.name / 1h`
+- [ ] **B01** Internal scanning by behaviour: port scan of one host, sweep of many, reverse-DNS sweep (Falcon); same shapes with most probes unanswered (Palo Alto); known scanner names as fallback _(high, medium by name)_ · `suppress: host.id, finding / 1h`
 - [ ] **B04** Lateral sweep over SMB/RPC/RDP/WinRM, or LDAP fan-out to several DCs, falls back to CrackMapExec/NetExec/Impacket by name _(high/medium)_ · `suppress: host.id, process.name, severity / 2h`
 - [ ] **B05** Network logon sweep (one account, many hosts) _(high)_ · `suppress: acct / 2h`
 - [ ] **B06** C2 beaconing (regular cadence) _(high)_ · `suppress: host.id, process.name, destination.ip / 24h`
