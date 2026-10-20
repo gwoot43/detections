@@ -271,7 +271,11 @@ Exclusions are pairs, never a whole host: a host and the one process that scans 
 The standard keeps exclusions in one central list (a lookup index or file) rather than in each rule. This library has no lookups yet, so they're written inline as placeholders; when a central list exists, replace the step 5 `WHERE NOT` (and the LogScale `NOT` lines) with a lookup on host and process.
 
 ## Blind spots
-- **Raw-packet scans and ping sweeps** (nmap `-sS` or `-sn` as admin, masscan, zmap; ICMP and ARP sweeps). Falcon records no connection for them, and reverse-DNS lookups aren't watched. The Palo Alto query sees them if they cross the firewall, D04's decoy hosts see any scan that touches them, and the name fallback sees the known scanners.
+- **Raw-packet scans and ping sweeps.** Falcon's connection events come from the operating system's network stack. A scanner running as admin or root that builds its own packets (nmap `-sS`, its default as admin; masscan; zmap) never makes a connection. Neither do ICMP pings or ARP requests. So the Falcon query sees none of them, and reverse-DNS lookups aren't watched. Run without admin rights, nmap falls back to real connections and is caught. What covers the rest, and its limits:
+  - **Palo Alto query:** raw TCP and UDP probes that cross the firewall. It doesn't see ICMP (no port, so its gate drops it), ARP, or anything inside one subnet.
+  - **D04 option B** (OpenCanary's portscan module): raw scans that touch a decoy, wherever they come from. D04 option A is built on Falcon connections and has this rule's blind spot.
+  - **The name fallback:** the known scanners, unless renamed.
+  - **Left over:** a renamed raw-packet scanner, or an ICMP or ARP sweep, inside one subnet with no decoy in it.
 - **nbtscan and NetBIOS name sweeps on UDP 137**, and anything else that only uses the left-out chatter ports. They're left out because ordinary Windows traffic fills them. The name fallback matches nbtscan.
 - Services on 49152 and up, and scans that only probe them.
 - **`port_scan` is an approximation** of "many ports on one host": 20+ ports across at most 5 hosts. Exact per-host port counts need a second `STATS` keyed on the address. Add it only if the approximation causes false positives.
