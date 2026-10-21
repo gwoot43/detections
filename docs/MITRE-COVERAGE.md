@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v20.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**193 rules · 108 techniques covered** (198 technique and sub-technique IDs).
+**194 rules · 108 techniques covered** (198 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -19,15 +19,15 @@ flowchart LR
   T2["Initial Access<br/>6/11 techniques · 59 rules"]:::high
   T3["Execution<br/>13/21 techniques · 32 rules"]:::high
   T4["Persistence<br/>15/22 techniques · 76 rules"]:::high
-  T5["Privilege Escalation<br/>12/13 techniques · 74 rules"]:::high
+  T5["Privilege Escalation<br/>12/13 techniques · 75 rules"]:::high
   T6["Stealth<br/>16/31 techniques · 49 rules"]:::high
-  T7["Defense Impairment<br/>7/14 techniques · 36 rules"]:::high
-  T8["Credential Access<br/>12/18 techniques · 58 rules"]:::high
-  T9["Discovery<br/>14/34 techniques · 12 rules"]:::high
-  T10["Lateral Movement<br/>6/9 techniques · 30 rules"]:::high
+  T7["Defense Impairment<br/>7/14 techniques · 37 rules"]:::high
+  T8["Credential Access<br/>12/18 techniques · 59 rules"]:::high
+  T9["Discovery<br/>14/34 techniques · 13 rules"]:::high
+  T10["Lateral Movement<br/>6/9 techniques · 31 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
-  T12["Command and Control<br/>9/18 techniques · 27 rules"]:::high
-  T13["Exfiltration<br/>7/10 techniques · 12 rules"]:::high
+  T12["Command and Control<br/>9/18 techniques · 28 rules"]:::high
+  T13["Exfiltration<br/>7/10 techniques · 13 rules"]:::high
   T14["Impact<br/>5/15 techniques · 6 rules"]:::mid
   T0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6 --> T7 --> T8 --> T9 --> T10 --> T11 --> T12 --> T13 --> T14
   classDef none fill:#f3f3f1,stroke:#9b9a95,color:#52514e
@@ -47,15 +47,15 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Initial Access (TA0001) | 6 / 11 | `███████████░░░░░░░░░` 55% | 59 |
 | Execution (TA0002) | 13 / 21 | `████████████░░░░░░░░` 62% | 32 |
 | Persistence (TA0003) | 15 / 22 | `██████████████░░░░░░` 68% | 76 |
-| Privilege Escalation (TA0004) | 12 / 13 | `██████████████████░░` 92% | 74 |
+| Privilege Escalation (TA0004) | 12 / 13 | `██████████████████░░` 92% | 75 |
 | Stealth (TA0005) | 16 / 31 | `██████████░░░░░░░░░░` 52% | 49 |
-| Defense Impairment (TA0112) | 7 / 14 | `██████████░░░░░░░░░░` 50% | 36 |
-| Credential Access (TA0006) | 12 / 18 | `█████████████░░░░░░░` 67% | 58 |
-| Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 12 |
-| Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 30 |
+| Defense Impairment (TA0112) | 7 / 14 | `██████████░░░░░░░░░░` 50% | 37 |
+| Credential Access (TA0006) | 12 / 18 | `█████████████░░░░░░░` 67% | 59 |
+| Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 13 |
+| Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 31 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
-| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 27 |
-| Exfiltration (TA0010) | 7 / 10 | `██████████████░░░░░░` 70% | 12 |
+| Command and Control (TA0011) | 9 / 18 | `██████████░░░░░░░░░░` 50% | 28 |
+| Exfiltration (TA0010) | 7 / 10 | `██████████████░░░░░░` 70% | 13 |
 | Impact (TA0040) | 5 / 15 | `███████░░░░░░░░░░░░░` 33% | 6 |
 
 ## Priority techniques
@@ -83,7 +83,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1136.001 Local Account | Persistence | W07 |
 | T1505.003 Web Shell | Persistence | AD11, CS10, L03, N11, WE10, X04 |
 | T1546.003 Windows Management Instrumentation Event Subscription | Privilege Escalation, Persistence | WE11 |
-| T1068 Exploitation for Privilege Escalation | Privilege Escalation | AD05, AD07, CS01, L06, W05, WE05, WE08, WE10 |
+| T1068 Exploitation for Privilege Escalation | Privilege Escalation | AD05, AD07, CS01, CS18, L06, W05, WE05, WE08, WE10 |
 | T1134 Access Token Manipulation | Stealth, Privilege Escalation | I14, WE03, WE05 |
 | T1548.002 Bypass User Account Control | Privilege Escalation | **gap** |
 | T1027 Obfuscated Files or Information | Stealth | AI06, W04 |
@@ -92,14 +92,14 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1685.005 Clear Windows Event Logs | Defense Impairment | WE01 |
 | T1218.011 Rundll32 | Stealth | W04 |
 | T1564.001 Hidden Files and Directories | Stealth | **gap** |
-| T1685 Disable or Modify Tools | Defense Impairment | AI08, C09, CP01, CP02, CP03, CP04, CP05, CP06, CS01, CS05, DV04, E10, L07, N04, W05, WE01, WE02, WE07, X05 |
+| T1685 Disable or Modify Tools | Defense Impairment | AI08, C09, CP01, CP02, CP03, CP04, CP05, CP06, CS01, CS05, CS18, DV04, E10, L07, N04, W05, WE01, WE02, WE07, X05 |
 | T1003.001 LSASS Memory | Credential Access | D01, W01, WE07, WE10 |
 | T1003.006 DCSync | Credential Access | AD02, I01, S06 |
 | T1558.003 Kerberoasting | Credential Access | D01, I03, I13, W09 |
 | T1110.003 Password Spraying | Credential Access | D02, I05, S02, S15 |
 | T1555.003 Credentials from Web Browsers | Credential Access | B08 |
 | T1621 Multi-Factor Authentication Request Generation | Credential Access | C11, I07, S11, S12 |
-| T1552.001 Credentials In Files | Credential Access | B07, B08, CS17, D01, D02, D03, IN09, L05 |
+| T1552.001 Credentials In Files | Credential Access | B07, B08, CS17, CS18, D01, D02, D03, IN09, L05 |
 | T1539 Steal Web Session Cookie | Credential Access | B08, S08, S23 |
 | T1087.002 Domain Account | Discovery | B04, W09 |
 | T1482 Domain Trust Discovery | Discovery | B09, W09 |
@@ -119,9 +119,9 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1071.001 Web Protocols | Command and Control | AI01, AI06, B06, B10, N07 |
 | T1105 Ingress Tool Transfer | Command and Control | AI07, L02, N07, W03, W04, W10 |
 | T1219 Remote Access Tools | Command and Control | CS13, W10, X06 |
-| T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, CS13, CS14, CS15, CS16, L14, N09, W10 |
+| T1572 Protocol Tunneling | Command and Control | CS03, CS09, CS10, CS11, CS13, CS14, CS15, CS16, CS18, L14, N09, W10 |
 | T1090.003 Multi-hop Proxy | Command and Control | N09, S07 |
-| T1567.002 Exfiltration to Cloud Storage | Exfiltration | N08 |
+| T1567.002 Exfiltration to Cloud Storage | Exfiltration | CS18, N08 |
 | T1048 Exfiltration Over Alternative Protocol | Exfiltration | CS03, IN05, N08 |
 | T1041 Exfiltration Over C2 Channel | Exfiltration | N08 |
 | T1052.001 Exfiltration over USB | Exfiltration | DV01, DV03, DV05 |
@@ -202,7 +202,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 |---|---|---|
 | T1078 Valid Accounts | AD05, B05, C03, C11, D01, D02, E09, E10, I02, I06, I07, I11, N01, N03, N04, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, WE04, WE05, WE06, X02, X03, X07 | T1078.002 Domain Accounts (AD05, D01, I02, I06, I11, WE05, WE06, X07); T1078.004 Cloud Accounts (C03, C11, D02, E09, I07, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, X02) |
 | T1098 Account Manipulation | AD02, AD10, C03, C04, C05, C06, C07, C12, E08, I02, I04, I10, I11, I12, I13, I14, L04, S06, S11, S16, S17, S18, S20, S22, W07, WE03, X02, X07 | T1098.001 Additional Cloud Credentials (C04, C05, C12); T1098.002 Additional Email Delegate Permissions (E08); T1098.003 Additional Cloud Roles (C03, C06); T1098.004 SSH Authorized Keys (L04); T1098.005 Device Registration (I10, S11, S16, S17, S18, S20, S22, X02) |
-| T1068 Exploitation for Privilege Escalation | AD05, AD07, CS01, L06, W05, WE05, WE08, WE10 | - |
+| T1068 Exploitation for Privilege Escalation | AD05, AD07, CS01, CS18, L06, W05, WE05, WE08, WE10 | - |
 | T1053 Scheduled Task/Job | C12, CS07, L04, W08, WE14 | T1053.003 Cron (L04); T1053.005 Scheduled Task (CS07, W08, WE14) |
 | T1484 Domain or Tenant Policy Modification | AD06, C01, WE03, WE06 | T1484.001 Group Policy Modification (WE03, WE06); T1484.002 Trust Modification (C01) |
 | T1546 Event Triggered Execution | CS02, L04, W11, WE11 | T1546.003 Windows Management Instrumentation Event Subscription (WE11); T1546.004 Unix Shell Configuration Modification (L04); T1546.015 Component Object Model Hijacking (W11) |
@@ -238,7 +238,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1685 Disable or Modify Tools | AI08, C09, CP01, CP02, CP03, CP04, CP05, CP06, CS01, CS05, DV04, E10, L07, N04, W05, WE01, WE02, WE07, X05 | T1685.001 Disable or Modify Windows Event Log (WE02); T1685.002 Disable or Modify Cloud Log (C09); T1685.004 Disable or Modify Linux Audit System Log (L07); T1685.005 Clear Windows Event Logs (WE01); T1685.006 Clear Linux or Mac System Logs (L07); T1685.007 Impair Autonomous Defenses (AI08) |
+| T1685 Disable or Modify Tools | AI08, C09, CP01, CP02, CP03, CP04, CP05, CP06, CS01, CS05, CS18, DV04, E10, L07, N04, W05, WE01, WE02, WE07, X05 | T1685.001 Disable or Modify Windows Event Log (WE02); T1685.002 Disable or Modify Cloud Log (C09); T1685.004 Disable or Modify Linux Audit System Log (L07); T1685.005 Clear Windows Event Logs (WE01); T1685.006 Clear Linux or Mac System Logs (L07); T1685.007 Impair Autonomous Defenses (AI08) |
 | T1556 Modify Authentication Process | C02, C11, CP03, I10, I12, L11, N03, N04, S02, S03, S16, WE07 | T1556.002 Password Filter DLL (WE07); T1556.003 Pluggable Authentication Modules (L11); T1556.006 Multi-Factor Authentication (I10, S02, S03, S16); T1556.009 Conditional Access Policies (C02, C11) |
 | T1484 Domain or Tenant Policy Modification | AD06, C01, WE03, WE06 | T1484.001 Group Policy Modification (WE03, WE06); T1484.002 Trust Modification (C01) |
 | T1686 Disable or Modify System Firewall | C02, C08, W07 | T1686.001 Cloud Firewall (C02, C08); T1686.003 Windows Host Firewall (W07) |
@@ -250,17 +250,17 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1110 Brute Force | D01, D02, I05, N02, S02, S05, S09, S12, S13, S14, S15, WE04 | T1110.001 Password Guessing (S13, S14); T1110.003 Password Spraying (D02, I05, S02, S15) |
+| T1110 Brute Force | CS18, D01, D02, I05, N02, S02, S05, S09, S12, S13, S14, S15, WE04 | T1110.001 Password Guessing (S13, S14); T1110.003 Password Spraying (D02, I05, S02, S15) |
+| T1003 OS Credential Dumping | AD02, AD04, AD09, CS18, D01, I01, L05, S06, W01, W09, WE07, WE09, WE10 | T1003.001 LSASS Memory (D01, W01, WE07, WE10); T1003.003 NTDS (WE09); T1003.006 DCSync (AD02, I01, S06); T1003.008 /etc/passwd and /etc/shadow (L05) |
+| T1552 Unsecured Credentials | AD03, AD09, AI04, B07, B08, C10, CS17, CS18, D01, D02, D03, IN09, L05 | T1552.001 Credentials In Files (B07, B08, CS17, CS18, D01, D02, D03, IN09, L05); T1552.004 Private Keys (AD03, L05); T1552.005 Cloud Instance Metadata API (L05) |
 | T1556 Modify Authentication Process | C02, C11, CP03, I10, I12, L11, N03, N04, S02, S03, S16, WE07 | T1556.002 Password Filter DLL (WE07); T1556.003 Pluggable Authentication Modules (L11); T1556.006 Multi-Factor Authentication (I10, S02, S03, S16); T1556.009 Conditional Access Policies (C02, C11) |
-| T1003 OS Credential Dumping | AD02, AD04, AD09, D01, I01, L05, S06, W01, W09, WE07, WE09, WE10 | T1003.001 LSASS Memory (D01, W01, WE07, WE10); T1003.003 NTDS (WE09); T1003.006 DCSync (AD02, I01, S06); T1003.008 /etc/passwd and /etc/shadow (L05) |
-| T1552 Unsecured Credentials | AD03, AD09, AI04, B07, B08, C10, CS17, D01, D02, D03, IN09, L05 | T1552.001 Credentials In Files (B07, B08, CS17, D01, D02, D03, IN09, L05); T1552.004 Private Keys (AD03, L05); T1552.005 Cloud Instance Metadata API (L05) |
 | T1528 Steal Application Access Token | C05, C11, D02, S05, S16, S19, S20, S23, X02 | - |
 | T1558 Steal or Forge Kerberos Tickets | AD08, D01, I03, I04, I13, W09 | T1558.001 Golden Ticket (AD08); T1558.003 Kerberoasting (D01, I03, I13, W09); T1558.004 AS-REP Roasting (D01, I04) |
 | T1621 Multi-Factor Authentication Request Generation | C11, I07, S11, S12 | - |
 | T1557 Adversary-in-the-Middle | AD12, S07, WE13 | T1557.001 Name Resolution Poisoning and SMB Relay (WE13) |
+| T1555 Credentials from Password Stores | AD04, B08, CS18 | T1555.003 Credentials from Web Browsers (B08) |
 | T1539 Steal Web Session Cookie | B08, S08, S23 | - |
 | T1649 Steal or Forge Authentication Certificates | AD03, AD06, I09 | - |
-| T1555 Credentials from Password Stores | AD04, B08 | T1555.003 Credentials from Web Browsers (B08) |
 | T1187 Forced Authentication | WE13 | - |
 
 ### Discovery
@@ -271,9 +271,9 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1069 Permission Groups Discovery | B04, B09, S21, W09 | T1069.002 Domain Groups (B04, B09, W09); T1069.003 Cloud Groups (S21) |
 | T1018 Remote System Discovery | B01, B04, D04, W09 | - |
 | T1083 File and Directory Discovery | CS17, D03, IN09 | - |
+| T1046 Network Service Discovery | B01, CS18, D04 | - |
 | T1526 Cloud Service Discovery | S04, S21 | - |
 | T1482 Domain Trust Discovery | B09, W09 | - |
-| T1046 Network Service Discovery | B01, D04 | - |
 | T1049 System Network Connections Discovery | B04, B09 | - |
 | T1613 Container and Resource Discovery | L08 | - |
 | T1135 Network Share Discovery | D04 | - |
@@ -286,7 +286,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1021 Remote Services | B04, B05, C07, CS10, CS15, CS16, D04, I06, L12, W07, W08, WE14, WE15, X03 | T1021.001 Remote Desktop Protocol (CS15, W07, WE15); T1021.002 SMB/Windows Admin Shares (B05, W08, WE14); T1021.003 Distributed Component Object Model (W08); T1021.004 SSH (CS15, L12); T1021.006 Windows Remote Management (W08); T1021.008 Direct Cloud VM Connections (C07) |
+| T1021 Remote Services | B04, B05, C07, CS10, CS15, CS16, CS18, D04, I06, L12, W07, W08, WE14, WE15, X03 | T1021.001 Remote Desktop Protocol (CS15, W07, WE15); T1021.002 SMB/Windows Admin Shares (B05, W08, WE14); T1021.003 Distributed Component Object Model (W08); T1021.004 SSH (CS15, L12); T1021.006 Windows Remote Management (W08); T1021.008 Direct Cloud VM Connections (C07) |
 | T1550 Use Alternate Authentication Material | B05, C04, CP01, I07, S07, S08, S17, S19, S20, S22, S23, WE04, WE12 | T1550.001 Application Access Token (C04, I07, S07, S19, S20, S22, S23); T1550.002 Pass the Hash (B05, WE04, WE12); T1550.004 Web Session Cookie (S08) |
 | T1534 Internal Spearphishing | E03, E09 | - |
 | T1570 Lateral Tool Transfer | B04 | - |
@@ -309,8 +309,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1572 Protocol Tunneling | CS03, CS09, CS10, CS11, CS13, CS14, CS15, CS16, L14, N09, W10 | - |
-| T1090 Proxy | CS09, CS10, CS11, CS14, CS16, L14, N09, S07, S14, S15, W10 | T1090.001 Internal Proxy (CS09, CS10, CS11, CS16, L14); T1090.002 External Proxy (CS14, S14, S15); T1090.003 Multi-hop Proxy (N09, S07) |
+| T1572 Protocol Tunneling | CS03, CS09, CS10, CS11, CS13, CS14, CS15, CS16, CS18, L14, N09, W10 | - |
+| T1090 Proxy | CS09, CS10, CS11, CS14, CS16, CS18, L14, N09, S07, S14, S15, W10 | T1090.001 Internal Proxy (CS09, CS10, CS11, CS16, L14); T1090.002 External Proxy (CS14, S14, S15); T1090.003 Multi-hop Proxy (N09, S07) |
 | T1071 Application Layer Protocol | AI01, AI06, B06, B10, CS03, L01, N07, WE10 | T1071.001 Web Protocols (AI01, AI06, B06, B10, N07); T1071.004 DNS (CS03) |
 | T1105 Ingress Tool Transfer | AI07, L02, N07, W03, W04, W10 | - |
 | T1219 Remote Access Tools | CS13, W10, X06 | T1219.001 IDE Tunneling (CS13) |
@@ -323,8 +323,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
+| T1567 Exfiltration Over Web Service | AI11, CS18, IN02, IN05, N08 | T1567.002 Exfiltration to Cloud Storage (CS18, N08) |
 | T1700 AI-Enabled Exfiltration | AI02, AI03, AI09, AI10 | - |
-| T1567 Exfiltration Over Web Service | AI11, IN02, IN05, N08 | T1567.002 Exfiltration to Cloud Storage (N08) |
 | T1048 Exfiltration Over Alternative Protocol | CS03, IN05, N08 | T1048.003 Exfiltration Over Unencrypted Non-C2 Protocol (CS03, IN05) |
 | T1052 Exfiltration Over Physical Medium | DV01, DV03, DV05 | T1052.001 Exfiltration over USB (DV01, DV03, DV05) |
 | T1041 Exfiltration Over C2 Channel | N08 | - |
@@ -438,7 +438,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS14 | Tunnel service agent running on an endpoint (Cloudflare, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore and others) | T1090.002, T1572 |
 | CS15 | RDP or SSH reached from the host itself (traffic relayed in by a tunnel, whatever it's called) | T1021.001, T1021.004, T1572 |
 | CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux or macOS (filename fallback) | T1021, T1090.001, T1572 |
-| CS17 | Secret scanner on a host - keys tested against several unrelated services (activity), or TruffleHog run (filename fallback); Shai-Hulud credential harvesting | T1083, T1552.001 |
+| CS17 | Secret scanner on a host - one process tests keys against several unrelated providers (TruffleHog, Shai-Hulud, stealers) | T1083, T1552.001 |
+| CS18 | Common attacker tool started, by file name (scanners, credential and secret stealers, lateral movement, tunnels, privilege escalation, exfiltration, EDR killers) | T1003, T1021, T1046, T1068, T1090, T1110, T1552.001, T1555, T1567.002, T1572, T1685 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |

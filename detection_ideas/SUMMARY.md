@@ -43,7 +43,7 @@ Thirty-three detections for C2, tunnelling, post-exploitation and AI, grouped by
 | [L07](L07-defense-evasion-log-and-history-tamper.md) | Anti-forensics in one rule: logs, login records or shell history deleted or emptied, history switched off, auditd or syslog stopped, system files re-dated | An action that destroys or re-dates (`rm`, `truncate`, `: >`, `unset HISTFILE`, `systemctl stop`, `touch -r`) on a live record: a log matched by name shape wherever it is, `wtmp`, history, the logging service. The label names the technique | The command is new on the host and run on at most 3 hosts; rotated logs don't count | CrowdStrike process starts (Linux) |
 | [L13](L13-rare-setuid-root-program.md) | Setuid-root backdoors, such as a shell copied to a system-looking name (`/usr/bin/dbus-authd` in the BeyondTrust intrusion) | A program starts as root for a non-root account (effective user 0, real user not 0), new on the host | Runs setuid on at most 3 hosts, so `sudo`, `su` and `passwd` drop out | CrowdStrike process starts (Linux) |
 | [L15](L15-passwordless-sudo-grant-written.md) | A `NOPASSWD` sudo rule written to give an account permanent root, including into a template that rebuilds `/etc/sudoers` | `NOPASSWD` and a sudoers path in one command, from something that writes rather than reads | The command is new on the host and run on at most 3 hosts | CrowdStrike process starts (Linux) |
-| [CS17](CS17-trufflehog-secret-scan.md) | Secret harvesting by TruffleHog (as the Shai-Hulud npm worm runs it), a renamed copy, or a stealer testing stolen keys | Activity first: a process tests keys against 4+ providers' key-checking APIs (or 3 with a rare one: SendGrid, Twilio, Mailgun, Heroku, DigitalOcean) in one 15-minute window. Filename fallback: TruffleHog by name, Docker image or flags. Paired on the host per hour, since the worm's `node` often tests what TruffleHog found | Code editors dropped; CI and AppSec hosts allowlisted; newness per host and finding by arrival time, so late events still alert | CrowdStrike DNS and process starts; Zscaler if endpoints use an explicit proxy |
+| [CS17](CS17-trufflehog-secret-scan.md) | Secret harvesting by TruffleHog (as the Shai-Hulud npm worm runs it), a renamed copy, or a stealer testing stolen keys | One process tests keys against 4+ providers' key-checking APIs (or 3 with a rare one: SendGrid, Twilio, Mailgun, Heroku, DigitalOcean) in the 20-minute window. High when the tester is a package runtime (`node`, `bun`, `deno`, `python`), the worm pattern. No filename fallback: CS18 matches TruffleHog by name | Code editors and browsers dropped; CI runners and AppSec hosts excluded as host + scanner pairs | CrowdStrike DNS |
 
 ### Webshells at the edge
 
@@ -91,7 +91,7 @@ Thirty-three detections for C2, tunnelling, post-exploitation and AI, grouped by
 | L07 | High | Hourly, 7 days | `host.id` / 24h | T1685.006, T1070.003, T1685.004, T1070.006 | Yes |
 | L13 | High | Hourly, 7 days | `host.id` / 24h | T1548.001 | Yes |
 | L15 | High | Hourly, 7 days | `host.id` / 24h | T1548.003 | Yes |
-| CS17 | High | Hourly, 7 days | `host.id`, `finding` / 24h | T1552.001, T1083 | Yes |
+| CS17 | High (package runtime) or medium | Every 15 min, 20 min | `host.id`, `severity` / 24h | T1552.001, T1083 | Yes |
 | N11 | High | Hourly, 7 days | `url.domain`, `url.path` / 24h | T1505.003, T1190 | Not applicable (Imperva) |
 | AI01 | Medium | Hourly, 7 days | `host.id` / 24h | T1588.007, T1071.001 | Yes |
 | AI02 | High | Hourly, 7 days | `host.id` / 24h | T1700, T1195.001, T1059 | Yes |

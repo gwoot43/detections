@@ -112,7 +112,8 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS14** Tunnel service agent running on an endpoint (Cloudflare 7844, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore) _(P1)_ · `suppress: host.id, tunnel_service / 24h`
 - [ ] **CS15** RDP or SSH reached from the host itself (any tunnel, by behaviour) _(P1)_ · `suppress: host.id, destination.port / 24h`
 - [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour), falls back to chisel/gost/frp by name on Linux and macOS _(P1)_ · `suppress: host.id, process.name / 24h`
-- [ ] **CS17** Secret scanner: a process tests keys against several unrelated providers (activity), or TruffleHog scans the file system (filename fallback) _(P1)_ · `suppress: host.id / 24h`
+- [ ] **CS17** Secret scanner: a process tests keys against several unrelated providers; high when it's a package runtime _(P1)_ · `suppress: host.id, severity / 24h`
+- [ ] **CS18** Common attacker tool started, by file name: scanners, credential and secret stealers, lateral movement, tunnels, privilege escalation, rclone, EDR killers _(P1)_ · `suppress: host.id, process.name / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
