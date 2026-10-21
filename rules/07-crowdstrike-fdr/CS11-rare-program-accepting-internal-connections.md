@@ -3,7 +3,6 @@ id: CS11
 name: Program starts accepting connections from other internal hosts, new on this host and rare in the fleet (implant listener or pivot)
 category: crowdstrike-fdr
 status: todo
-severity: medium
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572, T1571]

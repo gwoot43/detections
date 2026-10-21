@@ -3,7 +3,6 @@ id: AI03
 name: Microsoft 365 Copilot detects a prompt injection in content it read, or a jailbreak in a prompt
 category: ai
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1698, T1699, T1700]
@@ -21,7 +20,7 @@ Microsoft runs its own classifiers on every Copilot interaction and writes the v
 - **Anchor:** a Copilot interaction (`CopilotInteraction`), a small slice of the audit log.
 - **Corroborating property:** Copilot flagged it. `XPIADetected` on a resource it read means hidden instructions in that content (cross-prompt injection). `JailbreakDetected` on a message means the prompt tried to override its rules.
 
-An injection in content it read is the serious one: it came from outside, and the user may not know. A jailbreak is usually a user testing limits; it alerts at medium.
+An injection in content it read is the serious one: it came from outside, and the user may not know. A jailbreak is usually a user testing limits.
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
@@ -36,9 +35,8 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
 | WHERE xpia OR jailbreak
 // Hidden instructions in content it read come from outside; a jailbreak is usually the user testing limits.
 | EVAL finding = CASE(xpia, "prompt injection in content Copilot read", "jailbreak attempt in a prompt"),
-       severity = CASE(xpia, "high", "medium"),
        usr = TO_LOWER(o365.audit.UserId)
-| KEEP @timestamp, usr, finding, severity, o365.audit.CopilotEventData.AppHost, o365.audit.CopilotEventData.AccessedResources.Name,
+| KEEP @timestamp, usr, finding, o365.audit.CopilotEventData.AppHost, o365.audit.CopilotEventData.AccessedResources.Name,
        o365.audit.CopilotEventData.AccessedResources.SiteUrl, o365.audit.CopilotEventData.AccessedResources.Type,
        o365.audit.CopilotEventData.ThreadId, source.ip, _id, _version, _index
 ```

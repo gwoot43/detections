@@ -3,7 +3,6 @@ id: S03
 name: Privileged account signed in with a single factor to an admin surface
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1556.006]

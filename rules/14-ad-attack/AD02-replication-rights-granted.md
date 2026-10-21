@@ -3,7 +3,6 @@ id: AD02
 name: Directory replication (DCSync) rights granted on the domain root
 category: ad-attack
 status: todo
-severity: critical
 rank: 2
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

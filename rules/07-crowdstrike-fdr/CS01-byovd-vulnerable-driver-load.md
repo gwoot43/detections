@@ -3,7 +3,6 @@ id: CS01
 name: Vulnerable or unsigned driver loaded (BYOVD)
 category: crowdstrike-fdr
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1068, T1211, T1685]

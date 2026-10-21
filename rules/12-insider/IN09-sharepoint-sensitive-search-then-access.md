@@ -3,7 +3,6 @@ id: IN09
 name: SharePoint search for secrets followed by sensitive file access or bulk download
 category: insider
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1213.002, T1552.001, T1083]

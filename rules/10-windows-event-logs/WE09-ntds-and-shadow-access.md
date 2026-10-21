@@ -3,7 +3,6 @@ id: WE09
 name: NTDS.dit access, volume shadow copy creation, or ntdsutil on a domain controller
 category: windows-events
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*, logs-system.security*, logs-windows.forwarded*
 mitre: [T1003.003]

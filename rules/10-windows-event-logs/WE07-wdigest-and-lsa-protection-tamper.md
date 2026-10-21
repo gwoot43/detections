@@ -3,7 +3,6 @@ id: WE07
 name: WDigest re-enabled, LSA protection weakened, LSA packages changed, or DSRM network logon enabled
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1112, T1003.001, T1685, T1547.002, T1547.005, T1556.002]

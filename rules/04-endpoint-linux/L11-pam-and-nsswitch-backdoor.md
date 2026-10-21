@@ -3,7 +3,6 @@ id: L11
 name: PAM module or NSS configuration changed (authentication backdoor)
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1556.003, T1543]

@@ -3,7 +3,6 @@ id: CS05
 name: Falcon sensor uninstalled, stopped, or stopped reporting
 category: crowdstrike-fdr
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685, T1070]

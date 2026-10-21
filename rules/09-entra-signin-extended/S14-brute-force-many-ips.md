@@ -3,7 +3,6 @@ id: S14
 name: Distributed brute force against one account from many IPs
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1110.001, T1090.002]

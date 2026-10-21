@@ -3,7 +3,6 @@ id: S01
 name: Break-glass (emergency access) account sign-in
 category: entra-signin
 status: todo
-severity: critical
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004]

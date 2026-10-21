@@ -3,7 +3,6 @@ id: CP06
 name: Microsoft Defender protection weakened (real-time off, exclusion added, ASR or network protection off, tamper attempt)
 category: controlplane
 status: todo
-severity: high
 language: esql
 index: logs-windows.windows_defender-*
 mitre: [T1685, T1112]
@@ -78,8 +77,7 @@ FROM logs-windows.windows_defender-*
         last_seen = MAX(@timestamp), previous_values = VALUES(old_value), events = COUNT(*)
     BY setting, scope, change
 | WHERE scope != "policy" OR (hosts <= 3 AND DATE_DIFF("minute", first_seen, NOW()) >= 240)
-| EVAL severity = CASE(scope == "policy", "medium", "high")
-| KEEP setting, scope, change, severity, hosts, host_list, first_seen, last_seen, previous_values, events
+| KEEP setting, scope, change, hosts, host_list, first_seen, last_seen, previous_values, events
 ```
 
 **How the parsing works.** 5007 renders as two lines, `Old value: <key>\<name> = <data>` and `New value: <key>\<name> = <data>`. Each `GROK` captures one line. `[ \t]*` is used instead of `\s+` so an empty old value (a newly added exclusion) can't swallow the next line. An exclusion being *removed* leaves the new value empty, so it never matches. 5013 renders the blocked setting on a `Value:` line.

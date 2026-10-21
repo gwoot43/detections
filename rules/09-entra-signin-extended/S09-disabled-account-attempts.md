@@ -3,7 +3,6 @@ id: S09
 name: Sign-in attempts against disabled or leaver accounts
 category: entra-signin
 status: todo
-severity: medium
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1110]

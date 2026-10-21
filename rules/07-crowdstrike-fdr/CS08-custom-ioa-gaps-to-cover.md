@@ -3,7 +3,6 @@ id: CS08
 name: Reference: push these to Falcon custom IOAs, not just Elastic
 category: crowdstrike-fdr
 status: todo
-severity: info
 language: n/a
 index: n/a
 mitre: []

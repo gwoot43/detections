@@ -3,7 +3,6 @@ id: B01
 name: Internal scanning by behaviour - a mixed scan, a port scan of a few hosts or a sweep of many hosts from one process, optionally a reverse-DNS sweep, with known scanners by name as a fallback (Falcon)
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1046, T1018]
@@ -16,13 +15,13 @@ suppression:
 ## Why this is behavioural and high fidelity
 **One question:** is one process scanning the internal network? Whatever runs the scan (nmap, an IP scanner, a PowerShell loop, an implant's built-in scanner, a worm), it has one of a few shapes. The rule counts what each process instance (host + process ID) did in the window, so one busy process can't lend its count to another, then classifies it, most specific first:
 
-| `finding` | What the process did in the window | Look-alikes | Severity |
-|---|---|---|---|
-| `mixed_scan` | Tried 10+ internal hosts on 10+ ports | Almost only vulnerability scanners, which are excluded by host + process | critical |
-| `port_scan` | Tried 20+ ports on fewer than 10 hosts (10+ hosts on 10+ ports is a mixed scan) | Very few: normal applications rarely touch 20 service ports on one host | high |
-| `host_sweep` | Tried 50+ internal hosts | Management, monitoring, domain controllers, backup and vulnerability scanners | medium |
-| `ptr_sweep` (detection B only) | Looked up the names of 50+ internal addresses | IP address management, monitoring, log collectors that name the addresses they ship | medium |
-| `named_scanner` | Started as a known scanner, with none of the shapes above | The network and security teams' own tools, excluded by host + tool | medium |
+| `finding` | What the process did in the window | Look-alikes |
+|---|---|---|
+| `mixed_scan` | Tried 10+ internal hosts on 10+ ports | Almost only vulnerability scanners, which are excluded by host + process |
+| `port_scan` | Tried 20+ ports on fewer than 10 hosts (10+ hosts on 10+ ports is a mixed scan) | Very few: normal applications rarely touch 20 service ports on one host |
+| `host_sweep` | Tried 50+ internal hosts | Management, monitoring, domain controllers, backup and vulnerability scanners |
+| `ptr_sweep` (detection B only) | Looked up the names of 50+ internal addresses | IP address management, monitoring, log collectors that name the addresses they ship |
+| `named_scanner` | Started as a known scanner, with none of the shapes above | The network and security teams' own tools, excluded by host + tool |
 
 **Activity first, filename fallback.** The name catches what the behaviour can't see: raw-packet scans (nmap `-sS` as admin, masscan) that make no connections, and runs below the thresholds. The behaviour catches what the name can't: a renamed copy. Both are grouped on the same process, so a known scanner that also shows a shape is one alert, with the shape as `finding` and `named_starts` above zero.
 
@@ -75,14 +74,13 @@ FROM logs-yourorg-crowdstrike-data-default*
 | WHERE finding IS NOT NULL
 // 5 ENRICH: the name from the start event, else from the connections (older sensors send none: "unknown"). Drop the
 // host + process pairs that scan by design (placeholders; a tool that reads "unknown" needs a host + finding pair
-// instead), then set severity.
+// instead).
 | EVAL process.name = COALESCE(MV_MIN(started_as), MV_MIN(connected_as), "unknown")
 | WHERE NOT ((host.id == "<vuln_scanner_aid>" AND process.name == "<scanner_process>")
           OR (host.id == "<monitoring_aid>" AND process.name == "<monitoring_process>")
           OR (host.id == "<network_team_aid>" AND process.name == "<approved_scanner>"))
-| EVAL severity = CASE(finding == "mixed_scan", "critical", finding == "port_scan", "high", "medium")
 // 6 OUTPUT: the entity, the decision counts and a short sample. The detail is in the triage pivot query.
-| KEEP host.id, host.name, finding, severity, process.name, process.entity_id, named_starts, targets, ports, sample_ports,
+| KEEP host.id, host.name, finding, process.name, process.entity_id, named_starts, targets, ports, sample_ports,
        sample_targets, first_seen
 ```
 ```logscale
@@ -109,14 +107,14 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, pid], function=[count(RemoteAddressIP4, distinct=true, as=targets), count(RemotePort, distinct=true, as=ports),
                                 count(named, as=named_starts), min(@timestamp, as=first_seen),
                                 collect([ComputerName, FileName, ContextBaseFileName])], limit=max)
-// 4 DECIDE + 5 ENRICH: classify, most specific first, with severity, so port_scan needs no host cap (mixed_scan has
-// already taken 10+ hosts); the name only when no shape fired.
+// 4 DECIDE: classify, most specific first, so port_scan needs no host cap (mixed_scan has already taken 10+ hosts);
+// the name only when no shape fired.
 // Thresholds: starting values, not yet baselined. Replace each from the baseline and top talkers (below).
 | case {
-    targets >= 10 ports >= 10 | finding := "mixed_scan" | severity := "critical";
-    ports >= 20 | finding := "port_scan" | severity := "high";
-    targets >= 50 | finding := "host_sweep" | severity := "medium";
-    named_starts >= 1 | finding := "named_scanner" | severity := "medium";
+    targets >= 10 ports >= 10 | finding := "mixed_scan";
+    ports >= 20 | finding := "port_scan";
+    targets >= 50 | finding := "host_sweep";
+    named_starts >= 1 | finding := "named_scanner";
     * | finding := "none";
   }
 | finding != "none"
@@ -127,7 +125,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | NOT (aid="<monitoring_aid>" AND process_name="<monitoring_process>")
 | NOT (aid="<network_team_aid>" AND process_name="<approved_scanner>")
 // 6 OUTPUT
-| select([aid, ComputerName, finding, severity, process_name, pid, named_starts, targets, ports, first_seen])
+| select([aid, ComputerName, finding, process_name, pid, named_starts, targets, ports, first_seen])
 ```
 
 ## Detection B: connections and DNS, with the name fallback
@@ -174,15 +172,14 @@ FROM logs-yourorg-crowdstrike-data-default*
 | WHERE finding IS NOT NULL
 // 5 ENRICH: the name from the start event, else from the connections (DNS events and older sensors carry none:
 // "unknown"; the pivot query finds it). Drop the host + process pairs that scan by design, and log collectors for the
-// reverse-DNS finding only (placeholders). Then set severity.
+// reverse-DNS finding only (placeholders).
 | EVAL process.name = COALESCE(MV_MIN(started_as), MV_MIN(connected_as), "unknown")
 | WHERE NOT ((host.id == "<vuln_scanner_aid>" AND process.name == "<scanner_process>")
           OR (host.id == "<monitoring_aid>" AND process.name == "<monitoring_process>")
           OR (host.id == "<network_team_aid>" AND process.name == "<approved_scanner>")
           OR (host.id == "<log_collector_aid>" AND finding == "ptr_sweep"))
-| EVAL severity = CASE(finding == "mixed_scan", "critical", finding == "port_scan", "high", "medium")
 // 6 OUTPUT: the entity, the decision counts and a short sample. The detail is in the triage pivot query.
-| KEEP host.id, host.name, finding, severity, process.name, process.entity_id, named_starts, targets, ports, ptr_names,
+| KEEP host.id, host.name, finding, process.name, process.entity_id, named_starts, targets, ports, ptr_names,
        sample_ports, sample_targets, first_seen
 ```
 ```logscale
@@ -215,15 +212,15 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, pid], function=[count(RemoteAddressIP4, distinct=true, as=targets), count(RemotePort, distinct=true, as=ports),
                                 count(DomainName, distinct=true, as=ptr_names), count(named, as=named_starts),
                                 min(@timestamp, as=first_seen), collect([ComputerName, FileName, ContextBaseFileName])], limit=max)
-// 4 DECIDE + 5 ENRICH: classify, most specific first, with severity, so port_scan needs no host cap (mixed_scan has
-// already taken 10+ hosts); the name only when no shape fired.
+// 4 DECIDE: classify, most specific first, so port_scan needs no host cap (mixed_scan has already taken 10+ hosts);
+// the name only when no shape fired.
 // Thresholds: starting values, not yet baselined. Replace each from the baseline and top talkers (below).
 | case {
-    targets >= 10 ports >= 10 | finding := "mixed_scan" | severity := "critical";
-    ports >= 20 | finding := "port_scan" | severity := "high";
-    targets >= 50 | finding := "host_sweep" | severity := "medium";
-    ptr_names >= 50 | finding := "ptr_sweep" | severity := "medium";
-    named_starts >= 1 | finding := "named_scanner" | severity := "medium";
+    targets >= 10 ports >= 10 | finding := "mixed_scan";
+    ports >= 20 | finding := "port_scan";
+    targets >= 50 | finding := "host_sweep";
+    ptr_names >= 50 | finding := "ptr_sweep";
+    named_starts >= 1 | finding := "named_scanner";
     * | finding := "none";
   }
 | finding != "none"
@@ -235,7 +232,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | NOT (aid="<network_team_aid>" AND process_name="<approved_scanner>")
 | NOT (aid="<log_collector_aid>" AND finding="ptr_sweep")
 // 6 OUTPUT
-| select([aid, ComputerName, finding, severity, process_name, pid, named_starts, targets, ports, ptr_names, first_seen])
+| select([aid, ComputerName, finding, process_name, pid, named_starts, targets, ports, ptr_names, first_seen])
 ```
 
 **What it costs.**
@@ -247,11 +244,8 @@ FROM logs-yourorg-crowdstrike-data-default*
 |---|---|---|
 | Interval / lookback | 10 min / 12 min | 10 min / 12 min |
 | Suppression | `host.id` (`aid`), `finding` for 1h | `host.id` (`aid`), `finding` for 1h |
-| Severity | by finding, from `severity` | by finding, from `severity` |
 
-In Elastic, set the rule's severity to high and add a severity override on the `severity` column (`critical`, `high`, `medium`). In Falcon, if the scheduled search can't take severity from a field, set it to high and read `severity` in the alert.
-
-The schedule is the window: every count is "in the last 10 minutes". The two extra minutes of lookback absorb ingest lag; the overlap between runs folds into one alert through suppression. Because `finding` is in the suppression key, a sweep that grows into a mixed scan raises a new alert at the higher severity.
+The schedule is the window: every count is "in the last 10 minutes". The two extra minutes of lookback absorb ingest lag; the overlap between runs folds into one alert through suppression. Because `finding` is in the suppression key, a sweep that grows into a mixed scan raises a new alert.
 
 ## Telemetry assumptions
 - **Connections:** `networkconnectip4` with `destination.ip` and `destination.port`. Falcon records connections made through the operating system's network stack; raw-packet scans don't produce them.

@@ -3,7 +3,6 @@ id: WE13
 name: Domain controller machine account authenticating with NTLM to a non-DC or from an unexpected IP
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1187, T1557.001]

@@ -3,7 +3,6 @@ id: C01
 name: Entra domain federation or authentication settings changed
 category: cloud
 status: todo
-severity: critical
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1484.002]

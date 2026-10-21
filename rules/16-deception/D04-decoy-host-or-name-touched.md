@@ -3,7 +3,6 @@ id: D04
 name: Decoy host name looked up, or decoy host connected to (OpenCanary, decoy DNS records)
 category: deception
 status: todo
-severity: critical
 rank: 2
 language: esql
 index: logs-yourorg-crowdstrike-data-default*

@@ -3,7 +3,6 @@ id: S20
 name: Broker refresh token redeemed for device registration, device registered, then PRT used from an unmanaged device
 category: entra-signin
 status: todo
-severity: critical
 language: esql
 index: logs-azure.signinlogs-*, logs-azure.auditlogs-*
 mitre: [T1098.005, T1550.001, T1528]

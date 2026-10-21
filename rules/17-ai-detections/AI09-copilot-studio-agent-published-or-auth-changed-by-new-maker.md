@@ -3,7 +3,6 @@ id: AI09
 name: Copilot Studio agent published or its authentication changed by someone new to it
 category: ai
 status: todo
-severity: medium
 language: esql
 index: logs-o365.audit-*
 mitre: [T1700]
@@ -39,7 +38,7 @@ FROM logs-o365.audit-*
 **Check before deploying.** The operation names come from Microsoft's Copilot Studio audit documentation; confirm them in your data.
 1. Run `FROM logs-o365.audit-* | WHERE event.action LIKE "Bot*" | STATS COUNT(*) BY event.action, event.provider` over 30 days.
 2. If nothing comes back, either nobody in your tenant uses Copilot Studio, or its records aren't in your audit feed.
-3. If the records are there, look at one `BotUpdateOperation-BotAuthUpdate` record. Find the field that says which authentication the agent now uses. An agent switched to "No authentication" deserves a high-severity branch of its own.
+3. If the records are there, look at one `BotUpdateOperation-BotAuthUpdate` record. Find the field that says which authentication the agent now uses. An agent switched to "No authentication" deserves a branch of its own.
 
 ## Suppression
 Suppress by `usr`, `event.action` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: the 30-day lookback overlaps every run, and a person alerts once, when they start.

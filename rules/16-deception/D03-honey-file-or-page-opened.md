@@ -3,7 +3,6 @@ id: D03
 name: Decoy SharePoint/OneDrive file or Confluence page opened, previewed, downloaded or copied
 category: deception
 status: todo
-severity: critical
 rank: 2
 language: esql
 index: logs-o365.audit-*

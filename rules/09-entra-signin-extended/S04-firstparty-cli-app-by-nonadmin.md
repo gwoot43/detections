@@ -3,7 +3,6 @@ id: S04
 name: Microsoft first-party CLI or PowerShell app used by a non-administrator
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1087.004, T1526, T1078.004]

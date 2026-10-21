@@ -14,11 +14,11 @@ Design constraints for this folder:
 
 | Rule | Behaviour | Tools it catches by behaviour |
 |---|---|---|
-| B01 | One process scans: 10+ hosts on 10+ ports (mixed, critical), 20+ ports on at most 5 hosts (high), or 50+ hosts (medium); detection B adds reverse-DNS lookups of 50+ internal addresses (medium). Falls back to known scanners by name in the same query | Any scanner, script or implant scanning internally with connections; known scanners by name, including raw-packet scans |
+| B01 | One process scans: 10+ hosts on 10+ ports (mixed), 20+ ports on fewer than 10 hosts, or 50+ hosts; detection B adds reverse-DNS lookups of 50+ internal addresses. Falls back to known scanners by name in the same query | Any scanner, script or implant scanning internally with connections; known scanners by name, including raw-packet scans |
 | B04 | Fan-out on remote-admin ports (SMB/RPC, WinRM, RDP), or LDAP fan-out to several domain controllers; falls back to CrackMapExec, NetExec or Impacket by name | CrackMapExec/NetExec, Impacket, PsExec loops, BloodHound/SharpHound, ADExplorer |
 | B05 | One account authenticates to many hosts | pass-the-hash tooling, credential-spray lateral movement |
 | B06 | Regular outbound callbacks to one destination | Cobalt Strike, Sliver, Mythic, Havoc beacons |
 | B07 | One process reads very many files fast; falls back to gitleaks or Nosey Parker run on a folder | TruffleHog, gitleaks, data collection, stealers |
 | B08 | One process reads many credential stores; falls back to LaZagne, HackBrowserData, SharpChrome or SharpDPAPI by name | LaZagne, infostealers, secret scanners |
-| B09 | Burst of distinct discovery commands; high when it includes domain enumeration (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) | post-exploitation orientation, loaders, operators enumerating the domain |
+| B09 | Burst of distinct discovery commands; labelled `domain_enumeration` when it includes domain enumeration (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) | post-exploitation orientation, loaders, operators enumerating the domain |
 | B10 | Steady callbacks from one to three users to an uncategorised or newly registered domain (Zscaler) | HTTP(S) C2 on fresh domains, whatever the implant, including devices without Falcon |

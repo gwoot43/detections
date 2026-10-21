@@ -3,7 +3,6 @@ id: N04
 name: F5 APM/TMOS administrative change or access policy modification
 category: network
 status: todo
-severity: high
 language: esql
 index: logs-f5.audit-*
 mitre: [T1556, T1685, T1078]

@@ -3,7 +3,6 @@ id: S08
 name: One sign-in session used from multiple countries or networks
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1550.004, T1539, T1078.004]

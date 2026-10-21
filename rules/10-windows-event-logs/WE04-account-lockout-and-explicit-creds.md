@@ -3,7 +3,6 @@ id: WE04
 name: Explicit credentials used to log on to many remote hosts from one machine (RunAs / per-connection credential fan-out)
 category: windows-events
 status: todo
-severity: medium
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1110, T1078, T1550.002]

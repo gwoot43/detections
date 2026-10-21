@@ -3,7 +3,6 @@ id: N06
 name: Imperva source heavily blocked then receives an application success
 category: network
 status: todo
-severity: high
 language: esql
 index: logs-imperva_cloud_waf.event-*
 mitre: [T1190, T1595.002]

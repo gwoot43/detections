@@ -3,7 +3,6 @@ id: DV01
 name: Bulk copy of documents or archives to removable media
 category: device
 status: todo
-severity: medium
 rank: 3
 language: esql
 index: logs-yourorg-crowdstrike-data-default*

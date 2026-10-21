@@ -3,7 +3,6 @@ id: CS13
 name: VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access)
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1219.001, T1572]
@@ -78,7 +77,7 @@ Elastic's rule also matches a renamed CLI by its Microsoft signature. FDR proces
 - Read the command line. `--name` is the tunnel's name (reachable at `vscode.dev/tunnel/<name>`). On `tunnel user login`, `--provider` says which account type it was linked to (`github` or `microsoft`). `--access-token <token>` puts a live token in the command line and in your logs: revoke it.
 - A login from the desktop app (parent `code.exe`, binary `code-tunnel.exe`) is a user turning on Remote Tunnel Access from the menu. A login from `cmd`, PowerShell, a script host or a renamed binary is someone setting a tunnel up by hand.
 - Was it used? Find the tunnel's child processes (`process.parent.entity_id` equal to this event's `process.entity_id`). A VS Code server (`code-server`, `node`) starting under it means someone connected; shells under that server are commands typed through the tunnel.
-- `tunnel service install` makes it persistent: an HKCU `Run` value on Windows (CS02), a systemd user unit `code-tunnel.service` on Linux, a launchd agent `com.visualstudio.code.tunnel` on macOS. Find the owning account with `<cli> tunnel user show`. If the user can't explain it, isolate the host, then remove it with `<cli> tunnel service uninstall` and `<cli> tunnel unregister`.
+- `tunnel service install` makes it persistent: an HKCU `Run` value on Windows (CS02), a systemd user unit `code-tunnel.service` on Linux. Find the owning account with `<cli> tunnel user show`. If the user can't explain it, isolate the host, then remove it with `<cli> tunnel service uninstall` and `<cli> tunnel unregister`.
 
 ## Test
 On a lab host, download the standalone VS Code CLI and run `code.exe tunnel user login --provider github`, then `code.exe tunnel --accept-server-license-terms --name lab-test`. Then copy it to `C:\ProgramData\updater.exe` and run `updater.exe tunnel`, and copy it to `%LOCALAPPDATA%\helper.exe` and run `helper.exe tunnel user login --provider github`. Each should alert. Opening the VS Code desktop app, which runs `code-tunnel.exe tunnel status`, should not. Clean up with `tunnel service uninstall` and `tunnel unregister`.

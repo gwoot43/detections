@@ -3,7 +3,6 @@ id: AD09
 name: Group managed service account password read by a user account
 category: ad-attack
 status: todo
-severity: high
 rank: 9
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

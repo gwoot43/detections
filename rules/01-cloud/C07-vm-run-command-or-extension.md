@@ -3,7 +3,6 @@ id: C07
 name: Azure VM run command, custom script extension or VMAccess password reset
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1651, T1098, T1021.008]

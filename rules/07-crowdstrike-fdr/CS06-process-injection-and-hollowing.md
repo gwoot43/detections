@@ -3,7 +3,6 @@ id: CS06
 name: Process injection, hollowing or suspicious remote thread
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1055, T1055.012, T1620]

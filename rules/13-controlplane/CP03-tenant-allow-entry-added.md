@@ -3,7 +3,6 @@ id: CP03
 name: Tenant Allow/Block List allow entry added for a sender, domain, URL, file or spoofed sender
 category: controlplane
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1685, T1556]

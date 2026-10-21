@@ -3,7 +3,6 @@ id: WE08
 name: New service or kernel driver installed on a domain controller or server
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-system.system-*, logs-system.security*, logs-windows.forwarded*
 mitre: [T1543.003, T1569.002, T1068]

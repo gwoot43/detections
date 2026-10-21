@@ -3,11 +3,10 @@ id: AI02
 name: AI coding agent run unattended with every approval switched off (malware or a poisoned project driving a local agent)
 category: ai
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1700, T1195.001, T1059]
-data_source: CrowdStrike FDR ProcessRollup2 (Windows, Linux, macOS)
+data_source: CrowdStrike FDR ProcessRollup2 (Windows, Linux)
 suppression:
   fields: [host.id]
   duration: 24h

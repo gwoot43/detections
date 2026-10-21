@@ -3,7 +3,6 @@ id: I10
 name: MFA method registered from a new context, or authentication policy weakened
 category: identity
 status: todo
-severity: medium
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1556.006, T1098.005]
@@ -39,7 +38,7 @@ Suppress by `target`, `op` for 1h. Alerts missing a key field are not suppressed
 
 ## Known false positives / exclusions
 - New-hire onboarding registration. Exclude the first registration within N days of account creation, or during the onboarding window.
-- Users re-registering after getting a new phone. This is why the standalone rule is medium and the correlation with I07 is high.
+- Users re-registering after getting a new phone. This is why the correlation with I07 is a stronger signal than the standalone rule.
 
 ## Triage
 - Compare the registration IP and the newly added method (phone number, authenticator) against the user's known details. An unknown number is attacker persistence: remove it, reset credentials, revoke sessions.

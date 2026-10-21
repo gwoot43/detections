@@ -3,7 +3,6 @@ id: CP04
 name: CrowdStrike sensor stuck in Reduced Functionality Mode, or in RFM and no longer reporting
 category: controlplane
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685]

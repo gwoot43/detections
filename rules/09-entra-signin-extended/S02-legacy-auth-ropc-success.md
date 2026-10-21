@@ -3,7 +3,6 @@ id: S02
 name: Successful legacy authentication, ROPC flow, or known spray-tool user agent
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1110.003, T1556.006]
@@ -37,7 +36,7 @@ Suppress by `user.name`, `client` for 24h. Alerts missing a key field are not su
 ## Known false positives / exclusions
 - Legitimate SMTP AUTH relay accounts (scanners, apps sending mail). Inventory them, exclude by UPN, and move them to OAuth or a relay connector over time.
 - Internal automation using ROPC against a test tenant. Exclude by app ID.
-- iOS and macOS native mail using ActiveSync with modern authentication can still be labelled "Exchange ActiveSync". If those dominate, require `proto == "ropc"` or the `BAV2ROPC` user agent for that client value.
+- iOS native mail using ActiveSync with modern authentication can still be labelled "Exchange ActiveSync". If those dominate, require `proto == "ropc"` or the `BAV2ROPC` user agent for that client value.
 
 ## Triage
 - A legacy-protocol success for a human user means their password is known to an attacker and MFA never ran. Reset, revoke sessions, and close the CA gap that allowed the protocol.

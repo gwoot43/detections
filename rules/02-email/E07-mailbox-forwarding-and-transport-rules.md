@@ -3,7 +3,6 @@ id: E07
 name: Mailbox forwarding to an external address, or transport rule that redirects or BCCs mail out
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1114.003]

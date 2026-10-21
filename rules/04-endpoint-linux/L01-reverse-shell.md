@@ -3,7 +3,6 @@ id: L01
 name: Reverse shell launched
 category: endpoint-linux
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1059.004, T1071]

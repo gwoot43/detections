@@ -3,7 +3,6 @@ id: L09
 name: Suspicious kernel module load or rootkit indicator
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1547.006, T1014, T1205.002]

@@ -3,7 +3,6 @@ id: AI06
 name: VS Code or an AI code editor looks up a domain few other installs reach (malicious extension calling home)
 category: ai
 status: todo
-severity: medium
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1195.001, T1027.018, T1071.001]
@@ -16,7 +15,7 @@ suppression:
 ## Why this is high fidelity
 Extensions for VS Code and its AI forks (Cursor, Windsurf) run inside the editor with the developer's access to code, keys and tokens, and attackers publish malicious ones. GlassWorm hid its code in invisible Unicode characters (T1027.018), spread through extension marketplaces (T1195.001) and called home through blockchain and calendar services. Whatever an extension does, its network traffic comes from the editor's own processes. Those processes reach the same few domains on every developer's machine: the marketplace, updates, telemetry, GitHub and the AI assistants.
 
-- **Anchor:** DNS lookups made by the editor's processes (`Code.exe`, `Cursor.exe`, `Windsurf.exe` and their helpers), extensions included.
+- **Anchor:** DNS lookups made by the editor's processes (`Code.exe`, `Cursor.exe`, `Windsurf.exe`), extensions included.
 - **Corroborating property:** the domain is new for this host's editor. Its first lookup in the 7-day lookback was in the last 2 hours.
 - **Exclusion by rarity:** the editor looks up this domain on at most 3 hosts. Everything an editor does for everyone drops out with no list to keep, whatever the malicious one is called.
 
@@ -25,10 +24,9 @@ Run hourly with a 7-day lookback.
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // Anchor: lookups made by VS Code, Cursor or Windsurf, extensions included (they run inside the editor's processes).
-// Names as Falcon reports them on Windows, macOS and Linux.
+// Names as Falcon reports them on Windows and Linux.
 | WHERE event.action == "dnsrequest"
-  AND (process.name IN ("Code.exe", "code", "Code - Insiders.exe", "code-tunnel.exe", "Cursor.exe", "cursor", "Windsurf.exe", "windsurf")
-       OR process.name LIKE "Code Helper*" OR process.name LIKE "Cursor Helper*" OR process.name LIKE "Windsurf Helper*")
+  AND process.name IN ("Code.exe", "code", "Code - Insiders.exe", "code-tunnel.exe", "Cursor.exe", "cursor", "Windsurf.exe", "windsurf")
 | EVAL dns.question.name = TO_LOWER(dns.question.name)
 // Outside names only: single-label names (a host looking up itself or a neighbour), internal and reverse lookups,
 // and your own domains (placeholder) say nothing about an extension calling home.
@@ -57,7 +55,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | !cidr(FirstIP4Record, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "169.254.0.0/16", "100.64.0.0/10"])
 // Anchor: lookups made by VS Code, Cursor or Windsurf, tied to the process by host and process ID. The join copies the
 // process's path and command line onto each lookup; DNS events don't carry them.
-| join({#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ ImageFileName=/[\\\/](code(-tunnel)?(\.exe)?|code - insiders\.exe|cursor(\.exe)?|windsurf(\.exe)?|(code|cursor|windsurf) helper[^\\\/]*)$/i},
+| join({#event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ ImageFileName=/[\\\/](code(-tunnel)?(\.exe)?|code - insiders\.exe|cursor(\.exe)?|windsurf(\.exe)?)$/i},
        field=[aid, ContextProcessId], key=[aid, TargetProcessId],
        include=[ImageFileName, CommandLine, ParentBaseFileName], mode=inner)
 | DomainName := lower(DomainName)

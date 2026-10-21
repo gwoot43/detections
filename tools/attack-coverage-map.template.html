@@ -109,7 +109,7 @@ h2 { font-family: var(--font-display); font-stretch: 85%; font-weight: 700; font
 .rulelist li { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: baseline; }
 .rid { font-family: var(--font-mono); font-weight: 500; font-size: 12px; }
 .rname { font-size: 13px; line-height: 1.35; }
-.sev { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.meta { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .subs { display: grid; gap: 6px; font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 10px; }
 .subs div { display: grid; gap: 1px; }
 .subs .s-rules { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
@@ -232,7 +232,7 @@ function renderPanel() {
   const c = m.cells.find((x) => x.id === selected.id);
   const rules = c.rules.map((r) => {
     const info = DATA.rules[r] || {};
-    return `<li><span class="rid">${esc(r)}</span><span><span class="rname">${esc(info.name || "")}</span><br><span class="sev">${esc(info.severity || "")} · ${esc(info.folder || "")}</span></span></li>`;
+    return `<li><span class="rid">${esc(r)}</span><span><span class="rname">${esc(info.name || "")}</span><br><span class="meta">${esc(info.folder || "")}</span></span></li>`;
   }).join("");
   const subs = c.subs.length ? `<div class="subs"><span class="kicker">Sub-techniques covered</span>${c.subs.map((s) =>
       `<div><span><span class="mono">${s.id}</span> ${esc(s.name)}</span><span class="s-rules">${s.rules.join(", ")}</span></div>`).join("")}</div>` : "";

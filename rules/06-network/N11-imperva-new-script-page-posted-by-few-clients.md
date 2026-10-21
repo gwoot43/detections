@@ -3,7 +3,6 @@ id: N11
 name: New script page answering POSTs from one or two clients at the Imperva edge (webshell in use)
 category: network
 status: todo
-severity: high
 language: esql
 index: logs-imperva_cloud_waf.event-*
 mitre: [T1505.003, T1190]

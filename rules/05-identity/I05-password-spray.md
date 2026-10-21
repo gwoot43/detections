@@ -3,7 +3,6 @@ id: I05
 name: Password spray against Active Directory (failed logons across many accounts from one source)
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1110.003]

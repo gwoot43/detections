@@ -3,7 +3,6 @@ id: WE02
 name: Audit logging removed from a monitored subcategory, or per-user audit policy set
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1685.001]

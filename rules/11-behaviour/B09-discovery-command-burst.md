@@ -1,24 +1,23 @@
 ---
 id: B09
-name: Host discovery command burst, high when it includes domain enumeration - catches post-exploitation recon and loaders by behaviour
+name: Host discovery command burst, labelled when it includes domain enumeration - catches post-exploitation recon and loaders by behaviour
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1033, T1016, T1057, T1082, T1087, T1049, T1069.002, T1482]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.id, user.name, severity]
+  fields: [host.id, user.name, label]
   duration: 1h
   missing_fields: do_not_suppress
 ---
 ## Why this is behavioural and high fidelity
 After landing on a host, an operator or a loader runs a rapid series of built-in discovery commands to orient: host, network, process, account and domain reconnaissance. A real user runs one or two of these occasionally. This counts the number of distinct discovery utilities a single host runs in a short window, so it catches the orientation burst regardless of which script or framework drove it.
 
-Two tiers, in the `severity` column:
-- **high:** domain enumeration. The command line carries one of the high-signal arguments (`net group` or `net user` with `/domain`, or `domain admins`; `nltest /dclist` or `/domain_trusts`; `whoami /priv`, `/groups` or `/all`; `setspn -q`) inside a burst, or three different kinds of them in one window even without a full burst. Enumerating Domain Admins and trusts is what an operator does next, and not what a normal user does.
-- **medium:** a burst of six or more distinct discovery utilities with none of those arguments.
+Two tiers, in the `label` column:
+- **`domain_enumeration`:** The command line carries one of the high-signal arguments (`net group` or `net user` with `/domain`, or `domain admins`; `nltest /dclist` or `/domain_trusts`; `whoami /priv`, `/groups` or `/all`; `setspn -q`) inside a burst, or three different kinds of them in one window even without a full burst. Enumerating Domain Admins and trusts is what an operator does next, and not what a normal user does.
+- **`discovery_burst`:** a burst of six or more distinct discovery utilities with none of those arguments.
 
 ## Query
 Run every 10 minutes with a 15-minute lookback.
@@ -58,7 +57,7 @@ FROM logs-yourorg-crowdstrike-data-default*
         host.name = VALUES(host.name)
     BY host.id, user.name
 | WHERE distinct_recon >= 6 OR ad_recon_kinds >= 3
-| EVAL severity = CASE(ad_recon_kinds >= 1, "high", "medium")
+| EVAL label = CASE(ad_recon_kinds >= 1, "domain_enumeration", "discovery_burst")
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
@@ -96,14 +95,14 @@ FROM logs-yourorg-crowdstrike-data-default*
                                   collect([recon, ad_recon, ParentBaseFileName, ComputerName])], limit=max)
 | test(distinct_recon >= 6 OR ad_recon_kinds >= 3)
 | case {
-    test(ad_recon_kinds >= 1) | severity := "high";
-    * | severity := "medium";
+    test(ad_recon_kinds >= 1) | label := "domain_enumeration";
+    * | label := "discovery_burst";
   }
 ```
 These are native Windows utilities, so the signal is the count and speed, not any one command. `net.exe` re-launches as `net1.exe` with the same arguments, so `ad_recon_kinds` counts the pair once. `reg.exe`, `wmic.exe` and `fsutil.exe` are not counted: installers and inventory scripts call them constantly and they are not discovery-specific. Counts run over the whole 15-minute lookback, not fixed buckets, so a burst that crosses a bucket edge isn't split in two. Tune the threshold on your estate.
 
 ## Suppression
-Suppress by `host.id`, `user.name`, `severity` for 1h. Alerts missing a key field are not suppressed. Aggregating rule: each 10-minute run overlaps the last, and suppression folds the repeat into the open alert. A different host or user still alerts. `severity` is in the key so a generic burst that turns into domain enumeration raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
+Suppress by `host.id`, `user.name`, `label` for 1h. Alerts missing a key field are not suppressed. Aggregating rule: each 10-minute run overlaps the last, and suppression folds the repeat into the open alert. A different host or user still alerts. `label` is in the key so a generic burst that turns into domain enumeration raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on.
 
 ## Known false positives / exclusions
 - Login scripts, inventory agents and support scripts run several of these at logon. SCCM and Intune are excluded by parent and grandparent; add your RMM or login-script host the same way.
@@ -111,7 +110,7 @@ Suppress by `host.id`, `user.name`, `severity` for 1h. Alerts missing a key fiel
 - Credentialed vulnerability scanners and AD engineers running `net` and `nltest` against the domain. Exclude the scanner's service account, and AD engineers only as a (host, user) pair on the admin jump host.
 
 ## Triage
-- Look at the parent process. A burst spawned by a script host, an Office child or an unsigned binary is post-exploitation orientation. **high:** a normal user should never enumerate Domain Admins or domain trusts; look for Kerberoasting (I03) and AD tooling (W09) from the same host. Pivot to what ran before it (the initial access) and after it (lateral movement, B04, or credential access, B08).
+- Look at the parent process. A burst spawned by a script host, an Office child or an unsigned binary is post-exploitation orientation. **`domain_enumeration`:** a normal user should never enumerate Domain Admins or domain trusts; look for Kerberoasting (I03) and AD tooling (W09) from the same host. Pivot to what ran before it (the initial access) and after it (lateral movement, B04, or credential access, B08).
 
 ## Test
 Run six or more of the listed commands in sequence on a lab host and confirm the rule fires.

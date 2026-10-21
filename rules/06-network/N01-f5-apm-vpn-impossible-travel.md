@@ -3,7 +3,6 @@ id: N01
 name: F5 APM VPN successful logon showing impossible travel or two countries
 category: network
 status: todo
-severity: high
 language: esql
 index: logs-f5.apm-*
 mitre: [T1133, T1078]

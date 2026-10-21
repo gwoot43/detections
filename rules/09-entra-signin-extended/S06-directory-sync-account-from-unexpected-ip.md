@@ -3,7 +3,6 @@ id: S06
 name: On-premises directory synchronization account used outside the Entra Connect server
 category: entra-signin
 status: todo
-severity: critical
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1003.006, T1098]

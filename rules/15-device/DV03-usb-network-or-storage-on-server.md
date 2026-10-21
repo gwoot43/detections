@@ -3,7 +3,6 @@ id: DV03
 name: USB or Bluetooth network adapter, storage or phone connected to a server or domain controller
 category: device
 status: todo
-severity: high
 rank: 2
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

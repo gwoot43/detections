@@ -3,7 +3,6 @@ id: CS03
 name: DNS tunnelling - many long, distinct names under one parent domain from one host (activity), or a DNS tunnel tool runs (filename fallback)
 category: crowdstrike-fdr
 status: todo
-severity: medium
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1071.004, T1572, T1048.003]

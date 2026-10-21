@@ -3,7 +3,6 @@ id: L07
 name: Linux anti-forensics - logs, login records or shell history deleted or emptied, logging stopped, or system files re-dated
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685.006, T1070.003, T1685.004, T1070.006]

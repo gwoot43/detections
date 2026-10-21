@@ -3,7 +3,6 @@ id: E08
 name: Full access, Send As or folder owner/editor permission granted on a mailbox
 category: email
 status: todo
-severity: medium
 language: esql
 index: logs-o365.audit-*
 mitre: [T1098.002]
@@ -36,7 +35,7 @@ FROM logs-o365.audit-* METADATA _id, _index, _version
   AND NOT (event.action LIKE "*FolderPermission" AND folder LIKE """*:\\calendar*""")   // calendar sharing
 | KEEP @timestamp, actor, target, grantee, rights, event.action, source.ip, _id, _version, _index
 ```
-`Add-RecipientPermission` names the grantee in `Trustee`, which is not read here to avoid another dynamic field; `target` and `rights` are enough to triage. Raise to high when `target` is on the VIP list from E03.
+`Add-RecipientPermission` names the grantee in `Trustee`, which is not read here to avoid another dynamic field; `target` and `rights` are enough to triage. Score it higher when `target` is on the VIP list from E03.
 
 ## Suppression
 Suppress by `actor`, `target` for 1h. Alerts missing a key field are not suppressed. Permissions on one mailbox are often granted in several commands.

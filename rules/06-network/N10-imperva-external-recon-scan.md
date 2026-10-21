@@ -3,7 +3,6 @@ id: N10
 name: External reconnaissance scan against the Imperva-protected web edge (one source, many URIs)
 category: network
 status: todo
-severity: medium
 language: esql
 index: logs-imperva_cloud_waf.event-*
 mitre: [T1595.002, T1595.003]

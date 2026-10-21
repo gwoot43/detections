@@ -3,7 +3,6 @@ id: L03
 name: Web or application server process spawning a shell or interpreter
 category: endpoint-linux
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1505.003, T1190, T1059.004]

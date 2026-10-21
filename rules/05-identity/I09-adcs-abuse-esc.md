@@ -3,7 +3,6 @@ id: I09
 name: AD Certificate Services abuse (ESC1/ESC6 style certificate issuance)
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1649]

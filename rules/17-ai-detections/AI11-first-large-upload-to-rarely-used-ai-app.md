@@ -3,7 +3,6 @@ id: AI11
 name: First large upload by a user to an AI app few people in the organisation use (data sent to shadow AI)
 category: ai
 status: todo
-severity: medium
 language: esql
 index: logs-zscaler_zia.web-*
 mitre: [T1567]

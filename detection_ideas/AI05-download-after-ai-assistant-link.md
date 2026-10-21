@@ -3,7 +3,6 @@ id: AI05
 name: Program downloaded from an unknown site that an AI assistant sent the user to (AI result poisoning)
 category: ai
 status: todo
-severity: high
 language: esql
 index: logs-zscaler_zia.web-*
 mitre: [T1608.007, T1204.002]

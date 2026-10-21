@@ -3,7 +3,6 @@ id: S11
 name: Help-desk MFA reset followed by sign-in from a new location
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*, logs-azure.auditlogs-*
 mitre: [T1098.005, T1621, T1078.004]

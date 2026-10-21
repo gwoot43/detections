@@ -3,7 +3,6 @@ id: CS07
 name: Scheduled task created or modified pointing at a suspicious payload
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1053.005]

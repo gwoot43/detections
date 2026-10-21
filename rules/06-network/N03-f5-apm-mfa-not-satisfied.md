@@ -3,7 +3,6 @@ id: N03
 name: F5 APM session established without expected MFA step
 category: network
 status: todo
-severity: medium
 language: esql
 index: logs-f5.apm-*
 mitre: [T1133, T1078, T1556]

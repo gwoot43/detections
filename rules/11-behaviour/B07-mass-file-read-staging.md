@@ -3,7 +3,6 @@ id: B07
 name: Mass file read or collection - catches TruffleHog, gitleaks and data-collection tools by behaviour
 category: behaviour
 status: todo
-severity: medium
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1119, T1005, T1552.001]

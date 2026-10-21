@@ -3,7 +3,6 @@ id: X03
 name: VPN logon anomaly followed by internal attack behaviour
 category: correlation
 status: todo
-severity: high
 language: esql
 index: logs-*
 mitre: [T1133, T1021, T1078]

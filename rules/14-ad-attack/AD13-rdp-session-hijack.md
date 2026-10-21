@@ -3,7 +3,6 @@ id: AD13
 name: RDP session hijacked with tscon
 category: ad-attack
 status: todo
-severity: medium
 rank: 13
 language: esql
 index: logs-yourorg-crowdstrike-data-default*

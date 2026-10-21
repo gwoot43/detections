@@ -3,7 +3,6 @@ id: WE03
 name: Domain trust, SID History or DSRM password change
 category: windows-events
 status: todo
-severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1484.001, T1134.005, T1098]

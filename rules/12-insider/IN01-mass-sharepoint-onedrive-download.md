@@ -3,7 +3,6 @@ id: IN01
 name: Mass SharePoint or OneDrive download by one user, at any hour or as a smaller after-hours burst
 category: insider
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1213.002, T1530, T1119]

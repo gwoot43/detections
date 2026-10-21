@@ -3,7 +3,6 @@ id: AI01
 name: Host starts calling a public LLM API directly (malware or an agent using an AI model at runtime)
 category: ai
 status: todo
-severity: medium
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1588.007, T1071.001]

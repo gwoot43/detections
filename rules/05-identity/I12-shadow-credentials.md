@@ -3,7 +3,6 @@ id: I12
 name: Shadow credentials written to a user or computer (msDS-KeyCredentialLink)
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1556, T1098]

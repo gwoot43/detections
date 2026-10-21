@@ -3,7 +3,6 @@ id: IN06
 name: Mass file or site deletion (insider sabotage)
 category: insider
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1485, T1490]

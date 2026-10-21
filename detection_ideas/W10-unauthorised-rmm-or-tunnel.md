@@ -3,7 +3,6 @@ id: W10
 name: Unapproved remote management or tunnelling tool executed
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1219, T1572, T1090, T1105]

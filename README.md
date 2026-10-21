@@ -35,7 +35,7 @@ tools/
   mitre_coverage.py              regenerates the ATT&CK coverage map
 ```
 
-Each rule file is self-contained: front-matter (id, severity, MITRE, data source), a "why this is high fidelity" note, the ES|QL/EQL query, known false positives and exclusions, triage steps, and a test method.
+Each rule file is self-contained: front-matter (id, MITRE, data source), a "why this is high fidelity" note, the ES|QL/EQL query, known false positives and exclusions, triage steps, and a test method.
 
 ## Design principles (why these are high fidelity, not the AI-noise you have now)
 1. **Alert on the improbable, not the merely suspicious.** Every rule targets behaviour with a small, knowable legitimate population you can exclude by name, not by guesswork.

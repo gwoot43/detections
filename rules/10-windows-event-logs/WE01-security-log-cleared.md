@@ -3,7 +3,6 @@ id: WE01
 name: Security or System event log cleared
 category: windows-events
 status: todo
-severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-system.system-*
 mitre: [T1685.005]

@@ -3,7 +3,6 @@ id: S17
 name: Device-less Windows Hello or passkey sign-in followed by device registration (borrowed Hello key)
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*, logs-azure.auditlogs-*
 mitre: [T1550, T1098.005]

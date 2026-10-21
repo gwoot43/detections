@@ -3,24 +3,23 @@ id: B04
 name: Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (activity), or CrackMapExec, NetExec or Impacket by name (fallback)
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1021, T1570, T1018, T1087.002, T1069.002, T1049]
 data_source: CrowdStrike FDR network connection events
 suppression:
-  fields: [host.id, process.name, severity]
+  fields: [host.id, process.name, label]
   duration: 2h
   missing_fields: do_not_suppress
 ---
 ## Why this is behavioural and high fidelity
 When an operator moves laterally at scale with CrackMapExec, NetExec, Impacket or a PsExec loop, one host reaches many others on the remote-execution ports (SMB, RPC, WinRM, RDP) in a short time. BloodHound/SharpHound, ADExplorer and similar collectors have a related shape: they query the directory over LDAP and then reach out to a large share of domain computers for sessions and local admins. This counts distinct internal destinations per process, independent of the tool, so a renamed binary is caught the same way. A workstation does not WinRM or RDP to dozens of machines in ten minutes, and it does not query several domain controllers from one process.
 
-Three labelled tiers, in the `label` and `severity` columns:
-- `ldap_and_lateral_sweep` (high): the sweep threshold is met and the same process also queried a domain controller over LDAP. This is the directory-collection shape: SharpHound queries LDAP, then connects to port 445 on every computer it found before enumerating sessions and local admins.
-- `lateral_sweep` (high): 15 or more distinct targets on SMB/RPC, WinRM or RDP.
-- `ldap_dc_fanout` (medium): one process connecting over LDAP, LDAPS or the Global Catalog to 3 or more distinct directory servers. LDAP fan-out is a different shape from SMB fan-out (an estate has a handful of domain controllers, not hundreds), so it has its own, lower threshold.
-- `lateral_tool_started_by_name` (high), the **filename fallback**: CrackMapExec or NetExec (`crackmapexec.exe`, `cme.exe`, `nxc.exe`, `netexec.exe`) or Impacket's lateral-movement scripts (`psexec.py`, `wmiexec.py`, `smbexec.py`, `atexec.py`, `dcomexec.py`) starting on a Windows host. It alerts even when the sweep is below the threshold (a single target) or the sensor doesn't name the process on connection events. `by_name` is also true on a behaviour tier when the sweeping process is one of these tools. SharpHound and other AD tools are matched by name in W09.
+Labelled tiers, in the `label` column:
+- `ldap_and_lateral_sweep`: the sweep threshold is met and the same process also queried a domain controller over LDAP. This is the directory-collection shape: SharpHound queries LDAP, then connects to port 445 on every computer it found before enumerating sessions and local admins.
+- `lateral_sweep`: 15 or more distinct targets on SMB/RPC, WinRM or RDP.
+- `ldap_dc_fanout`: one process connecting over LDAP, LDAPS or the Global Catalog to 3 or more distinct directory servers. LDAP fan-out is a different shape from SMB fan-out (an estate has a handful of domain controllers, not hundreds), so it has its own, lower threshold.
+- `lateral_tool_started_by_name`, the **filename fallback**: CrackMapExec or NetExec (`crackmapexec.exe`, `cme.exe`, `nxc.exe`, `netexec.exe`) or Impacket's lateral-movement scripts (`psexec.py`, `wmiexec.py`, `smbexec.py`, `atexec.py`, `dcomexec.py`) starting on a Windows host. It alerts even when the sweep is below the threshold (a single target) or the sensor doesn't name the process on connection events. `by_name` is also true on a behaviour tier when the sweeping process is one of these tools. SharpHound and other AD tools are matched by name in W09.
 
 ## Query
 Run every 10 minutes with a 15-minute lookback.
@@ -60,8 +59,7 @@ FROM logs-yourorg-crowdstrike-data-default*
                     targets >= 15, "lateral_sweep",
                     ldap_targets >= 3, "ldap_dc_fanout",
                     "lateral_tool_started_by_name"),
-       by_name = named == 1,
-       severity = CASE(targets >= 15 OR named == 1, "high", "medium")
+       by_name = named == 1
 ```
 
 **CrowdStrike (Falcon LogScale / Advanced Event Search)**
@@ -105,15 +103,11 @@ FROM logs-yourorg-crowdstrike-data-default*
     test(ldap_targets >= 3) | label := "ldap_dc_fanout";
     * | label := "lateral_tool_started_by_name";
   }
-| case {
-    test(targets >= 15 OR named > 0) | severity := "high";
-    * | severity := "medium";
-  }
 ```
 `targets` counts SMB/RPC, WinRM and RDP destinations only; `ldap_targets` counts directory servers on 389, 636, 3268 and 3269. Keep the source scoped to workstations if your servers legitimately fan out; exclude servers inline by agent ID. Counts run over the whole 15-minute lookback, not fixed buckets, so a sweep that crosses a bucket edge isn't split in two. Lower `ldap_targets` to 2 in an estate with only two domain controllers per site, or raise it if one process normally talks to several. FDR connection events name the process only on sensors that send `ContextBaseFileName`; otherwise `process.name` reads `unknown`, the row covers every process on the host, and the `lsass.exe` exclusion cannot apply, so expect DC-locator noise in the LDAP tier on those sensors.
 
 ## Suppression
-Suppress by `host.id`, `process.name`, `severity` for 2h. Alerts missing a key field are not suppressed. Aggregating rule: each 10-minute run overlaps the last, and suppression folds the repeat into the open alert. A new source still alerts. `severity` is in the key so an LDAP-only fan-out that turns into a lateral sweep raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
+Suppress by `host.id`, `process.name`, `label` for 2h. Alerts missing a key field are not suppressed. Aggregating rule: each 10-minute run overlaps the last, and suppression folds the repeat into the open alert. A new source still alerts. `label` is in the key so an LDAP-only fan-out that turns into a lateral sweep raises a new alert. `host.id` is the Falcon agent ID and is always present; `host.name` is filled only when the integration's host metadata enrichment is on, so it is an output column, not a key.
 
 ## Known false positives / exclusions
 - Admin jump hosts and management servers that administer many machines. Exclude them inline by `host.id`, not `host.name`: `NOT host.name IN (...)` drops every row where the name is empty, which blinds the rule wherever host enrichment is off.

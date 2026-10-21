@@ -3,7 +3,6 @@ id: I11
 name: AdminSDHolder object modified
 category: identity
 status: todo
-severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1078.002]

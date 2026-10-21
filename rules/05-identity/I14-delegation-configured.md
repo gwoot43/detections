@@ -3,7 +3,6 @@ id: I14
 name: Delegation configured on an account (unconstrained, constrained, protocol transition or resource-based)
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1134.001, T1098]

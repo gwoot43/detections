@@ -3,7 +3,6 @@ id: C09
 name: Azure logging, diagnostics or Defender for Cloud disabled
 category: cloud
 status: todo
-severity: critical
 language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1685.002]

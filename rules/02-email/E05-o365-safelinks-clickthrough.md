@@ -3,7 +3,6 @@ id: E05
 name: Safe Links block page clicked through
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1204.001, T1566.002]

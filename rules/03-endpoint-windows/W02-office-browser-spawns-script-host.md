@@ -3,7 +3,6 @@ id: W02
 name: Office, browser, mail client or archiver spawning a script host or LOLBIN
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1204.002, T1566.001, T1059]

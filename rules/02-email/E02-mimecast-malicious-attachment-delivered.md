@@ -3,7 +3,6 @@ id: E02
 name: Malicious attachment verdict on a message that was delivered or released
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-mimecast.ttp_ap_logs-*
 mitre: [T1566.001, T1204.002]

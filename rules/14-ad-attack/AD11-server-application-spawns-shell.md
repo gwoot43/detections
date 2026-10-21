@@ -3,7 +3,6 @@ id: AD11
 name: SQL Server or IIS application spawning a shell (xp_cmdshell, Exchange or SharePoint webshell)
 category: ad-attack
 status: todo
-severity: high
 rank: 11
 language: esql
 index: logs-yourorg-crowdstrike-data-default*

@@ -3,7 +3,6 @@ id: I03
 name: Kerberoasting: TGS requests with weak encryption at volume
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1558.003]

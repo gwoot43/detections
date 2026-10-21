@@ -3,7 +3,6 @@ id: AD01
 name: Rogue domain controller registration (DCShadow)
 category: ad-attack
 status: todo
-severity: critical
 rank: 1
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

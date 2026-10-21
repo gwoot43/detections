@@ -3,7 +3,6 @@ id: W14
 name: Microsoft Defender for Endpoint high-severity alerts as first-class alerts
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-m365_defender.alert-*
 mitre: [various]
@@ -35,7 +34,7 @@ FROM logs-m365_defender.alert-* METADATA _id, _index, _version
 | KEEP @timestamp, event.id, m365_defender.alert.title, m365_defender.alert.category, sev, det_source, status,
        m365_defender.alert.mitre_techniques, host.hostname, user.name, m365_defender.alert.incident_id, event.url, _id, _version, _index
 ```
-As with CS04, send **medium** alerts to a lower-priority queue rather than dropping them. Copy the rule with `sev == "medium"` at medium severity. Medium Defender for Endpoint alerts such as "Suspicious PowerShell command line" are often the first step of a chain the correlation rules (X01, X05) build on.
+As with CS04, send **medium** alerts to a lower-priority queue rather than dropping them. Copy the rule with `sev == "medium"` for that queue. Medium Defender for Endpoint alerts such as "Suspicious PowerShell command line" are often the first step of a chain the correlation rules (X01, X05) build on.
 
 ## Suppression
 Suppress by `event.id` for 24h. Alerts missing a key field are not suppressed. The integration re-collects an alert every time it is updated (status changes, new evidence, assignment), so the same Defender alert can arrive several times. `event.id` is the Defender alert ID, so each alert fires once.

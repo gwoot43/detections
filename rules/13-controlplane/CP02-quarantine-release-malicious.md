@@ -3,7 +3,6 @@ id: CP02
 name: Quarantine release of malware or high-confidence phish, or release at volume
 category: controlplane
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1685, T1566]

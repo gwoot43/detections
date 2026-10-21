@@ -3,7 +3,6 @@ id: E01
 name: User clicked a URL Mimecast rated malicious, or clicked through a warning
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-mimecast.ttp_url_logs-*
 mitre: [T1566.002, T1204.001]

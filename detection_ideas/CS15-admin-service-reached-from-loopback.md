@@ -3,7 +3,6 @@ id: CS15
 name: RDP or SSH reached from the host itself (traffic relayed in by a tunnel, whatever it's called)
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1572, T1021.001, T1021.004]

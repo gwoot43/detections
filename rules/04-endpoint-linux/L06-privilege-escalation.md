@@ -3,7 +3,6 @@ id: L06
 name: Privilege escalation via SUID abuse, sudo misconfig or known exploit pattern
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1548.001, T1548.003, T1068]

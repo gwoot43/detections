@@ -3,7 +3,6 @@ id: WE06
 name: Default domain GPO modified, or a GPO given a scheduled task, script or software install
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1484.001, T1078.002]

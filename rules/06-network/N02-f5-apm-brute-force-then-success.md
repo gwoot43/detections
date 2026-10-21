@@ -3,7 +3,6 @@ id: N02
 name: F5 APM VPN brute force or spray followed by success
 category: network
 status: todo
-severity: high
 language: esql
 index: logs-f5.apm-*
 mitre: [T1110, T1133]

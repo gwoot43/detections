@@ -3,7 +3,6 @@ id: IN02
 name: External or anonymous sharing of SharePoint/OneDrive content at volume
 category: insider
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1213.002, T1537, T1567]

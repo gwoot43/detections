@@ -3,7 +3,6 @@ id: AD04
 name: Domain DPAPI backup key retrieved from a domain controller
 category: ad-attack
 status: todo
-severity: critical
 rank: 4
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

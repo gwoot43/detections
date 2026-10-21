@@ -3,7 +3,6 @@ id: I07
 name: Entra impossible travel, risky sign-in, or session token replay
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1550.001, T1621]

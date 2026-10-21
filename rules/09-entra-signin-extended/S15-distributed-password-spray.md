@@ -3,7 +3,6 @@ id: S15
 name: Password spray across many accounts, from many IPs (client fingerprint) or from one IP
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1110.003, T1090.002]

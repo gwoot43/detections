@@ -8,21 +8,21 @@ Detections for Active Directory attack paths from the "Active Directory Attack A
 
 Rank reflects impact (how close the technique is to full domain compromise) and fidelity (how rarely the signal occurs legitimately).
 
-| Rank | Rule | Detects | Severity | Prerequisite |
-|---|---|---|---|---|
-| 1 | AD01 | Rogue domain controller registration (DCShadow) | critical | SACL on the Sites container (5137) |
-| 2 | AD02 | Replication (DCSync) rights granted on the domain root | critical | Directory-object auditing (5136) |
-| 3 | AD03 | CA private key backed up or exported (golden certificate) | critical | CA backup auditing (4876/4877); list CA hosts |
-| 4 | AD04 | Domain DPAPI backup key retrieved | critical | 4662 for LSA secret objects on DCs |
-| 5 | AD05 | Computer account changed to impersonate a DC (sAMAccountName or dNSHostName spoofing, anonymous DC password change), or created by a standard user | critical / medium | Account management auditing |
-| 6 | AD06 | AD CS template, CA configuration or certificate-mapping enforcement weakened (ESC4, 6, 7, 9, 10, 11, 16) | high | Template auditing (5136), CA config auditing |
-| 7 | AD07 | DNS server plugin DLL configured on a DC (DnsAdmins abuse) | high | FDR registry events |
-| 8 | AD08 | Service tickets used with no TGT issued (forged golden ticket) | high | 4768/4769/4770 from every DC; tune first |
-| 9 | AD09 | gMSA password read by a user account | high | SACL on gMSA objects (4662) |
-| 10 | AD10 | Tier-0 account password reset by another account | high | 4724 |
-| 11 | AD11 | SQL Server or IIS application spawning a shell (xp_cmdshell, Exchange or SharePoint webshell) | high | FDR process events |
-| 12 | AD12 | ADIDNS wildcard, WPAD or ISATAP record created by a user | medium | SACL on DNS partitions (5137) |
-| 13 | AD13 | RDP session hijacked with tscon | medium | FDR process events |
+| Rank | Rule | Detects | Prerequisite |
+|---|---|---|---|
+| 1 | AD01 | Rogue domain controller registration (DCShadow) | SACL on the Sites container (5137) |
+| 2 | AD02 | Replication (DCSync) rights granted on the domain root | Directory-object auditing (5136) |
+| 3 | AD03 | CA private key backed up or exported (golden certificate) | CA backup auditing (4876/4877); list CA hosts |
+| 4 | AD04 | Domain DPAPI backup key retrieved | 4662 for LSA secret objects on DCs |
+| 5 | AD05 | Computer account changed to impersonate a DC (sAMAccountName or dNSHostName spoofing, anonymous DC password change), or created by a standard user | Account management auditing |
+| 6 | AD06 | AD CS template, CA configuration or certificate-mapping enforcement weakened (ESC4, 6, 7, 9, 10, 11, 16) | Template auditing (5136), CA config auditing |
+| 7 | AD07 | DNS server plugin DLL configured on a DC (DnsAdmins abuse) | FDR registry events |
+| 8 | AD08 | Service tickets used with no TGT issued (forged golden ticket) | 4768/4769/4770 from every DC; tune first |
+| 9 | AD09 | gMSA password read by a user account | SACL on gMSA objects (4662) |
+| 10 | AD10 | Tier-0 account password reset by another account | 4724 |
+| 11 | AD11 | SQL Server or IIS application spawning a shell (xp_cmdshell, Exchange or SharePoint webshell) | FDR process events |
+| 12 | AD12 | ADIDNS wildcard, WPAD or ISATAP record created by a user | SACL on DNS partitions (5137) |
+| 13 | AD13 | RDP session hijacked with tscon | FDR process events |
 
 ## Existing rules extended instead of duplicated
 
@@ -58,7 +58,7 @@ Rank reflects impact (how close the technique is to full domain compromise) and 
 - **SCCM and WSUS attacks:** need SCCM and WSUS server logs, which are not in the current data sources.
 - **Skeleton Key:** an in-memory LSASS patch on a DC; Falcon's own detections (CS04) and LSASS access rules (W01, CS06) are the realistic coverage.
 - **Diamond, sapphire and silver tickets:** they use genuinely issued tickets or skip the DC entirely, so domain controller logs have no dependable signal.
-- **Password cracking, physical access, macOS and mobile:** offline or outside the current telemetry.
+- **Password cracking, physical access and mobile:** offline or outside the current telemetry.
 - **The map's 2025 to 2026 CVE list:** patch-driven. Some entries could not be verified, and at least one ID is wrong on the map (it labels SMBGhost as CVE-2025-53770; SMBGhost is CVE-2020-0796).
 
 ## Overlap in the existing library, and a recommendation
@@ -68,4 +68,4 @@ The three Kerberoasting rules detect three different things, but one of them als
 - **I13** detects a different step: someone writing an SPN onto a user so that user can be roasted (targeted Kerberoasting). It stays.
 - **W09** was the real duplicate. Its keyword branch matched tool arguments (`kerberoast`, `asreproast`) already covered by behaviour in I03 and I04, and credential-dumping keywords (`sekurlsa`, `lsadump`, `dcsync`) already owned by W01 and I01. Its recon branch counted the same discovery utilities as B09.
 
-Done: W09 is now a tool-signature rule only (BloodHound/SharpHound, AdFind, Rubeus `asktgt` and `/ptt`, Certify/Certipy, Whisker and similar tools, by argument or binary name). Its roasting keywords, credential-dumping keywords and recon branch were dropped, and its high-signal domain-enumeration arguments (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) moved into B09 as a high-severity tier. One trade-off: I03 needs eight or more SPNs in ten minutes, so a single-account roast with a renamed tool relies on I13 catching the SPN write that usually precedes it (an unrenamed `rubeus.exe` still matches W09 by name).
+Done: W09 is now a tool-signature rule only (BloodHound/SharpHound, AdFind, Rubeus `asktgt` and `/ptt`, Certify/Certipy, Whisker and similar tools, by argument or binary name). Its roasting keywords, credential-dumping keywords and recon branch were dropped, and its high-signal domain-enumeration arguments (`net group /domain`, `nltest /dclist`, `whoami /priv`, `setspn -q`) moved into B09 as its `domain_enumeration` tier. One trade-off: I03 needs eight or more SPNs in ten minutes, so a single-account roast with a renamed tool relies on I13 catching the SPN write that usually precedes it (an unrenamed `rubeus.exe` still matches W09 by name).

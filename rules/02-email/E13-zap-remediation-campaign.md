@@ -3,7 +3,6 @@ id: E13
 name: ZAP post-delivery removal across many recipients (phishing or malware wave)
 category: email
 status: todo
-severity: medium
 language: esql
 index: logs-o365.audit-*
 mitre: [T1566.001, T1566.002]

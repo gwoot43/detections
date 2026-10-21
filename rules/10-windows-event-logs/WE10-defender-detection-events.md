@@ -3,7 +3,6 @@ id: WE10
 name: Microsoft Defender detection or Exploit Guard block (malware, high-signal ASR rule, non-browser network protection)
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-windows.windows_defender-*
 mitre: [T1204, T1059, T1003.001, T1055, T1071, T1505.003, T1068]

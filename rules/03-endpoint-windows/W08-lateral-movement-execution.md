@@ -3,7 +3,6 @@ id: W08
 name: Remote execution landing on a host via service, WMI, WinRM, DCOM or remote scheduled task
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1021.002, T1047, T1021.006, T1021.003, T1053.005, T1569.002]

@@ -3,7 +3,6 @@ id: IN03
 name: Confluence space or site export, or page export at volume
 category: insider
 status: todo
-severity: medium
 language: esql
 index: logs-atlassian_confluence.audit-*
 mitre: [T1213.001, T1119]

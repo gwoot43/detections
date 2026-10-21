@@ -3,7 +3,6 @@ id: AI10
 name: Defender for Cloud alert on your own AI apps (jailbreak, prompt injection, data leak through a model)
 category: ai
 status: todo
-severity: high
 language: esql
 index: logs-m365_defender.alert-*
 mitre: [T1699, T1698, T1700]

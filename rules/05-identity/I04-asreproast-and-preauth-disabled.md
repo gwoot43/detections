@@ -3,7 +3,6 @@ id: I04
 name: AS-REP roasting or Kerberos pre-authentication disabled
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1558.004, T1098]

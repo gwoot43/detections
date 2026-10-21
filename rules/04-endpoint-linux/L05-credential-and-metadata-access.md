@@ -3,7 +3,6 @@ id: L05
 name: Credential file access, SSH key harvesting or cloud metadata theft
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1003.008, T1552.004, T1552.005, T1552.001]

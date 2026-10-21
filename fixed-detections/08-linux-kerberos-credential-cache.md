@@ -63,7 +63,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | !in(field="ParentBaseFileName", ignoreCase=true, values=["sssd", "sssd_be", "sssd_kcm", "adcli", "realm", "certmonger"])
 | table([@timestamp, aid, ComputerName, UserName, pname, CommandLine, ParentBaseFileName])
 ```
-Suppress by `host.id`, `pname` for 6h. Severity high.
+Suppress by `host.id`, `pname` for 6h.
 
 - **Allowlist, not denylist.** Any process referencing these files alerts unless it's known Kerberos or SSSD tooling.
 - **Null-safe.** `COALESCE` on the command line and executable, so an event with an empty field isn't silently dropped by the `NOT ... IN` checks.

@@ -3,7 +3,6 @@ id: IN07
 name: Broad SharePoint access across many sites the user does not own
 category: insider
 status: todo
-severity: medium
 language: esql
 index: logs-o365.audit-*
 mitre: [T1213.002, T1087]

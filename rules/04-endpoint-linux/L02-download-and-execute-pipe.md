@@ -3,7 +3,6 @@ id: L02
 name: Remote script piped straight into a shell or interpreter
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1105, T1059.004, T1140]

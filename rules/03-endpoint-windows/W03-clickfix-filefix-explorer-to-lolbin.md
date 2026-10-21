@@ -3,7 +3,6 @@ id: W03
 name: Script host or LOLBIN launched from Explorer - ClickFix, FileFix or CrashFix pasted command, or a script file opened from Downloads, temp or an archive
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1204.004, T1204.002, T1059.001, T1105]

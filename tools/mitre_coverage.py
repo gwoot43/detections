@@ -82,7 +82,6 @@ def parse_rules(rules_dir):
         fm = s.split("---")[1]
         rid = re.search(r"^id:\s*(\S+)", fm, re.M)
         name = re.search(r"^name:\s*(.+)$", fm, re.M)
-        sev = re.search(r"^severity:\s*(\S+)", fm, re.M)
         mitre = re.search(r"^mitre:\s*\[(.*?)\]", fm, re.M)
         if not rid:
             continue
@@ -97,7 +96,7 @@ def parse_rules(rules_dir):
                 ids.append(m.group(1) + extra)
         rules.append({
             "id": rid.group(1), "name": name.group(1).strip() if name else "",
-            "severity": sev.group(1) if sev else "", "folder": os.path.basename(os.path.dirname(p)),
+            "folder": os.path.basename(os.path.dirname(p)),
             "mitre": ids,
         })
     return rules
@@ -324,7 +323,7 @@ def main():
     open(a.md, "w", encoding="utf-8").write("\n".join(out))
 
     payload = {"version": version, "generated": datetime.date.today().isoformat(),
-               "rules": {r["id"]: {"name": r["name"], "severity": r["severity"], "folder": r["folder"]}
+               "rules": {r["id"]: {"name": r["name"], "folder": r["folder"]}
                          for r in rules},
                "matrix": matrix, "priority": priority,
                "summary": {"rules": n_rules, "techniques": len(parents_covered), "ids": len(covered)}}

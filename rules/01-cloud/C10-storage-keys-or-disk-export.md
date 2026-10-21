@@ -3,7 +3,6 @@ id: C10
 name: Storage account keys listed, disk SAS generated or snapshot exported by unusual principal
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1530, T1552, T1005]

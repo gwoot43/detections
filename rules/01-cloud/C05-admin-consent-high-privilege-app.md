@@ -3,7 +3,6 @@ id: C05
 name: Admin consent or high-privilege Graph permission granted to an application
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1528, T1098.001]
@@ -54,7 +53,7 @@ Suppress by `azure.auditlogs.properties.initiated_by.user.userPrincipalName`, `a
 
 ## Known false positives / exclusions
 - Approved SaaS integrations. Keep the approved service principal object IDs in the inline list above (`target_resources.0.id`), not display names (display names are attacker-controlled).
-- Admin consent workflow approvals by the app governance team. Keep, lower severity.
+- Admin consent workflow approvals by the app governance team. Keep them, scored lower.
 
 ## Triage
 - Is the app multi-tenant and owned by an external tenant? Publisher verified?

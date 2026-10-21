@@ -49,12 +49,11 @@ FROM logs-yourorg-zscaler*                       // the index your current KQL r
       OR ENDS_WITH(d, ".lhr.life") OR ENDS_WITH(d, ".serveo.net"), "visited a tunnel-hosted site",
     NULL)
 | WHERE service IS NOT NULL
-// Running an agent is high; visiting a tunnel-hosted site (common in malware and ClickFix delivery) is medium.
-| EVAL severity = CASE(service == "visited a tunnel-hosted site", "medium", "high")
-// One row per user, service and severity.
+// One row per user and service. Visiting a tunnel-hosted site (common in malware and ClickFix delivery) is its own
+// service value, apart from running an agent.
 | STATS first_seen = MIN(@timestamp), last_seen = MAX(@timestamp), requests = COUNT(*),
         domains = VALUES(d), source_ips = VALUES(source.ip)
-    BY user.name, service, severity
+    BY user.name, service
 ```
 Run every 15 minutes with a 1-hour lookback. Suppress by `user.name`, `service` for 24h.
 

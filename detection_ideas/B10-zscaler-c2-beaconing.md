@@ -3,7 +3,6 @@ id: B10
 name: Steady beaconing to an uncategorised or newly registered domain, by at most three users (Zscaler)
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-zscaler_zia.web-*
 mitre: [T1071.001]

@@ -3,13 +3,12 @@ id: C11
 name: Device code auth outcomes, and Conditional Access block followed by success (bypass)
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1621, T1528, T1078.004, T1556.009]
 data_source: Entra ID sign-in logs (interactive and non-interactive)
 suppression:
-  fields: [azure.signinlogs.properties.user_principal_name, severity]
+  fields: [azure.signinlogs.properties.user_principal_name, outcome]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -43,13 +42,13 @@ FROM logs-azure.signinlogs-*
         first_seen      = MIN(@timestamp),
         last_seen       = MAX(@timestamp)
     BY azure.signinlogs.properties.user_principal_name
-| EVAL severity = CASE(
-      ca_blocks > 0 AND successes > 0 AND first_block <= first_success, "high",   // blocked, then got through: likely bypass
-      ca_blocks > 0 AND successes > 0,                                  "medium", // both seen but success came first: validate ordering
-      successes > 0,                                                    "medium", // successful device code, validate
-      ca_blocks > 0,                                                    "low",    // phished but contained: reset/notify user
-      "info")
-| WHERE severity != "info"
+| EVAL outcome = CASE(
+      ca_blocks > 0 AND successes > 0 AND first_block <= first_success, "blocked, then got through", // likely bypass
+      ca_blocks > 0 AND successes > 0,                                  "success, then blocked",     // validate ordering
+      successes > 0,                                                    "success",                   // validate
+      ca_blocks > 0,                                                    "blocked",                   // phished but contained: notify user
+      NULL)
+| WHERE outcome IS NOT NULL
 ```
 The device code step is an interactive sign-in, so only `SignInLogs` is read. The `first_block <= first_success` guard stops a normal successful device-code sign-in earlier in the window plus an unrelated later block from scoring as a bypass.
 
@@ -74,12 +73,12 @@ FROM logs-azure.signinlogs-*
         user_agents   = VALUES(user_agent.original)
     BY azure.signinlogs.properties.user_principal_name, source.ip, azure.signinlogs.properties.app_display_name
 | WHERE blocks > 0 AND successes > 0 AND last_success >= first_block
-| EVAL severity = "high"
+| EVAL outcome = "blocked, then got through"
 ```
-The rule window replaces a fixed one-hour `BUCKET`, so a block at 10:55 and a success at 11:05 are still paired. `severity` is a constant here so both rules share one suppression key.
+The rule window replaces a fixed one-hour `BUCKET`, so a block at 10:55 and a success at 11:05 are still paired. `outcome` is set here so both rules share one suppression key.
 
 ## Suppression
-Suppress by `azure.signinlogs.properties.user_principal_name`, `severity` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Severity is in the key so an escalation from low to high raises a new alert.
+Suppress by `azure.signinlogs.properties.user_principal_name`, `outcome` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. `outcome` is in the key so a user who was only blocked and then gets through raises a new alert.
 
 ## Known false positives / exclusions
 - Rule B: a browser that sends no device information (Chrome without the Microsoft extension, a private window) is blocked by a compliant-device policy, and the user then completes the same sign-in in a browser that does send it. That success carries a trust type and does not count. If a specific app keeps producing hits, check its policy scope before excluding it.
@@ -87,9 +86,9 @@ Suppress by `azure.signinlogs.properties.user_principal_name`, `severity` for 24
 - Continuous Access Evaluation can produce block-then-allow transitions during token refresh. Exclude CAE-driven events if your logs flag them.
 
 ## Triage
-- Rule A high or Rule B hit: confirm the success IP, ASN and country against the user's norm (I07). Compare the user agents: a platform that changes between block and success is a spoofed device platform. A hosting-provider or foreign IP after a block is token theft or an AiTM proxy. Revoke sessions and refresh tokens, reset the password, and check for a newly registered MFA method (I10) and app consent (C05). Password reset alone does not evict a stolen refresh token.
-- Rule A low (block only): notify the user, confirm they were the target of a device-code lure, no further access granted.
-- Rule A medium or high (a device-code success): if the sign-in IP does not match the user's location or is a hosting provider, treat it as token theft and revoke, as above. Find the lure with the investigation query below.
+- Rule A `blocked, then got through`, or a Rule B hit: confirm the success IP, ASN and country against the user's norm (I07). Compare the user agents: a platform that changes between block and success is a spoofed device platform. A hosting-provider or foreign IP after a block is token theft or an AiTM proxy. Revoke sessions and refresh tokens, reset the password, and check for a newly registered MFA method (I10) and app consent (C05). Password reset alone does not evict a stolen refresh token.
+- Rule A `blocked` (block only): notify the user, confirm they were the target of a device-code lure, no further access granted.
+- Rule A with a device-code success (`success`, `success, then blocked` or `blocked, then got through`): if the sign-in IP does not match the user's location or is a hosting provider, treat it as token theft and revoke, as above. Find the lure with the investigation query below.
 
 ### Investigation query: find the devicelogin visit in proxy/web logs
 When Rule A fires on a successful device-code sign-in, pivot to the user's web traffic around the sign-in time to see the lure. The victim visits `microsoft.com/devicelogin` (a legitimate Microsoft URL) and enters the attacker's code, so the visit itself is not malicious; the value is the timing and the referrer, which points back to the phishing page.

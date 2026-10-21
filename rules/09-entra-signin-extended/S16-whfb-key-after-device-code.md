@@ -3,14 +3,13 @@ id: S16
 name: Windows Hello for Business key enrolled after a device-code sign-in (PRT phishing chain)
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*, logs-azure.auditlogs-*
 mitre: [T1098.005, T1556.006, T1528]
 data_source: Entra ID sign-in logs + audit logs, joined on user object ID
 references: [https://dirkjanm.io/phishing-for-microsoft-entra-primary-refresh-tokens/, https://dirkjanm.io/borrowing-windows-hello-keys/]
 suppression:
-  fields: [uid, severity]
+  fields: [uid, finding]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -19,9 +18,9 @@ Dirk-jan Mollema showed that a device-code phish can be turned into a Primary Re
 
 Real Windows Hello enrollment happens on a device during setup, not after a device-code sign-in. A new laptop going through Autopilot produces a device registration followed by a Hello enrollment, so that pair alone is normal and does not alert here. The device-code sign-in is what separates attack from onboarding.
 
-Severity is computed per alert:
-- **critical** when the device-code sign-in used the Microsoft Authentication Broker client, or a device was registered after the device-code sign-in. Both match the published chain.
-- **high** for a device-code sign-in followed by a Hello enrollment.
+The `finding` column says how much of the chain was seen:
+- **`full_chain`** when the device-code sign-in used the Microsoft Authentication Broker client, or a device was registered after the device-code sign-in. Both match the published chain.
+- **`hello_after_device_code`** for a device-code sign-in followed by a Hello enrollment.
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
@@ -56,16 +55,16 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
         devices = VALUES(CASE(stage == "device", `azure.auditlogs.properties.target_resources.0.display_name`, NULL))
     BY uid
 | WHERE devicecode_at IS NOT NULL AND whfb_at IS NOT NULL AND whfb_at >= devicecode_at
-| EVAL severity = CASE(broker_used == 1 OR (device_at IS NOT NULL AND device_at >= devicecode_at), "critical", "high")
+| EVAL finding = CASE(broker_used == 1 OR (device_at IS NOT NULL AND device_at >= devicecode_at), "full_chain", "hello_after_device_code")
 ```
 Join on the user's object ID rather than the UPN. It is the same in both logs and avoids case and format mismatches.
 
 ## Suppression
-Suppress by `uid`, `severity` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. Severity is in the key, so a device registration that arrives after the first alert raises a new critical alert.
+Suppress by `uid`, `finding` for 24h. Alerts missing a key field are not suppressed. Aggregating rule. `finding` is in the key, so a device registration that arrives after the first alert raises a new alert.
 
 ## Known false positives / exclusions
 - A user who legitimately signs in with device code (for example, the Azure CLI) and enrolls Hello on a new laptop in the same hour. This is rare. Exclude sanctioned device-code users (see C11) by object ID.
-- Elastic also ships a first-seen rule, "Entra ID Windows Hello for Business Credential Registered", which fires on any Hello enrollment from a new user-and-ASN pair. Enable it as a low-severity companion for enrollments this rule does not chain.
+- Elastic also ships a first-seen rule, "Entra ID Windows Hello for Business Credential Registered", which fires on any Hello enrollment from a new user-and-ASN pair. Enable it as a companion for enrollments this rule does not chain.
 
 ## Triage
 - Delete the attacker's devices first, then the Hello credential. The device holds the PRT, so revoking sessions before removing the device leaves access in place.

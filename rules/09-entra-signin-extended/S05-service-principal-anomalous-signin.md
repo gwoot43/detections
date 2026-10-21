@@ -3,7 +3,6 @@ id: S05
 name: Service principal sign-in from a new network, or secret-guessing failures
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1528, T1110]

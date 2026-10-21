@@ -58,7 +58,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
   }
 | table([@timestamp, aid, ComputerName, UserName, finding, ImageFileName, CommandLine, ParentBaseFileName])
 ```
-Suppress by `host.id`, `finding` for 1h. Severity critical.
+Suppress by `host.id`, `finding` for 1h.
 
 - **No user filter.** SYSTEM context is where this matters most.
 - **Ordinal tricks.** comsvcs is often called by ordinal (`#24`, `#+24`, `#00024`) to dodge "MiniDump" string matches, so all three forms are listed.

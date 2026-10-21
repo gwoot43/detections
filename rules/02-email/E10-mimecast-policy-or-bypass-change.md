@@ -3,7 +3,6 @@ id: E10
 name: Mimecast protection policy weakened or bypass created
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-mimecast.audit_events-*
 mitre: [T1685, T1078]
@@ -34,7 +33,7 @@ The integration moves `auditType` to `event.action` (lower case, spaces as hyphe
 Suppress by `user.email`, `event.action` for 1h. Alerts missing a key field are not suppressed. One admin session writes many audit lines for the same change.
 
 ## Known false positives / exclusions
-- Routine permitted-sender additions by the service desk. Keep them visible: repeated permits for the same external domain are a pattern. If they are too frequent, route the `permitted sender` branch to a lower-severity rule rather than dropping it.
+- Routine permitted-sender additions by the service desk. Keep them visible: repeated permits for the same external domain are a pattern. If they are too frequent, route the `permitted sender` branch to a lower-scored rule rather than dropping it.
 
 ## Triage
 - Confirm the change with the admin. Check the admin's Mimecast logon source IP against known locations.

@@ -1,15 +1,14 @@
 ---
 id: S12
-name: MFA fatigue (repeated denied or unanswered MFA prompts), critical if then accepted
+name: MFA fatigue (repeated denied or unanswered MFA prompts), and whether one was then accepted
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1621, T1110]
 data_source: Entra ID interactive sign-in logs
 suppression:
-  fields: [usr, severity]
+  fields: [usr, outcome]
   duration: 4h
   missing_fields: do_not_suppress
 ---
@@ -18,10 +17,10 @@ Error 500121 means the password was correct but the MFA step failed: the user de
 
 Failures are only counted from devices the tenant does not know. The attacker sends prompts from their own machine; a user whose phone is flat and who retries from their managed laptop does not count.
 
-Severity is computed per alert:
-- **critical** when a sign-in then succeeds from an IP that was sending the prompts: the user gave in.
-- **high** when the user reported a prompt as fraud.
-- **medium** for a burst of denials with no acceptance.
+The `outcome` column says how it ended:
+- **`accepted`** when a sign-in then succeeds from an IP that was sending the prompts: the user gave in.
+- **`reported_as_fraud`** when the user reported a prompt as fraud.
+- **`denied_only`** for a burst of denials with no acceptance.
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
@@ -52,20 +51,20 @@ FROM logs-azure.signinlogs-*
         countries = VALUES(country), apps = VALUES(app)
     BY usr
 | WHERE mfa_failures >= 5 OR fraud_reports >= 1
-| EVAL severity = CASE(accepted_ips > 0, "critical", fraud_reports >= 1, "high", "medium")
+| EVAL outcome = CASE(accepted_ips > 0, "accepted", fraud_reports >= 1, "reported_as_fraud", "denied_only")
 ```
 The integration removes `status.additional_details` and writes it into `message` as "failure reason (additional details)", so the fraud branch reads `message`. It carries text such as "MFA denied; user declined the authentication" and "MFA denied; Phone App Reported Fraud".
 
 ## Suppression
-Suppress by `usr`, `severity` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. Severity is in the key, so a burst that later turns into an accepted prompt raises a new critical alert instead of folding into the open medium one.
+Suppress by `usr`, `outcome` for 4h. Alerts missing a key field are not suppressed. Aggregating rule. `outcome` is in the key, so a burst that later turns into an accepted prompt raises a new alert instead of folding into the open one.
 
 ## Known false positives / exclusions
 - A user who keeps declining because their phone was replaced or the app is misconfigured. This usually comes with a help-desk ticket the same day.
 - Number matching in Microsoft Authenticator reduces push approval by accident, but attackers also use phone call and SMS methods, so keep the rule on.
 
 ## Triage
-- **critical:** revoke the user's sessions and refresh tokens, reset the password, and check for a newly registered MFA method (I10), inbox rules (E06) and consent grants (C05) in the next hour.
-- **high or medium:** the password is known to someone else. Reset it, revoke sessions, and contact the user to confirm they did not trigger the prompts. Check S13, S14 and S15 for how the password was obtained.
+- **`accepted`:** revoke the user's sessions and refresh tokens, reset the password, and check for a newly registered MFA method (I10), inbox rules (E06) and consent grants (C05) in the next hour.
+- **`reported_as_fraud` or `denied_only`:** the password is known to someone else. Reset it, revoke sessions, and contact the user to confirm they did not trigger the prompts. Check S13, S14 and S15 for how the password was obtained.
 
 ## Test
 With a lab account, trigger five sign-ins from an unregistered lab device and decline each MFA prompt, then approve one.

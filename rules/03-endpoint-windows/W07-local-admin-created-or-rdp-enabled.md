@@ -3,7 +3,6 @@ id: W07
 name: Local account created, added to Administrators, or RDP enabled by command line
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1136.001, T1098, T1021.001, T1686.003]

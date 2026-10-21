@@ -3,7 +3,6 @@ id: AD03
 name: Certificate authority private key backed up or exported (golden certificate)
 category: ad-attack
 status: todo
-severity: critical
 rank: 3
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*

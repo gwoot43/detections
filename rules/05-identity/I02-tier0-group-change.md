@@ -3,7 +3,6 @@ id: I02
 name: Membership change to a Tier-0 / privileged group
 category: identity
 status: todo
-severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1078.002]

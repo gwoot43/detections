@@ -3,7 +3,6 @@ id: W01
 name: LSASS memory dump via known tooling or LOLBIN
 category: endpoint-windows
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1003.001]

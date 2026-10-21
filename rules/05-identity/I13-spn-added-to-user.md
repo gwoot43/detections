@@ -3,7 +3,6 @@ id: I13
 name: Service principal name added to a user account (targeted Kerberoasting setup)
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1558.003, T1098]

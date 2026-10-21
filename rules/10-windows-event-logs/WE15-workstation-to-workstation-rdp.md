@@ -3,7 +3,6 @@ id: WE15
 name: RDP logon from one workstation to another
 category: windows-events
 status: todo
-severity: medium
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1021.001]

@@ -3,7 +3,6 @@ id: C06
 name: Azure RBAC Owner, User Access Administrator, RBAC Administrator or Contributor assigned at subscription or wider scope
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1098.003]

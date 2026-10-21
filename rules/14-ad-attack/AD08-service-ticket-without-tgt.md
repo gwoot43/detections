@@ -3,7 +3,6 @@ id: AD08
 name: Kerberos service tickets used by an account with no TGT issued (possible forged golden ticket)
 category: ad-attack
 status: todo
-severity: high
 rank: 8
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

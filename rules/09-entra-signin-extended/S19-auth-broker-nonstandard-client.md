@@ -3,7 +3,6 @@ id: S19
 name: Microsoft Authentication Broker sign-in from a non-standard client
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1550.001, T1528, T1078.004]
@@ -17,9 +16,7 @@ suppression:
 ## Why this is high fidelity
 The Microsoft Authentication Broker client is what Windows, Android and iOS use for device registration and PRT flows, so it is allowed to request tokens for the device registration service. roadtx impersonates it for exactly that reason. Legitimate broker sign-ins come from the Windows authentication provider, a browser, Android or iOS, and each has a recognisable user agent. A broker sign-in from a script or HTTP library is tooling.
 
-Severity is computed per alert:
-- **high** when the token is for the device registration service, the step before registering a fake device.
-- **medium** for any other resource.
+The `resource` column separates the two cases: a token for the device registration service is the step before registering a fake device, and is the stronger signal; any other resource is less specific.
 
 ## Query
 ```esql
@@ -34,8 +31,7 @@ FROM logs-azure.signinlogs-* METADATA _id, _index, _version
 | WHERE ua != ""
   AND NOT (ua LIKE "Mozilla*" OR ua LIKE "Dalvik*" OR ua LIKE "*CFNetwork*"
            OR ua LIKE "Windows-AzureAD-Authentication-Provider*" OR ua LIKE "Java*ThinkPad*")
-| EVAL severity = CASE(resource == "Device Registration Service", "high", "medium")
-| KEEP @timestamp, uid, upn, ua, resource, severity, source.ip, source.as.organization.name, source.geo.country_iso_code,
+| KEEP @timestamp, uid, upn, ua, resource, source.ip, source.as.organization.name, source.geo.country_iso_code,
        azure.signinlogs.category, azure.signinlogs.properties.incoming_token_type, azure.signinlogs.properties.authentication_protocol, _id, _version, _index
 ```
 An operator can set a browser or Windows user agent in roadtx, which this rule then misses. S20 does not depend on the user agent and covers that case.

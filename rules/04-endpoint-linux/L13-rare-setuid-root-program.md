@@ -3,7 +3,6 @@ id: L13
 name: Rare program runs setuid root (SUID backdoor such as a copied shell)
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1548.001]

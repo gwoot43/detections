@@ -3,7 +3,6 @@ id: AD07
 name: DNS server plugin DLL configured on a domain controller (DnsAdmins abuse)
 category: ad-attack
 status: todo
-severity: high
 rank: 7
 language: esql
 index: logs-yourorg-crowdstrike-data-default*

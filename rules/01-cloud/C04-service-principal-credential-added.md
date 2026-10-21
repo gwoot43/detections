@@ -3,7 +3,6 @@ id: C04
 name: Credential added to an application or service principal
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1098.001, T1550.001]
@@ -44,7 +43,7 @@ Suppress by `actor`, `azure.auditlogs.properties.target_resources.0.display_name
 - Automated secret rotation (Key Vault rotation, Terraform). Exclude by service principal object ID.
 - Managed identity certificate rotation, initiated by "Managed Service Identity". Excluded above by display name; replace it with that service principal's object ID from your tenant so a look-alike app name cannot hide behind it.
 - The "Certificates and secrets management" record is also written when a secret is removed. Check `modified_properties` (old versus new key list) before escalating.
-- Developers adding secrets to their own dev apps. Raise severity when the target app holds Graph application permissions (see C05) or is a first-party Microsoft app.
+- Developers adding secrets to their own dev apps. Score it higher when the target app holds Graph application permissions (see C05) or is a first-party Microsoft app.
 
 ## Triage
 - Which app, what permissions does it hold (`Get-MgServicePrincipalAppRoleAssignment`), who owns it.

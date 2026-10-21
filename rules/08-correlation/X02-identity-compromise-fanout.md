@@ -3,7 +3,6 @@ id: X02
 name: Identity compromise fan-out: risky sign-in then persistence or privilege action
 category: correlation
 status: todo
-severity: critical
 language: esql
 index: logs-azure.signinlogs-*, logs-azure.auditlogs-*, logs-o365.audit-*
 mitre: [T1078.004, T1098, T1098.005, T1528, T1114.003]

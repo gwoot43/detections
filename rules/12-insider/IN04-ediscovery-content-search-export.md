@@ -3,7 +3,6 @@ id: IN04
 name: eDiscovery or content search created, exported or downloaded by a non-eDiscovery user
 category: insider
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1114.002, T1213, T1530]

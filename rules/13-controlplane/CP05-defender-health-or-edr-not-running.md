@@ -3,7 +3,6 @@ id: CP05
 name: Microsoft Defender health degraded, or the Defender AV or MDE sensor service stopped and stayed down
 category: controlplane
 status: todo
-severity: high
 language: esql
 index: logs-windows.windows_defender-*, logs-system.system-*
 mitre: [T1685, T1489]

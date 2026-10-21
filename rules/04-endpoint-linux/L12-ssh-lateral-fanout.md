@@ -3,7 +3,6 @@ id: L12
 name: SSH fan-out from one Linux host to many internal hosts
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1021.004]

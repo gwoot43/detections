@@ -3,7 +3,6 @@ id: B06
 name: C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1071.001, T1573, T1095]

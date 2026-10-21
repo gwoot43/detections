@@ -3,7 +3,6 @@ id: D01
 name: Honey AD account touched (kerberoast of honey SPN, AS-REP roast, or any logon or authentication attempt with honey credentials)
 category: deception
 status: todo
-severity: critical
 rank: 1
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

@@ -3,7 +3,6 @@ id: S18
 name: Device registered with roadtx default fingerprint or a non-standard registration client
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1098.005]
@@ -19,9 +18,9 @@ roadtx registers fake devices in Entra ID so it can obtain a Primary Refresh Tok
 
 One registration writes several records with the same correlation ID: "Add device" (Core Directory, written by the service, no user), "Register device" (the user, the join type and the client user agent) and the owner records. The rule groups them per registration, so the device properties from one record and the user from another end up in the same alert.
 
-Severity is computed per alert:
-- **high** when the roadtx default build and name both match.
-- **medium** when only the registration client is non-standard.
+The `finding` column says which:
+- **`roadtx_default_fingerprint`** when the roadtx default build and name both match.
+- **`nonstandard_registration_client`** when only the registration client is non-standard.
 
 ## Query
 Run every 15 minutes with a 1-hour lookback.
@@ -55,7 +54,7 @@ FROM logs-azure.auditlogs-*
         first_seen = MIN(@timestamp)
     BY azure.correlation_id
 | WHERE default_fingerprint == 1 OR nonstandard_client == 1
-| EVAL severity = CASE(default_fingerprint == 1, "high", "medium")
+| EVAL finding = CASE(default_fingerprint == 1, "roadtx_default_fingerprint", "nonstandard_registration_client")
 ```
 The user agent is read from `additional_details` rather than `properties.userAgent`, which is not in the integration's field list and exists only if your data has carried it.
 

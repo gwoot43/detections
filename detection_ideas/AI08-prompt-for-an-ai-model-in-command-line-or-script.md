@@ -3,7 +3,6 @@ id: AI08
 name: Text written for an AI model in a command line or PowerShell script (prompt injection against AI-assisted triage)
 category: ai
 status: todo
-severity: medium
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685.007, T1698]
@@ -14,7 +13,7 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-Security teams now hand alerts, scripts and samples to AI assistants for triage, and attackers have started writing to those assistants. Malware has shipped with fake chat messages aimed at the model reading it, for example claiming the file is a harmless test so the analysis stops. ATT&CK v20 calls this Impair Autonomous Defenses (T1685.007); the MacOS.Gaslight sample and a 2026 Shai-Hulud variant did it. Text like this has no business in a command line or a script, because only a model reads it:
+Security teams now hand alerts, scripts and samples to AI assistants for triage, and attackers have started writing to those assistants. Malware has shipped with fake chat messages aimed at the model reading it, for example claiming the file is a harmless test so the analysis stops. ATT&CK v20 calls this Impair Autonomous Defenses (T1685.007); a 2026 Shai-Hulud variant did it. Text like this has no business in a command line or a script, because only a model reads it:
 
 - **Anchor:** a process command line, or a PowerShell script block, that contains chat-template control tokens (`<|im_start|>`, `<|system|>`, `<|start_header_id|>`, `[INST]`, `<<SYS>>`). These are what LLM tooling wraps messages in; a person never types them. Or it contains the standard order to a model to drop its instructions ("ignore all previous instructions").
 - **Corroborating property:** none needed. The text is the evidence: it was put there for a model, not for the computer.
@@ -66,7 +65,7 @@ Suppress by `host.id` for 24h. Alerts missing a key field are not suppressed.
 - Developers testing LLM code with `python -c` or PowerShell, and security staff testing prompt injection. Exclude their hosts by `host.id` if it's noisy.
 
 ## Blind spot
-Text hidden inside a binary or a script file that's run by path, not inline, never reaches the command line. Falcon doesn't send file contents in FDR, so on Linux and macOS only inline scripts are seen. On Windows, the PowerShell version covers scripts run by path.
+Text hidden inside a binary or a script file that's run by path, not inline, never reaches the command line. Falcon doesn't send file contents in FDR, so on Linux only inline scripts are seen. On Windows, the PowerShell version covers scripts run by path.
 
 ## Triage
 - Read the text. A fake system message claiming the file is safe, a test, or that analysis failed is aimed at your AI triage. Treat the process as malicious and analyse it without the assistant, or with its output checked by a person.

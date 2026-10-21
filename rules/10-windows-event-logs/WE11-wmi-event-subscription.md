@@ -3,7 +3,6 @@ id: WE11
 name: WMI permanent event subscription with a script or command consumer
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-windows.*
 mitre: [T1546.003]

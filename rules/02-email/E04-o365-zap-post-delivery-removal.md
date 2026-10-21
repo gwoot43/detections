@@ -3,7 +3,6 @@ id: E04
 name: Zero-hour auto purge removed a message the user had already clicked
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1566.001, T1566.002]

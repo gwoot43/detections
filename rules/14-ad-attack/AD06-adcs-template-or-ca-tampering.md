@@ -3,7 +3,6 @@ id: AD06
 name: AD CS template, CA configuration or certificate-mapping enforcement weakened
 category: ad-attack
 status: todo
-severity: high
 rank: 6
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*

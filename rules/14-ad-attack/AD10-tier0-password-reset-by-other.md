@@ -3,7 +3,6 @@ id: AD10
 name: Password of a Tier-0 account reset by another account
 category: ad-attack
 status: todo
-severity: high
 rank: 10
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

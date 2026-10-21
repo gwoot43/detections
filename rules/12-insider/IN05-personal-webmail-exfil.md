@@ -3,7 +3,6 @@ id: IN05
 name: Outbound mail with attachments to personal webmail at volume
 category: insider
 status: todo
-severity: medium
 language: esql
 index: logs-mimecast.siem_logs-*
 mitre: [T1114, T1567, T1048.003]

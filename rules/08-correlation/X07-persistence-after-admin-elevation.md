@@ -3,7 +3,6 @@ id: X07
 name: Directory persistence written shortly after the actor gained privileged access
 category: correlation
 status: todo
-severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1098, T1078.002]
@@ -66,7 +65,7 @@ Notes:
 Suppress by `actor_sid` for 2h, the length of the lookback. Alerts missing a key field are not suppressed. Correlation rule; suppression stops overlapping lookbacks from re-alerting on the same chain. A new write by the same account after that raises a new alert.
 
 ## Known false positives / exclusions
-- An AD engineer legitimately elevating and then doing directory work. Rare, and worth a look each time given the severity. Exclude named break-glass procedures during a ticketed window only.
+- An AD engineer legitimately elevating and then doing directory work. Rare, and worth a look each time given what's at stake. Exclude named break-glass procedures during a ticketed window only.
 - `administrators` also matches a local Administrators group change on a member server (4732). It only pairs if the same SID then writes one of these attributes in AD, which is rare.
 - A group nested into a Tier-0 group has the group's SID as the member, so a user inheriting rights that way is not paired.
 

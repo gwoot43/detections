@@ -3,7 +3,6 @@ id: E03
 name: Impersonation Protect hit targeting executives or finance
 category: email
 status: todo
-severity: medium
 language: esql
 index: logs-mimecast.ttp_ip_logs-*
 mitre: [T1684.001, T1534, T1566.003]

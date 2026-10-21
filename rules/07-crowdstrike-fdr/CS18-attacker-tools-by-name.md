@@ -3,7 +3,6 @@ id: CS18
 name: Common attacker tool started, by file name (scanners, credential and secret stealers, lateral movement, tunnels, privilege escalation, exfiltration, EDR killers)
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1046, T1003, T1555, T1552.001, T1021, T1110, T1572, T1090, T1068, T1567.002, T1685]
@@ -22,7 +21,7 @@ suppression:
 | Credential theft | LaZagne, HackBrowserData, SharpChrome, SharpDPAPI, SharpKatz, SafetyKatz, pypykatz, nanodump |
 | Secret scanning | TruffleHog, gitleaks, Nosey Parker |
 | Lateral movement and spraying | CrackMapExec, NetExec, Kerbrute |
-| Tunnels and proxies | chisel, gost, frp, revsocks, rathole, iox, ligolo on Linux and macOS (W10 matches them on Windows); iodine, dnscat2, dns2tcp |
+| Tunnels and proxies | chisel, gost, frp, revsocks, rathole, iox, ligolo on Linux (W10 matches them on Windows); iodine, dnscat2, dns2tcp |
 | Privilege escalation | PrintSpoofer, the Potato family (Juicy, God, Sweet, Rogue, Efs), winPEAS and linPEAS builds, pspy |
 | Exfiltration | rclone |
 | Disabling security tools | EDRSandBlast, Backstab, PCHunter |
@@ -96,7 +95,6 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 |---|---|
 | Interval / lookback | 5 minutes / 10 minutes. Non-aggregating, so the overlap is deduplicated by `_id`. |
 | Suppression | `host.id`, `process.name` for 24h: a tool run many times on one host is one alert a day |
-| Severity | high. To grade by tool, add an Elastic severity override on `process.name` (for example scanners and rclone at medium). |
 
 ## Telemetry assumptions
 - `processrollup2` events with `process.name` (the file name), `process.executable`, `process.command_line` and `data.TargetProcessId`. If your pipeline leaves `process.name` empty on process starts, gate on the raw `data.FileName` instead.

@@ -3,7 +3,6 @@ id: WE05
 name: Sensitive privilege assigned or special logon to a non-admin account
 category: windows-events
 status: todo
-severity: medium
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1134, T1078.002, T1068]

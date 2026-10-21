@@ -3,7 +3,6 @@ id: W09
 name: Active Directory attack tool signature (SharpHound/BloodHound, Rubeus, Certify/Certipy, PowerView, AdFind and similar) by argument or binary name
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1087.002, T1482, T1558.003, T1003, T1069.002, T1018]

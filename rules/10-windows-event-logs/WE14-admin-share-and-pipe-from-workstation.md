@@ -3,7 +3,6 @@ id: WE14
 name: Admin share or remote management pipe accessed from a workstation
 category: windows-events
 status: todo
-severity: medium
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1021.002, T1569.002, T1053.005]

@@ -3,7 +3,6 @@ id: X01
 name: Email phishing interaction followed by endpoint alert on the same user's host
 category: correlation
 status: todo
-severity: critical
 language: esql
 index: logs-mimecast.ttp_url_logs-*, logs-crowdstrike.alert-*
 mitre: [T1566, T1204, T1059]

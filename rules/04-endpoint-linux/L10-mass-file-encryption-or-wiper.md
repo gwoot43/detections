@@ -3,7 +3,6 @@ id: L10
 name: Rapid mass file modification consistent with encryption or wiping
 category: endpoint-linux
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1486, T1485, T1490]

@@ -3,7 +3,6 @@ id: CS02
 name: Persistence written to Run keys, Winlogon, IFEO or other ASEPs (not services)
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1547.001, T1546]

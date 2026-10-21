@@ -3,7 +3,6 @@ id: DV04
 name: Boot integrity weakened (test signing, integrity checks off or kernel debugging on), set by bcdedit or loaded at boot
 category: device
 status: todo
-severity: high
 rank: 2
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*

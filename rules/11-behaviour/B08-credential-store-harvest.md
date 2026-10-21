@@ -3,7 +3,6 @@ id: B08
 name: Credential store harvesting - catches LaZagne and infostealers by behaviour
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1555, T1552.001, T1539, T1555.003]

@@ -3,7 +3,6 @@ id: C12
 name: Azure Automation runbook created or modified, or webhook added
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1648, T1098.001, T1053]

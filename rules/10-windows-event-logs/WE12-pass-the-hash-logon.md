@@ -3,7 +3,6 @@ id: WE12
 name: New-credentials logon consistent with pass-the-hash
 category: windows-events
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1550.002]

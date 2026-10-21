@@ -3,7 +3,6 @@ id: E06
 name: Inbox rule that forwards externally, deletes, or hides security-related mail
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1114.003, T1564.008]

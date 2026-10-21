@@ -3,7 +3,6 @@ id: B05
 name: Network logon sweep - catches CrackMapExec, NetExec and pass-the-hash lateral movement by behaviour
 category: behaviour
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1021.002, T1550.002, T1078]

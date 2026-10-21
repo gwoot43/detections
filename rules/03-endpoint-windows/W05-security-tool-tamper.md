@@ -3,7 +3,6 @@ id: W05
 name: Defender or security service stopped, Defender engine wiped, EDR-killer tooling, or safe boot configured
 category: endpoint-windows
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1685, T1068]

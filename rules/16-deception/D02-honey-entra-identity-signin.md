@@ -3,7 +3,6 @@ id: D02
 name: Sign-in attempt by a honey Entra user or honey service principal (any result)
 category: deception
 status: todo
-severity: critical
 rank: 1
 language: esql
 index: logs-azure.signinlogs-*

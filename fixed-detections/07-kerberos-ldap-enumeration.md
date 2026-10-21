@@ -76,7 +76,7 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | case { cmd=/gssapi/ | auth := "kerberos"; cmd=/ -w | -y / | auth := "password"; * | auth := "other"; }
 | table([@timestamp, aid, ComputerName, UserName, finding, auth, CommandLine, ParentBaseFileName])
 ```
-Suppress by `host.id`, `finding` for 6h. Severity high.
+Suppress by `host.id`, `finding` for 6h.
 
 - **The filters are the signal.** Admins look up users and groups. Attack-path discovery asks for SPNs, `adminCount=1`, bitwise UAC matches (the `1.2.840.113556.1.4.803` matching rule), delegation attributes, LAPS and gMSA password attributes, and certificate template flags. Those rarely appear in routine scripts.
 - **Kerberos is now context, not a condition.** The `auth` column shows whether a ticket was used. Enumeration with a stolen password is just as interesting.

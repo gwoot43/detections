@@ -3,7 +3,6 @@ id: W13
 name: Endpoint management platform used to deploy a script or app at scale
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-azure.platformlogs-*
 mitre: [T1072]
@@ -25,8 +24,8 @@ FROM logs-azure.platformlogs-* METADATA _id, _index, _version
 | WHERE TO_LOWER(azure.resource.provider) == "microsoft.intune" AND TO_LOWER(azure.platformlogs.category) == "auditlogs"
 | EVAL op = TO_LOWER(COALESCE(azure.platformlogs.operation_name, "")),
        actor = TO_LOWER(COALESCE(azure.platformlogs.identity_name, ""))
-// new or changed scripts (platform, remediation, macOS shell), and new or reassigned apps
-| WHERE ((op LIKE "*devicemanagementscript*" OR op LIKE "*devicehealthscript*" OR op LIKE "*deviceshellscript*")
+// new or changed scripts (platform, remediation), and new or reassigned apps
+| WHERE ((op LIKE "*devicemanagementscript*" OR op LIKE "*devicehealthscript*")
          AND (op LIKE "create*" OR op LIKE "patch*" OR op LIKE "assign*"))
      OR ((op LIKE "create*" OR op LIKE "assign*") AND op LIKE "*mobileapp*")
 | WHERE actor NOT IN ("svc-intune-automation")    // your MDM automation account, if any

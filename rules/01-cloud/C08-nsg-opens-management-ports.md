@@ -3,7 +3,6 @@ id: C08
 name: Network security group rule exposes management ports to the internet
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.activitylogs-*
 mitre: [T1686.001, T1133]

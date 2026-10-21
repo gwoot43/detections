@@ -3,7 +3,6 @@ id: DV05
 name: Device installation blocked by policy (network adapter, keyboard, storage or phone; any block on a server; repeated attempts)
 category: device
 status: todo
-severity: medium
 rank: 4
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

@@ -1,9 +1,8 @@
 ---
 id: CS16
-name: Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux or macOS (filename fallback)
+name: Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux (filename fallback)
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572, T1021]
@@ -27,7 +26,7 @@ Run hourly with a 7-day lookback.
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // Activity: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
-// Filename fallback: a known pivot tool starting on Linux or macOS (W10 matches these by name on Windows).
+// Filename fallback: a known pivot tool starting on Linux (W10 matches these by name on Windows).
 | WHERE (event.action IN ("networkconnectip4", "networkconnectip6")
          AND destination.port IN (22, 135, 445, 3389, 5985, 5986)
          AND CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"))
@@ -55,7 +54,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 ```logscale
 #event_simpleName=/^(NetworkConnectIP4|NetworkConnectIP6|ProcessRollup2|SyntheticProcessRollup2)$/
 // Activity: a connection to RDP, SSH, SMB, RPC or WinRM on another internal host. Loopback is CS15.
-// Filename fallback: a known pivot tool starting on Linux or macOS (W10 matches these by name on Windows).
+// Filename fallback: a known pivot tool starting on Linux (W10 matches these by name on Windows).
 | case {
     #event_simpleName=/^NetworkConnectIP[46]$/
       | in(field="RemotePort", values=["22", "135", "445", "3389", "5985", "5986"])

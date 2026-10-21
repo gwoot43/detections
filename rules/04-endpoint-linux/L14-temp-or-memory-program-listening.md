@@ -3,7 +3,6 @@ id: L14
 name: Program started from a temp folder or memory opens a listening port (tunneller, proxy or bind shell)
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1572]

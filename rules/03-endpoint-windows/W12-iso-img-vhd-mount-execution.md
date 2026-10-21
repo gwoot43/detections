@@ -3,7 +3,6 @@ id: W12
 name: Disk image mounted then a process runs from the new volume
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1553.005, T1204.002]

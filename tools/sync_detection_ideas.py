@@ -144,7 +144,7 @@ def readme(log):
         "",
         "Copies of the library's C2, tunnelling, post-exploitation and AI detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.",
         "",
-        "[SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with severity, schedule, suppression and ATT&CK.",
+        "[SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with schedule, suppression and ATT&CK.",
         "",
         "| File | Detection | Group | Original |",
         "|---|---|---|---|",

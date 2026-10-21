@@ -3,7 +3,6 @@ id: CP01
 name: Defender for Office 365 protection rule or policy disabled, deleted or switched off, including zero-hour auto purge (ZAP)
 category: controlplane
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1685, T1550]

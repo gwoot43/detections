@@ -3,7 +3,6 @@ id: W11
 name: COM hijack or Office add-in persistence
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1546.015, T1137.006]

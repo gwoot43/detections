@@ -3,7 +3,6 @@ id: S22
 name: Several different people signing in successfully from one Entra-registered or joined device
 category: entra-signin
 status: todo
-severity: medium
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1078.004, T1550.001, T1098.005]
@@ -44,8 +43,7 @@ FROM logs-azure.signinlogs-*
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY device_id, dev_name, trust
 | WHERE people >= 2
-| EVAL severity = CASE(admin_present == 1 OR prt_used == 1 OR people >= 4, "high", "medium")
-| KEEP device_id, dev_name, trust, people, users, severity, admin_present, prt_used, ips, networks, apps, first_seen, last_seen
+| KEEP device_id, dev_name, trust, people, users, admin_present, prt_used, ips, networks, apps, first_seen, last_seen
 ```
 Run hourly with a 24-hour lookback. `REPLACE` uses a Java regex, so `^` anchors it there. `RLIKE` is always anchored and doesn't accept `^`.
 

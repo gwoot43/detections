@@ -3,7 +3,6 @@ id: E11
 name: Email bombing (inbound flood to a single recipient)
 category: email
 status: todo
-severity: medium
 language: esql
 index: logs-mimecast.siem_logs-*
 mitre: [T1566, T1684.001]

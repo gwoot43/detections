@@ -3,7 +3,6 @@ id: I06
 name: Privileged account interactive logon to a workstation or unusual host
 category: identity
 status: todo
-severity: high
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1078.002, T1021]

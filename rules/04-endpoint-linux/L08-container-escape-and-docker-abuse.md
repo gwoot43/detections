@@ -3,7 +3,6 @@ id: L08
 name: Container escape, privileged container launch or Docker socket abuse
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1611, T1610, T1613]

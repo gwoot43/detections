@@ -3,7 +3,6 @@ id: X06
 name: External Teams contact followed by remote-access tool on the same user's host
 category: correlation
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*, logs-yourorg-crowdstrike-data-default*
 mitre: [T1566, T1219, T1204]
@@ -60,7 +59,7 @@ No LogScale version: the rule fires only when a remote tool follows a Teams chat
 
 Run every 15 minutes. The 2-hour lookback is the correlation window: the tool must start after the chat was created.
 
-How the user is found: when someone in another tenant starts the chat, the audit event's `user.*` is that outsider, and your user only appears as a chat member. The integration copies every member UPN into `related.user`, so the query expands that list and keeps the UPNs other than the creator's. This overlaps W10 on the endpoint side; the correlation raises its severity and confidence.
+How the user is found: when someone in another tenant starts the chat, the audit event's `user.*` is that outsider, and your user only appears as a chat member. The integration copies every member UPN into `related.user`, so the query expands that list and keeps the UPNs other than the creator's. This overlaps W10 on the endpoint side; the correlation raises its confidence.
 
 ## Suppression
 Suppress by `usr` for 24h. Alerts missing a key field are not suppressed. Correlation rule; suppression stops repeated matches for the same session.

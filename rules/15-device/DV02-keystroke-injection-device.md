@@ -3,7 +3,6 @@ id: DV02
 name: New keyboard device followed within seconds by a shell launched from Explorer (keystroke injection, Rubber Ducky, O.MG cable)
 category: device
 status: todo
-severity: high
 rank: 1
 language: esql
 index: logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default*

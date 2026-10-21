@@ -3,7 +3,6 @@ id: CS04
 name: CrowdStrike Falcon platform detections (high/critical) as first-class alerts
 category: crowdstrike-fdr
 status: todo
-severity: high
 language: esql
 index: logs-crowdstrike.alert-*
 mitre: [various]

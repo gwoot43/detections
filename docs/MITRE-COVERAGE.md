@@ -437,7 +437,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS13 | VS Code tunnel started on an endpoint (code tunnel, Remote Tunnel Access) | T1219.001, T1572 |
 | CS14 | Tunnel service agent running on an endpoint (Cloudflare, ngrok, Tailscale, ZeroTier, SSH tunnel services, bore and others) | T1090.002, T1572 |
 | CS15 | RDP or SSH reached from the host itself (traffic relayed in by a tunnel, whatever it's called) | T1021.001, T1021.004, T1572 |
-| CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux or macOS (filename fallback) | T1021, T1090.001, T1572 |
+| CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux (filename fallback) | T1021, T1090.001, T1572 |
 | CS17 | Secret scanner on a host - one process tests keys against several unrelated providers (TruffleHog, Shai-Hulud, stealers) | T1083, T1552.001 |
 | CS18 | Common attacker tool started, by file name (scanners, credential and secret stealers, lateral movement, tunnels, privilege escalation, exfiltration, EDR killers) | T1003, T1021, T1046, T1068, T1090, T1110, T1552.001, T1555, T1567.002, T1572, T1685 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
@@ -453,11 +453,11 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | S04 | Microsoft first-party CLI or PowerShell app used by a non-administrator | T1078.004, T1087.004, T1526 |
 | S05 | Service principal sign-in from a new network, or secret-guessing failures | T1078.004, T1110, T1528 |
 | S06 | On-premises directory synchronization account used outside the Entra Connect server | T1003.006, T1078.004, T1098 |
-| S07 | Sign-in from hosting, VPN or anonymizer infrastructure on an unregistered device (high when MFA was satisfied by a replayed token claim) | T1078.004, T1090.003, T1550.001, T1557 |
+| S07 | Sign-in from hosting, VPN or anonymizer infrastructure on an unregistered device, or with MFA satisfied by a replayed token claim | T1078.004, T1090.003, T1550.001, T1557 |
 | S08 | One sign-in session used from multiple countries or networks | T1078.004, T1539, T1550.004 |
 | S09 | Sign-in attempts against disabled or leaver accounts | T1078.004, T1110 |
 | S11 | Help-desk MFA reset followed by sign-in from a new location | T1078.004, T1098.005, T1621 |
-| S12 | MFA fatigue (repeated denied or unanswered MFA prompts), critical if then accepted | T1110, T1621 |
+| S12 | MFA fatigue (repeated denied or unanswered MFA prompts), and whether one was then accepted | T1110, T1621 |
 | S13 | Brute force against one account from a single IP | T1110.001 |
 | S14 | Distributed brute force against one account from many IPs | T1090.002, T1110.001 |
 | S15 | Password spray across many accounts, from many IPs (client fingerprint) or from one IP | T1090.002, T1110.003 |
@@ -490,7 +490,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | B06 | C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour | T1071.001, T1095, T1573 |
 | B07 | Mass file read or collection - catches TruffleHog, gitleaks and data-collection tools by behaviour | T1005, T1119, T1552.001 |
 | B08 | Credential store harvesting - catches LaZagne and infostealers by behaviour | T1539, T1552.001, T1555, T1555.003 |
-| B09 | Host discovery command burst, high when it includes domain enumeration - catches post-exploitation recon and loaders by behaviour | T1016, T1033, T1049, T1057, T1069.002, T1082, T1087, T1482 |
+| B09 | Host discovery command burst, labelled when it includes domain enumeration - catches post-exploitation recon and loaders by behaviour | T1016, T1033, T1049, T1057, T1069.002, T1082, T1087, T1482 |
 | B10 | Steady beaconing to an uncategorised or newly registered domain, by at most three users (Zscaler) | T1071.001 |
 | IN01 | Mass SharePoint or OneDrive download by one user, at any hour or as a smaller after-hours burst | T1119, T1213.002, T1530 |
 | IN02 | External or anonymous sharing of SharePoint/OneDrive content at volume | T1213.002, T1537, T1567 |

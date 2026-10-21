@@ -3,7 +3,6 @@ id: L15
 name: Passwordless sudo grant written to a sudoers file from the command line
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1548.003]

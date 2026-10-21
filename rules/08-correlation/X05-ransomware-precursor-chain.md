@@ -3,7 +3,6 @@ id: X05
 name: Ransomware precursor chain on one host
 category: correlation
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1486, T1490, T1685, T1489]

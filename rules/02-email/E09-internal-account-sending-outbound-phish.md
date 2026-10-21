@@ -3,7 +3,6 @@ id: E09
 name: Internal account sending outbound mail that Mimecast holds as spam or rejects, at volume
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-mimecast.siem_logs-*
 mitre: [T1534, T1114, T1078.004]

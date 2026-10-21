@@ -3,7 +3,6 @@ id: AD12
 name: ADIDNS wildcard, WPAD or ISATAP record created by a user account
 category: ad-attack
 status: todo
-severity: medium
 rank: 12
 language: esql
 index: logs-system.security*, logs-windows.forwarded*

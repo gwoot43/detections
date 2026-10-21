@@ -3,7 +3,6 @@ id: S21
 name: ROADrecon-style tenant enumeration through Azure AD Graph
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.aadgraphactivitylogs-*
 mitre: [T1087.004, T1069.003, T1526]

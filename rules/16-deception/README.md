@@ -13,7 +13,7 @@ Everything here is free: native AD and Entra objects, the M365 audit log you alr
 | D03 | Decoy SharePoint/OneDrive file, decoy Confluence page | Opened, previewed, downloaded or copied |
 | D04 | Decoy host and DNS names (OpenCanary) | Name looked up or IP connected to from any Falcon host, or any OpenCanary hit |
 
-Every rule is **critical severity** and should be tagged `deception`. Fire them as direct alerts. Don't make them only risk contributions in a risk-based alerting model: they shouldn't wait for a score to build up. You can also emit a high-weight risk event for RBA and UEBA later.
+Every rule should be tagged `deception` and fired as a direct alert. Don't make them only risk contributions in a risk-based alerting model: they shouldn't wait for a score to build up. You can also emit a high-weight risk event for RBA and UEBA later.
 
 ## Keep the traps secret
 
@@ -93,7 +93,7 @@ Notes:
 
 ## Phase 4: detection and response
 
-- Deploy D01-D04 at critical severity, tagged `deception`, with the real values in place.
+- Deploy D01-D04 as direct alerts, tagged `deception`, with the real values in place.
 - Runbook for any deception alert:
   1. Identify the source host and user from the alert.
   2. Contain the host with Falcon network containment.

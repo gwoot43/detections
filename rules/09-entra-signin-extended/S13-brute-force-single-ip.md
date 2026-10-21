@@ -3,7 +3,6 @@ id: S13
 name: Brute force against one account from a single IP
 category: entra-signin
 status: todo
-severity: high
 language: esql
 index: logs-azure.signinlogs-*
 mitre: [T1110.001]

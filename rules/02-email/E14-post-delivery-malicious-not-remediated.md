@@ -3,7 +3,6 @@ id: E14
 name: Message rated malicious after delivery but still in the inbox (remediation gap)
 category: email
 status: todo
-severity: high
 language: esql
 index: logs-o365.audit-*
 mitre: [T1566.001, T1566.002]

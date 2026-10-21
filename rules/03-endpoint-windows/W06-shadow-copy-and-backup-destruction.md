@@ -3,7 +3,6 @@ id: W06
 name: Shadow copy deletion, backup catalog wipe or boot recovery disabled
 category: endpoint-windows
 status: todo
-severity: critical
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1490, T1485]

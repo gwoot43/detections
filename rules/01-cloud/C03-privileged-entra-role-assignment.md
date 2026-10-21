@@ -3,7 +3,6 @@ id: C03
 name: Privileged Entra role assigned or PIM-activated
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1098.003, T1078.004]

@@ -3,7 +3,6 @@ id: L04
 name: Persistence via cron, systemd unit, shell profile or SSH authorized_keys
 category: endpoint-linux
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1053.003, T1543.002, T1546.004, T1098.004]

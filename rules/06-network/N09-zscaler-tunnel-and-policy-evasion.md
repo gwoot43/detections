@@ -3,13 +3,12 @@ id: N09
 name: Zscaler anonymizer, proxy-avoidance, unsanctioned VPN or DNS-over-HTTPS use
 category: network
 status: todo
-severity: medium
 language: esql
 index: logs-zscaler_zia.web-*
 mitre: [T1090.003, T1572, T1573]
 data_source: Zscaler Internet Access web logs (Elastic zscaler_zia integration, web data stream)
 suppression:
-  fields: [user.name, destination.domain, severity]
+  fields: [user.name, destination.domain, outcome]
   duration: 24h
   missing_fields: do_not_suppress
 ---
@@ -17,7 +16,7 @@ suppression:
 Traffic to anonymizers, Tor gateways, unsanctioned VPNs and DNS-over-HTTPS providers is how users and malware escape inspection. Legitimate use is rare on a managed fleet.
 
 - **Anchor:** Zscaler's anonymizer, proxy-avoidance, VPN and DNS-over-HTTPS categories, Tor `.onion` names and the main DoH resolvers.
-- **Output:** one row per user and destination, with how many requests and how many got through. An **allowed** request means the evasion worked (medium); **blocked** means policy held (low, for context and repeat counts).
+- **Output:** one row per user and destination, with how many requests and how many got through. `outcome` says which: `allowed` means the evasion worked; `blocked` means policy held (kept for context and repeat counts).
 - **Rarity, for DNS-over-HTTPS only:** browsers that use DoH by default reach the same resolvers from across the fleet, so a resolver more than three users reach is that default, not evasion. One device using DoH when nobody else does is the case to look at. Anonymizers and VPNs alert whoever uses them: policy evasion by many users is still evasion.
 
 Tunnel services (Cloudflare Tunnel, ngrok, dev tunnels) are fixed-detections 01 After A, so they aren't repeated here.
@@ -41,14 +40,14 @@ FROM logs-zscaler_zia.web-*
 | INLINE STATS domain_users = COUNT_DISTINCT(user.name) BY destination.domain
 | WHERE is_doh == 0 OR domain_users <= 3
 // Allowed means the evasion worked; blocked means policy held.
-| EVAL severity = CASE(allowed > 0, "medium", "low")
-| KEEP user.name, destination.domain, severity, requests, allowed, domain_users, first_seen, last_seen,
+| EVAL outcome = CASE(allowed > 0, "allowed", "blocked")
+| KEEP user.name, destination.domain, outcome, requests, allowed, domain_users, first_seen, last_seen,
        categories, source_ips, user_agents
 ```
 Field notes: `cat` is the Zscaler URL category (`zscaler_zia.web.url.category.sub`). Categories are matched exactly instead of by substring because a substring such as `*tor*` also matches "Cloud Storage". The exact category names above are best guesses: confirm them in Discover. Tor traffic is expected to fall under Zscaler's anonymizer category or the `.onion` domain match. `event.action` is `allowed`, `blocked` or `cautioned`.
 
 ## Suppression
-Suppress by `user.name`, `destination.domain`, `severity` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: anonymisers and VPNs stay connected, so each run's repeats fold into the open alert. `severity` is in the key so a blocked attempt that later gets through raises a new alert.
+Suppress by `user.name`, `destination.domain`, `outcome` for 24h. Alerts missing a key field are not suppressed. Aggregating rule: anonymisers and VPNs stay connected, so each run's repeats fold into the open alert. `outcome` is in the key so a blocked attempt that later gets through raises a new alert.
 
 ## Known false positives / exclusions
 - DoH used by a browser on only a few machines (a team that switched it on) passes the rarity check. Confirm with the users; if it's sanctioned, exclude those devices.

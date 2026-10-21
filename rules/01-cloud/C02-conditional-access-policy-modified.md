@@ -3,7 +3,6 @@ id: C02
 name: Conditional Access policy created, modified or deleted
 category: cloud
 status: todo
-severity: high
 language: esql
 index: logs-azure.auditlogs-*
 mitre: [T1556.009, T1686.001]
@@ -44,7 +43,7 @@ Suppress by `actor`, `azure.auditlogs.properties.target_resources.0.display_name
 ## Known false positives / exclusions
 - Policy-as-code pipelines. Exclude by service principal object ID (`initiated_by.app.servicePrincipalId`), never by user or display name.
 - Microsoft-managed policies, which Microsoft creates and updates in report-only mode. Exclude the Microsoft service principal that appears as the initiator by its object ID once you have seen it.
-- Named-location updates during office moves. Keep them in but tag lower severity in the rule action.
+- Named-location updates during office moves. Keep them in, and score them lower.
 
 ## Triage
 - Diff the policy: the audit record carries old and new JSON in `modified_properties`. Look for exclusions added, MFA grant removed, state changed to "disabled" or "report-only".

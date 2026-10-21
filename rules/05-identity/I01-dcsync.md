@@ -3,7 +3,6 @@ id: I01
 name: DCSync by a non-domain-controller principal
 category: identity
 status: todo
-severity: critical
 language: esql
 index: logs-system.security*, logs-windows.forwarded*
 mitre: [T1003.006]

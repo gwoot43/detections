@@ -3,7 +3,6 @@ id: W04
 name: LOLBIN download cradle or remote script execution
 category: endpoint-windows
 status: todo
-severity: high
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1105, T1218.005, T1218.010, T1218.011, T1197, T1059.001, T1218.007, T1027.010]
