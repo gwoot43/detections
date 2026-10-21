@@ -23,6 +23,8 @@ Rank reflects impact (how close the technique is to full domain compromise) and 
 | 11 | AD11 | SQL Server or IIS application spawning a shell (xp_cmdshell, Exchange or SharePoint webshell) | FDR process events |
 | 12 | AD12 | ADIDNS wildcard, WPAD or ISATAP record created by a user | SACL on DNS partitions (5137) |
 | 13 | AD13 | RDP session hijacked with tscon | FDR process events |
+| 14 | AD14 | CA issued a request it had denied, or the SubCA template requested (ESC7, officer rights abused) | CA auditing (4886/4887/4888, `AuditFilter 127`) |
+| 15 | AD15 | First certificate logon (PKINIT) for an account in 30 days: any stolen or forged certificate in use, DCs especially | 4768 from every DC |
 
 ## Existing rules extended instead of duplicated
 

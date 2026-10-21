@@ -1,6 +1,6 @@
 # Detection ideas: what each one covers
 
-Thirty-three detections for C2, tunnelling, post-exploitation and AI, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
+Thirty-two detections for C2, tunnelling, post-exploitation and AI, grouped by what they're looking for. Each file here is identical to its original in `rules/` or `fixed-detections/`; see [README.md](README.md) for the paths and how the copies stay in sync.
 
 ## What each one covers and how
 
@@ -43,7 +43,6 @@ Thirty-three detections for C2, tunnelling, post-exploitation and AI, grouped by
 | [L07](L07-defense-evasion-log-and-history-tamper.md) | Anti-forensics in one rule: logs, login records or shell history deleted or emptied, history switched off, auditd or syslog stopped, system files re-dated | An action that destroys or re-dates (`rm`, `truncate`, `: >`, `unset HISTFILE`, `systemctl stop`, `touch -r`) on a live record: a log matched by name shape wherever it is, `wtmp`, history, the logging service. The label names the technique | The command is new on the host and run on at most 3 hosts; rotated logs don't count | CrowdStrike process starts (Linux) |
 | [L13](L13-rare-setuid-root-program.md) | Setuid-root backdoors, such as a shell copied to a system-looking name (`/usr/bin/dbus-authd` in the BeyondTrust intrusion) | A program starts as root for a non-root account (effective user 0, real user not 0), new on the host | Runs setuid on at most 3 hosts, so `sudo`, `su` and `passwd` drop out | CrowdStrike process starts (Linux) |
 | [L15](L15-passwordless-sudo-grant-written.md) | A `NOPASSWD` sudo rule written to give an account permanent root, including into a template that rebuilds `/etc/sudoers` | `NOPASSWD` and a sudoers path in one command, from something that writes rather than reads | The command is new on the host and run on at most 3 hosts | CrowdStrike process starts (Linux) |
-| [CS17](CS17-trufflehog-secret-scan.md) | Secret harvesting by TruffleHog (as the Shai-Hulud npm worm runs it), a renamed copy, or a stealer testing stolen keys | One process tests keys against 4+ providers' key-checking APIs (or 3 with a rare one: SendGrid, Twilio, Mailgun, Heroku, DigitalOcean) in the 20-minute window. A package runtime as the tester (`node`, `bun`, `deno`, `python`) is the worm pattern; the process name is in the output. No filename fallback: CS18 matches TruffleHog by name | Code editors and browsers dropped; CI runners and AppSec hosts excluded as host + scanner pairs | CrowdStrike DNS; Zscaler web logs (TruffleHog user agent, and the same burst per device) |
 
 ### Webshells at the edge
 
@@ -91,7 +90,6 @@ Thirty-three detections for C2, tunnelling, post-exploitation and AI, grouped by
 | L07 | Hourly, 7 days | `host.id` / 24h | T1685.006, T1070.003, T1685.004, T1070.006 | Yes |
 | L13 | Hourly, 7 days | `host.id` / 24h | T1548.001 | Yes |
 | L15 | Hourly, 7 days | `host.id` / 24h | T1548.003 | Yes |
-| CS17 | Every 15 min, 20 min | `host.id` / 24h | T1552.001, T1083 | Yes |
 | N11 | Hourly, 7 days | `url.domain`, `url.path` / 24h | T1505.003, T1190 | Not applicable (Imperva) |
 | AI01 | Hourly, 7 days | `host.id` / 24h | T1588.007, T1071.001 | Yes |
 | AI02 | Hourly, 7 days | `host.id` / 24h | T1700, T1195.001, T1059 | Yes |
@@ -111,7 +109,7 @@ Thirty-three detections for C2, tunnelling, post-exploitation and AI, grouped by
 
 - **One tunnel usually trips more than one rule.** A Cloudflare tunnel exposing RDP fires CS14 (the agent) and CS15 (RDP from loopback); a chisel pivot fires W10 (if the name is unchanged) and CS16; a tunneller dropped in `/tmp` on a Linux server fires L14, and CS11 too if other hosts connect to it. Two alerts on the same `host.id` is a confirmed tunnel.
 - **One intrusion trips most of the post-exploitation rules.** ARMORY CASTLE's BeyondTrust intrusion would fire N11 (the webshell in use), then L03 (the web server starting shells), L13 (the setuid shell), L15 (the sudoers backdoor), L14 (the tunneller in `/tmp`) and L07 (the log wiping), all on one host.
-- **A poisoned npm package trips several at once.** A Shai-Hulud-style worm fires CS17 (its TruffleHog scan), AI07 (an install script that downloads and runs code) and AI02 (if it drives the developer's AI agent), all on the same host.
+- **A poisoned npm package trips several at once.** A Shai-Hulud-style worm fires CS17 (its TruffleHog key checks; now in `implement/`), AI07 (an install script that downloads and runs code) and AI02 (if it drives the developer's AI agent), all on the same host.
 - **Endpoint and proxy see different halves.** B06 names the process and sees any protocol; B10 names the domain and URL and covers devices without Falcon.
 - **Known gaps:**
   - A tool renamed to a common binary (`svchost.exe`, `powershell.exe`) blends into that name's history in CS16 and B06.

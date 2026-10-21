@@ -18,11 +18,12 @@ rules/
   11-behaviour/             B01-B10   behavioural (what a tool does, not its name)
   12-insider/               IN01-IN09 insider risk (SharePoint/OneDrive/Confluence/mail)
   13-controlplane/          CP01-CP06 weakening/blinding of security controls (Defender, EDR)
-  14-ad-attack/             AD01-AD13 Active Directory attack paths, ranked by criticality
+  14-ad-attack/             AD01-AD15 Active Directory attack paths, ranked by criticality
   15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
   16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
   17-ai-detections/         AI01-AI11 attacks using or aimed at AI: malware calling models, hijacked coding agents, Copilot, shadow AI
 detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
+implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
 docs/
   DETECTION-STRUCTURE-ESQL.md    the detection standard for ES|QL: funnel stages, gate rules, baselines, output contract
   DETECTION-STRUCTURE-CQL.md     the same standard for Falcon LogScale (CQL)
@@ -31,7 +32,7 @@ docs/
   ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping, rule checklist
 tools/
   lint_detections.py             checks every rule against the standards' reject criteria
-  sync_detection_ideas.py        keeps detection_ideas/ identical to the originals
+  sync_detection_ideas.py        keeps detection_ideas/ and implement/ identical to the originals
   mitre_coverage.py              regenerates the ATT&CK coverage map
 ```
 
@@ -63,4 +64,4 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 
 Technique IDs follow ATT&CK v20. Since v19, Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686; v20 added AI techniques (T1698-T1700).
 
-Total: 194 detections across 17 groups.
+Total: 196 detections across 17 groups.

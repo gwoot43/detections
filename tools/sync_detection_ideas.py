@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Keep detection_ideas/ identical to the rules it copies.
+"""Keep the copy folders identical to the rules they copy.
 
-detection_ideas/ holds copies of the C2, tunnelling, post-exploitation and AI detections. Edit a copy or its
-original and this script copies the edited file over the other. The Claude Code hook in
-.claude/settings.json runs it after every edit.
+detection_ideas/ holds copies of the C2, tunnelling, post-exploitation and AI detections; implement/ holds copies of
+the detections chosen to build next. Each original has one copy, in one folder. Edit a copy or its original and this
+script copies the edited file over the other. The Claude Code hook in .claude/settings.json runs it after every edit.
 
   python3 tools/sync_detection_ideas.py            sync pairs where one side has uncommitted changes
   python3 tools/sync_detection_ideas.py FILE...    copy FILE (an original or a copy) over its twin
   python3 tools/sync_detection_ideas.py --check    exit 1 if a copy is missing or differs
-  python3 tools/sync_detection_ideas.py --readme   create missing copies and rewrite detection_ideas/README.md
+  python3 tools/sync_detection_ideas.py --readme   create missing copies and rewrite each folder's README.md
   python3 tools/sync_detection_ideas.py --hook     hook mode: reads the tool call as JSON on stdin
 """
 import json
@@ -19,52 +19,64 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IDEAS = "detection_ideas"
+# folder: (README title, what the folder holds, an extra line for the README or None)
+FOLDERS = {
+    "detection_ideas": ("Detection ideas: C2, tunnelling, post-exploitation and AI",
+                        "Copies of the library's C2, tunnelling, post-exploitation and AI detections, gathered in one folder.",
+                        "[SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, "
+                        "with schedule, suppression and ATT&CK."),
+    "implement": ("Implement: detections chosen to build next",
+                  "Copies of the detections picked to build next, gathered in one folder.",
+                  None),
+}
 
-# (group, original). To add or remove a detection, edit this list and run with --readme.
+# (folder, group, original). To add, move or remove a detection, edit this list and run with --readme; a copy left in
+# a folder it no longer belongs to has to be deleted by hand.
 SOURCES = [
-    ("C2", "rules/11-behaviour/B06-c2-beaconing.md"),
-    ("C2", "rules/11-behaviour/B10-zscaler-c2-beaconing.md"),
-    ("C2", "rules/06-network/N07-zscaler-c2-and-malware-callback.md"),
-    ("C2", "rules/04-endpoint-linux/L01-reverse-shell.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS03-dns-tunnelling.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS09-windows-port-forward-portproxy.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS10-web-server-new-internal-admin-connection.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS11-rare-program-accepting-internal-connections.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS13-vscode-tunnel.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS14-tunnel-service-agent.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS15-admin-service-reached-from-loopback.md"),
-    ("Tunnelling", "rules/07-crowdstrike-fdr/CS16-rare-program-reaches-internal-admin-services.md"),
-    ("Tunnelling", "rules/04-endpoint-linux/L14-temp-or-memory-program-listening.md"),
-    ("Tunnelling", "rules/06-network/N09-zscaler-tunnel-and-policy-evasion.md"),
-    ("Tunnelling", "rules/03-endpoint-windows/W10-unauthorised-rmm-or-tunnel.md"),
-    ("Tunnelling", "fixed-detections/01-tunnel-service-connection.md"),
-    ("Tunnelling", "fixed-detections/02-dns-tunneling.md"),
-    ("Post-exploitation", "rules/04-endpoint-linux/L07-defense-evasion-log-and-history-tamper.md"),
-    ("Post-exploitation", "rules/04-endpoint-linux/L13-rare-setuid-root-program.md"),
-    ("Post-exploitation", "rules/04-endpoint-linux/L15-passwordless-sudo-grant-written.md"),
-    ("Post-exploitation", "rules/07-crowdstrike-fdr/CS17-trufflehog-secret-scan.md"),
-    ("Webshell", "rules/06-network/N11-imperva-new-script-page-posted-by-few-clients.md"),
-    ("AI", "rules/17-ai-detections/AI01-host-starts-calling-llm-api.md"),
-    ("AI", "rules/17-ai-detections/AI02-ai-coding-agent-run-unattended-with-approvals-off.md"),
-    ("AI", "rules/17-ai-detections/AI03-m365-copilot-prompt-injection-or-jailbreak.md"),
-    ("AI", "rules/17-ai-detections/AI04-azure-openai-keys-or-content-filter-new-identity.md"),
-    ("AI", "rules/17-ai-detections/AI05-download-after-ai-assistant-link.md"),
-    ("AI", "rules/17-ai-detections/AI06-code-editor-looks-up-rare-domain.md"),
-    ("AI", "rules/17-ai-detections/AI07-ai-agent-or-editor-runs-download-and-execute.md"),
-    ("AI", "rules/17-ai-detections/AI08-prompt-for-an-ai-model-in-command-line-or-script.md"),
-    ("AI", "rules/17-ai-detections/AI09-copilot-studio-agent-published-or-auth-changed-by-new-maker.md"),
-    ("AI", "rules/17-ai-detections/AI10-defender-for-cloud-ai-threat-alerts.md"),
-    ("AI", "rules/17-ai-detections/AI11-first-large-upload-to-rarely-used-ai-app.md"),
+    ("detection_ideas", "C2", "rules/11-behaviour/B06-c2-beaconing.md"),
+    ("detection_ideas", "C2", "rules/11-behaviour/B10-zscaler-c2-beaconing.md"),
+    ("detection_ideas", "C2", "rules/06-network/N07-zscaler-c2-and-malware-callback.md"),
+    ("detection_ideas", "C2", "rules/04-endpoint-linux/L01-reverse-shell.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS03-dns-tunnelling.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS09-windows-port-forward-portproxy.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS10-web-server-new-internal-admin-connection.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS11-rare-program-accepting-internal-connections.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS13-vscode-tunnel.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS14-tunnel-service-agent.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS15-admin-service-reached-from-loopback.md"),
+    ("detection_ideas", "Tunnelling", "rules/07-crowdstrike-fdr/CS16-rare-program-reaches-internal-admin-services.md"),
+    ("detection_ideas", "Tunnelling", "rules/04-endpoint-linux/L14-temp-or-memory-program-listening.md"),
+    ("detection_ideas", "Tunnelling", "rules/06-network/N09-zscaler-tunnel-and-policy-evasion.md"),
+    ("detection_ideas", "Tunnelling", "rules/03-endpoint-windows/W10-unauthorised-rmm-or-tunnel.md"),
+    ("detection_ideas", "Tunnelling", "fixed-detections/01-tunnel-service-connection.md"),
+    ("detection_ideas", "Tunnelling", "fixed-detections/02-dns-tunneling.md"),
+    ("detection_ideas", "Post-exploitation", "rules/04-endpoint-linux/L07-defense-evasion-log-and-history-tamper.md"),
+    ("detection_ideas", "Post-exploitation", "rules/04-endpoint-linux/L13-rare-setuid-root-program.md"),
+    ("detection_ideas", "Post-exploitation", "rules/04-endpoint-linux/L15-passwordless-sudo-grant-written.md"),
+    ("detection_ideas", "Webshell", "rules/06-network/N11-imperva-new-script-page-posted-by-few-clients.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI01-host-starts-calling-llm-api.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI02-ai-coding-agent-run-unattended-with-approvals-off.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI03-m365-copilot-prompt-injection-or-jailbreak.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI04-azure-openai-keys-or-content-filter-new-identity.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI05-download-after-ai-assistant-link.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI06-code-editor-looks-up-rare-domain.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI07-ai-agent-or-editor-runs-download-and-execute.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI08-prompt-for-an-ai-model-in-command-line-or-script.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI09-copilot-studio-agent-published-or-auth-changed-by-new-maker.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI10-defender-for-cloud-ai-threat-alerts.md"),
+    ("detection_ideas", "AI", "rules/17-ai-detections/AI11-first-large-upload-to-rarely-used-ai-app.md"),
+    ("implement", "Secrets", "rules/07-crowdstrike-fdr/CS17-trufflehog-secret-scan.md"),
+    ("implement", "AD CS", "rules/14-ad-attack/AD14-adcs-denied-request-issued-or-subca-requested.md"),
+    ("implement", "AD CS", "rules/14-ad-attack/AD15-first-certificate-logon-for-account.md"),
 ]
 
 
-def copy_of(original):
+def copy_of(folder, original):
     prefix = "fixed-" if original.startswith("fixed-detections/") else ""
-    return f"{IDEAS}/{prefix}{os.path.basename(original)}"
+    return f"{folder}/{prefix}{os.path.basename(original)}"
 
 
-PAIRS = [(o, copy_of(o)) for _, o in SOURCES]
+PAIRS = [(o, copy_of(f, o)) for f, _, o in SOURCES]
 TWIN = {**{o: c for o, c in PAIRS}, **{c: o for o, c in PAIRS}}
 
 
@@ -134,18 +146,24 @@ def readme(log):
     for o, c in PAIRS:
         if not os.path.exists(path(c)):
             copy(o, c, log)
+    for folder, (heading, holds, extra) in FOLDERS.items():
+        write_readme(folder, heading, holds, extra)
+
+
+def write_readme(folder, heading, holds, extra):
     rows = []
-    for (group, o), (_, c) in zip(SOURCES, PAIRS):
+    for (f, group, o), (_, c) in zip(SOURCES, PAIRS):
+        if f != folder:
+            continue
         name = os.path.basename(c)
         label = "Fixed " + name.split("-")[1] if name.startswith("fixed-") else name.split("-")[0]
         rows.append(f"| [{label}]({name}) | {title(o)} | {group} | `{o}` |")
     body = "\n".join([
-        "# Detection ideas: C2, tunnelling, post-exploitation and AI",
+        f"# {heading}",
         "",
-        "Copies of the library's C2, tunnelling, post-exploitation and AI detections, gathered in one folder. Each file is identical to its original, and an edit to either one is copied to the other.",
+        f"{holds} Each file is identical to its original, and an edit to either one is copied to the other.",
         "",
-        "[SUMMARY.md](SUMMARY.md) says what each one covers, how it detects and how it stays quiet, with schedule, suppression and ATT&CK.",
-        "",
+        *([extra, ""] if extra else []),
         "| File | Detection | Group | Original |",
         "|---|---|---|---|",
         *rows,
@@ -157,7 +175,7 @@ def readme(log):
         "- **Adding or removing a detection:** edit the list at the top of `tools/sync_detection_ideas.py`, then run it with `--readme` to create the copy and rewrite this page.",
         "",
     ])
-    with open(path(f"{IDEAS}/README.md"), "w", encoding="utf-8") as f:
+    with open(path(f"{folder}/README.md"), "w", encoding="utf-8") as f:
         f.write(body)
 
 
@@ -176,7 +194,7 @@ def hook():
         log = [line for line in log if line.startswith("copied")]
     if log:
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse",
-                                                 "additionalContext": "detection_ideas sync: " + "; ".join(log)}}))
+                                                 "additionalContext": "copy sync: " + "; ".join(log)}}))
     return 0
 
 

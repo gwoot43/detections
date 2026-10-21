@@ -237,6 +237,8 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **AD11** SQL Server / IIS spawning a shell _(rank 11)_ · `suppress: host.name, parent / 1h`
 - [ ] **AD12** ADIDNS wildcard / WPAD record by a user _(rank 12; needs DNS partition SACL)_ · `suppress: op_id / 1h`
 - [ ] **AD13** RDP session hijack via tscon _(rank 13)_ · `suppress: host.name / 1h`
+- [ ] **AD14** CA issued a request it had denied, or SubCA requested (ESC7) _(rank 14; needs CA auditing)_ · `suppress: winlog.computer_name, winlog.event_data.RequestId, finding / 24h`
+- [ ] **AD15** First certificate logon (PKINIT) for an account in 30 days, DCs especially _(rank 15; needs 4768 from every DC)_ · `suppress: account / 24h`
 
 ## Device and hardware (rules/15-device) — enable Audit PNP Activity first
 - [ ] **DV02** New keyboard then shell from Explorer within 90s (keystroke injection) _(rank 1)_ · `suppress: host_key / 1h`
