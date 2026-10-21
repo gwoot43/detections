@@ -95,6 +95,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **N09** Zscaler anonymizer / proxy avoidance / VPN / DoH _(P2)_ · `suppress: user.name, destination.domain, outcome / 24h`
 - [ ] **N10** External scanning against the Imperva edge (internal fan-out: B01/B04) _(P2)_ · `suppress: src / 1h`
 - [ ] **N11** New script page answering POSTs from one or two clients at the Imperva edge (webshell in use; needs passed-request logs) _(P1)_ · `suppress: url.domain, url.path / 24h`
+- [ ] **N12** PHP2Shell (CVE-2026-109618/109619) at the Imperva edge: the upload-progress field, POSTs crashing PHP workers, or Imperva's verdict _(P0, patch window)_ · `suppress: url.domain, source.ip, finding / 24h`
 
 ## CrowdStrike FDR (bonus, sensor-native telemetry)
 - [ ] **CS01** BYOVD vulnerable driver load _(P1)_ · `suppress: host.id, img / 24h`

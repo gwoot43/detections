@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v20.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**196 rules · 108 techniques covered** (198 technique and sub-technique IDs).
+**197 rules · 108 techniques covered** (198 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -16,7 +16,7 @@ To see it as a heat map, import `docs/attack-navigator-layer.json` into the [ATT
 flowchart LR
   T0["Reconnaissance<br/>1/12 techniques · 2 rules"]:::low
   T1["Resource Development<br/>2/9 techniques · 2 rules"]:::mid
-  T2["Initial Access<br/>6/11 techniques · 60 rules"]:::high
+  T2["Initial Access<br/>6/11 techniques · 61 rules"]:::high
   T3["Execution<br/>13/21 techniques · 32 rules"]:::high
   T4["Persistence<br/>15/22 techniques · 77 rules"]:::high
   T5["Privilege Escalation<br/>12/13 techniques · 76 rules"]:::high
@@ -44,7 +44,7 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 |---|---|---|---|
 | Reconnaissance (TA0043) | 1 / 12 | `██░░░░░░░░░░░░░░░░░░` 8% | 2 |
 | Resource Development (TA0042) | 2 / 9 | `████░░░░░░░░░░░░░░░░` 22% | 2 |
-| Initial Access (TA0001) | 6 / 11 | `███████████░░░░░░░░░` 55% | 60 |
+| Initial Access (TA0001) | 6 / 11 | `███████████░░░░░░░░░` 55% | 61 |
 | Execution (TA0002) | 13 / 21 | `████████████░░░░░░░░` 62% | 32 |
 | Persistence (TA0003) | 15 / 22 | `██████████████░░░░░░` 68% | 77 |
 | Privilege Escalation (TA0004) | 12 / 13 | `██████████████████░░` 92% | 76 |
@@ -67,7 +67,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1566.001 Spearphishing Attachment | Initial Access | E02, E04, E13, E14, W02 |
 | T1566.002 Spearphishing Link | Initial Access | E01, E04, E05, E13, E14 |
 | T1078.004 Cloud Accounts | Stealth, Persistence, Privilege Escalation, Initial Access | C03, C11, D02, E09, I07, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, X02 |
-| T1190 Exploit Public-Facing Application | Initial Access | AD11, L03, N05, N06, N11, X04 |
+| T1190 Exploit Public-Facing Application | Initial Access | AD11, L03, N05, N06, N11, N12, X04 |
 | T1133 External Remote Services | Persistence, Initial Access | C08, N01, N02, N03, X03 |
 | T1199 Trusted Relationship | Initial Access | **gap** |
 | T1059.001 PowerShell | Execution | DV02, W03, W04 |
@@ -153,7 +153,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 |---|---|---|
 | T1078 Valid Accounts | AD05, AD15, B05, C03, C11, D01, D02, E09, E10, I02, I06, I07, I11, N01, N03, N04, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, WE04, WE05, WE06, X02, X03, X07 | T1078.002 Domain Accounts (AD05, AD15, D01, I02, I06, I11, WE05, WE06, X07); T1078.004 Cloud Accounts (C03, C11, D02, E09, I07, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, X02) |
 | T1566 Phishing | CP02, E01, E02, E03, E04, E05, E11, E13, E14, W02, X01, X06 | T1566.001 Spearphishing Attachment (E02, E04, E13, E14, W02); T1566.002 Spearphishing Link (E01, E04, E05, E13, E14); T1566.003 Spearphishing via Service (E03) |
-| T1190 Exploit Public-Facing Application | AD11, L03, N05, N06, N11, X04 | - |
+| T1190 Exploit Public-Facing Application | AD11, L03, N05, N06, N11, N12, X04 | - |
 | T1133 External Remote Services | C08, N01, N02, N03, X03 | - |
 | T1200 Hardware Additions | DV02, DV03, DV05 | - |
 | T1195 Supply Chain Compromise | AI02, AI06, AI07 | T1195.001 Compromise Software Dependencies and Development Tools (AI02, AI06, AI07) |
@@ -423,6 +423,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | N09 | Zscaler anonymizer, proxy-avoidance, unsanctioned VPN or DNS-over-HTTPS use | T1090.003, T1572, T1573 |
 | N10 | External reconnaissance scan against the Imperva-protected web edge (one source, many URIs) | T1595.002, T1595.003 |
 | N11 | New script page answering POSTs from one or two clients at the Imperva edge (webshell in use) | T1190, T1505.003 |
+| N12 | PHP2Shell exploitation at the edge (CVE-2026-109618, CVE-2026-109619) - the upload-progress field the exploit uses, POSTs crashing PHP workers, or Imperva's own verdict | T1190 |
 | CS01 | Vulnerable or unsigned driver loaded (BYOVD) | T1068, T1211, T1685 |
 | CS02 | Persistence written to Run keys, Winlogon, IFEO or other ASEPs (not services) | T1546, T1547.001 |
 | CS03 | DNS tunnelling - many long, distinct names under one parent domain from one host (activity), or a DNS tunnel tool runs (filename fallback) | T1048.003, T1071.004, T1572 |

@@ -10,7 +10,7 @@ rules/
   03-endpoint-windows/      W01-W14   CrowdStrike FDR (Windows) + Defender for Endpoint alerts
   04-endpoint-linux/        L01-L15   CrowdStrike FDR (Linux)
   05-identity/              I01-I14   Active Directory + authentication (hybrid)
-  06-network/               N01-N11   F5 APM, Imperva WAF, Zscaler
+  06-network/               N01-N12   F5 APM, Imperva WAF, Zscaler
   07-crowdstrike-fdr/       CS01-CS18 Falcon sensor-native telemetry
   08-correlation/           X01-X07   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
@@ -64,4 +64,4 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 
 Technique IDs follow ATT&CK v20. Since v19, Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686; v20 added AI techniques (T1698-T1700).
 
-Total: 196 detections across 17 groups.
+Total: 197 detections across 17 groups.
