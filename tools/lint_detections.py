@@ -97,7 +97,9 @@ def lint_esql(block):
     gate = strip_comments("\n".join(gate_raw))
     if ESQL_FUNCS.search(gate):
         found.append("E-GATE-FUNC")
-    if re.search(r'\bLIKE\s+"(?:"")?\*|\bRLIKE\b', gate) and not re.search(r"(?i)//.*(wildcard|regex|rlike)", "\n".join(gate_raw)):
+    # a justifying comment counts inside the gate or on the lines just above it (they belong to the FROM stage)
+    gate_and_lead = "\n".join(raw_stages[:1 + len(gate_raw)])
+    if re.search(r'\bLIKE\s+"(?:"")?\*|\bRLIKE\b', gate) and not re.search(r"(?i)//.*(wildcard|regex|rlike)", gate_and_lead):
         found.append("E-GATE-WILDCARD")
     for m in re.finditer(r"([\w.@]+)\s*=\s*VALUES\(\s*(%s)\s*\)" % ESQL_HC, code):
         if not re.search(r"MV_SLICE\(\s*%s\b" % re.escape(m.group(1)), code[m.end():]):

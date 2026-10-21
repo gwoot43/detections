@@ -75,6 +75,7 @@ SOURCES = [
     ("implement", "Scanning", "rules/11-behaviour/B01-horizontal-network-scan.md"),
     ("implement", "Sensor health", "rules/13-controlplane/CP04-crowdstrike-rfm-or-not-reporting.md"),
     ("implement", "PHP2Shell", "rules/06-network/N12-imperva-php2shell-worker-crash-burst.md"),
+    ("implement", "PHP2Shell", "rules/07-crowdstrike-fdr/CS19-php-worker-does-something-new.md"),
 ]
 
 

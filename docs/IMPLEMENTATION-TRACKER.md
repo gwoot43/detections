@@ -115,6 +115,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CS16** Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (pivot by behaviour), falls back to chisel/gost/frp by name on Linux _(P1)_ · `suppress: host.id, process.name / 24h`
 - [ ] **CS17** Secret scanner: a process tests keys against several unrelated providers; Zscaler query adds TruffleHog's user agent and the burst per device _(P1)_ · `suppress: host.id / 24h`
 - [ ] **CS18** Common attacker tool started, by file name: scanners, credential and secret stealers, lateral movement, tunnels, privilege escalation, rclone, EDR killers _(P1)_ · `suppress: host.id, process.name / 24h`
+- [ ] **CS19** PHP worker (or Apache running mod_php) does something new: program, web script, domain or port; PHP2Shell and web shell follow-up _(P0, patch window)_ · `suppress: host.id, event.action / 24h`
 
 
 ## Entra sign-in extended (high-fidelity sign-on signals)
