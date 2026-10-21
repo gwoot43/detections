@@ -22,8 +22,9 @@ Events 4876 and 4877 need CA auditing enabled for backup and restore (the CA aud
 ## Query
 ```esql
 FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
-| WHERE event.code IN ("4876", "4877")                                  // CA backup started / completed
-   OR event.action == "processrollup2"
+// CA backup started or completed, or certutil starting: the index answers both, so other process starts are never read.
+| WHERE event.code IN ("4876", "4877")
+   OR (event.action == "processrollup2" AND process.name IN ("certutil.exe", "CertUtil.exe", "CERTUTIL.EXE"))
 // Windows events: winlog.computer_name (with event forwarding, host.name is the collector); FDR: host.name
 | EVAL h = TO_LOWER(MV_FIRST(SPLIT(COALESCE(winlog.computer_name, host.name), "."))),
        cl = TO_LOWER(COALESCE(process.command_line, "")),
@@ -41,6 +42,7 @@ FROM logs-system.security*, logs-windows.forwarded*, logs-yourorg-crowdstrike-da
 ```logscale
 #event_simpleName=/^(ProcessRollup2|SyntheticProcessRollup2)$/ FileName=/^certutil\.exe$/i
 | regex("^(?<h>[^.]*)", field=ComputerName, strict=false)
+// Deliberately no * branch: this case is a filter, and a command line matching none of the branches is dropped.
 | case {
     CommandLine=/[-\/]backupkey/i;
     CommandLine=/[-\/]backup /i;

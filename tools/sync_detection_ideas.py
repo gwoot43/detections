@@ -27,7 +27,10 @@ FOLDERS = {
                         "with schedule, suppression and ATT&CK."),
     "implement": ("Implement: detections chosen to build next",
                   "Copies of the detections picked to build next, gathered in one folder.",
-                  None),
+                  "AD CS is kept to the three most accurate rules, in priority order: AD15 (any stolen or forged "
+                  "certificate being used, whatever the path), AD03 (the CA's private key backed up: a golden certificate) "
+                  "and AD14 (a refused request issued by an officer, ESC7). I09 and AD06 stay in the library: I09 misses "
+                  "the usual ESC1 path, and AD06's template and CA changes are routine PKI administration too."),
 }
 
 # (folder, group, original). To add, move or remove a detection, edit this list and run with --readme; a copy left in
@@ -66,8 +69,9 @@ SOURCES = [
     ("detection_ideas", "AI", "rules/17-ai-detections/AI10-defender-for-cloud-ai-threat-alerts.md"),
     ("detection_ideas", "AI", "rules/17-ai-detections/AI11-first-large-upload-to-rarely-used-ai-app.md"),
     ("implement", "Secrets", "rules/07-crowdstrike-fdr/CS17-trufflehog-secret-scan.md"),
-    ("implement", "AD CS", "rules/14-ad-attack/AD14-adcs-denied-request-issued-or-subca-requested.md"),
-    ("implement", "AD CS", "rules/14-ad-attack/AD15-first-certificate-logon-for-account.md"),
+    ("implement", "AD CS, priority 1", "rules/14-ad-attack/AD15-first-certificate-logon-for-account.md"),
+    ("implement", "AD CS, priority 2", "rules/14-ad-attack/AD03-ca-private-key-backup.md"),
+    ("implement", "AD CS, priority 3", "rules/14-ad-attack/AD14-adcs-denied-request-issued-or-subca-requested.md"),
 ]
 
 
