@@ -11,7 +11,7 @@ rules/
   04-endpoint-linux/        L01-L15   CrowdStrike FDR (Linux)
   05-identity/              I01-I14   Active Directory + authentication (hybrid)
   06-network/               N01-N12   F5 APM, Imperva WAF, Zscaler
-  07-crowdstrike-fdr/       CS01-CS19 Falcon sensor-native telemetry
+  07-crowdstrike-fdr/       CS01-CS20 Falcon sensor-native telemetry
   08-correlation/           X01-X07   cross-source chains (highest value)
   09-entra-signin-extended/ S01-S23   additional high-fidelity Entra sign-on signals
   10-windows-event-logs/    WE01-WE15 Windows Security/System/Defender event-code detections
@@ -25,7 +25,7 @@ rules/
 detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
 implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
 docs/
-  DETECTION-STRUCTURE-ESQL.md    the detection standard for ES|QL: funnel stages, gate rules, baselines, output contract
+  DETECTION-STRUCTURE-ESQL.md    how an ES|QL detection is written: the short default shape, the funnel for rules that count, baselines
   DETECTION-STRUCTURE-CQL.md     the same standard for Falcon LogScale (CQL)
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
   NEW-TTPS-2026.md               recent tradecraft, MITRE v18-v20 changes, AI attack rules and ideas
@@ -36,7 +36,7 @@ tools/
   mitre_coverage.py              regenerates the ATT&CK coverage map
 ```
 
-Each rule file is self-contained: front-matter (id, MITRE, data source), a "why this is high fidelity" note, the ES|QL/EQL query, known false positives and exclusions, triage steps, and a test method.
+Each rule file is self-contained: front-matter (id, MITRE, data source, suppression), a few lines on what it catches and why, the query (ES|QL, and LogScale for CrowdStrike data), what to check before turning it on, what it misses, and what to do when it fires.
 
 ## Design principles (why these are high fidelity, not the AI-noise you have now)
 1. **Alert on the improbable, not the merely suspicious.** Every rule targets behaviour with a small, knowable legitimate population you can exclude by name, not by guesswork.
@@ -45,7 +45,7 @@ Each rule file is self-contained: front-matter (id, MITRE, data source), a "why 
 4. **Exclude by identity, never by muting a technique.** Exclusions are entity pairs (a host and the process or service account that does this by design), never a whole host or user, and never "turn the rule off because it's noisy". The standard keeps them in one central lookup; until one exists here, they're inline placeholders.
 5. **Vendor alerts are inputs, not the whole story.** CS04 routes Falcon detections in on day one; the custom rules cover what the vendors cannot see (non-endpoint sources and cross-source chains).
 6. **One anchor and a corroborating property, not a list of command strings.** Anchor on what every variant of the behaviour must do. Require one property that makes it this tool or this risk, and exclude the known benign case in one precise clause. Lists of command-line variants miss the next variant and keep growing. Pattern, worked examples and a checklist for new rules: `docs/ESQL-CONVENTIONS.md` (Detection shape). B10 is the reference rule.
-7. **Every query is a funnel, and every threshold has a source.** Gate on what the index answers, reduce once per alert entity, decide, then enrich the survivors only. Thresholds come from a measured baseline, recorded next to them. Each rule carries its telemetry checks, blind spots and a triage pivot query. The standards are `docs/DETECTION-STRUCTURE-ESQL.md` and `docs/DETECTION-STRUCTURE-CQL.md`; CS17 is the worked example, and `tools/lint_detections.py` checks rules against them.
+7. **Short by default, and every threshold has a source.** Most rules are one event, a precise regex with a named capture, and the fields to triage it (CS19). Rules that have to count or compare filter on what the index answers, reduce once per alert entity, then decide, with thresholds from a measured baseline recorded next to them (B01, CS17). Each rule says what to check before turning it on, what it misses and what to do when it fires. The standards are `docs/DETECTION-STRUCTURE-ESQL.md` and `docs/DETECTION-STRUCTURE-CQL.md`, and `tools/lint_detections.py` checks rules against them.
 
 ## Field-name caveat
 Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names, except CrowdStrike FDR, which comes from your own pipeline: `logs-yourorg-crowdstrike-data-default*` (replace `yourorg`), with lowercase `event.action` and raw fields under `data.*`. The mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).
@@ -64,4 +64,4 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 
 Technique IDs follow ATT&CK v20. Since v19, Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686; v20 added AI techniques (T1698-T1700).
 
-Total: 198 detections across 17 groups.
+Total: 199 detections across 17 groups.

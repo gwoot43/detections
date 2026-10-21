@@ -13,7 +13,8 @@ AD CS is kept to the three most accurate rules, in priority order: AD15 (any sto
 | [B01](B01-horizontal-network-scan.md) | Internal port or host scanning by one process (outbound TCP to many hosts or many ports) | Scanning | `rules/11-behaviour/B01-horizontal-network-scan.md` |
 | [CP04](CP04-crowdstrike-rfm-or-not-reporting.md) | CrowdStrike sensor online in Reduced Functionality Mode on a host people use | Sensor health | `rules/13-controlplane/CP04-crowdstrike-rfm-or-not-reporting.md` |
 | [N12](N12-imperva-php2shell-worker-crash-burst.md) | PHP2Shell exploitation at the edge (CVE-2026-109618, CVE-2026-109619) - the upload-progress field the exploit uses, POSTs crashing PHP workers, or Imperva's own verdict | PHP2Shell | `rules/06-network/N12-imperva-php2shell-worker-crash-burst.md` |
-| [CS19](CS19-php-worker-does-something-new.md) | PHP worker (or Apache running mod_php) does something new - starts a program, writes a web script, looks up a name or connects on a port it hasn't before (PHP2Shell and web shell follow-up) | PHP2Shell | `rules/07-crowdstrike-fdr/CS19-php-worker-does-something-new.md` |
+| [CS19](CS19-php-code-runs-system-commands.md) | PHP code that runs system commands - eval'd code calling system(), exec() and the like, or a script passing request input to one (web shells, PHP2Shell follow-up) | PHP2Shell | `rules/07-crowdstrike-fdr/CS19-php-code-runs-system-commands.md` |
+| [CS20](CS20-php-worker-does-something-new.md) | PHP worker (or Apache running mod_php) does something new - starts a program, writes a web script, looks up a name or connects on a port it hasn't before (PHP2Shell and web shell follow-up) | PHP2Shell | `rules/07-crowdstrike-fdr/CS20-php-worker-does-something-new.md` |
 
 ## Keeping copies and originals identical
 - **In Claude Code:** the hook in `.claude/settings.json` copies an edited file over its twin after every edit.

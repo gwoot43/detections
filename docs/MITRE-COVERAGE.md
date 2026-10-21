@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v20.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**198 rules · 108 techniques covered** (198 technique and sub-technique IDs).
+**199 rules · 108 techniques covered** (198 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -16,9 +16,9 @@ To see it as a heat map, import `docs/attack-navigator-layer.json` into the [ATT
 flowchart LR
   T0["Reconnaissance<br/>1/12 techniques · 2 rules"]:::low
   T1["Resource Development<br/>2/9 techniques · 2 rules"]:::mid
-  T2["Initial Access<br/>6/11 techniques · 62 rules"]:::high
-  T3["Execution<br/>13/21 techniques · 33 rules"]:::high
-  T4["Persistence<br/>15/22 techniques · 78 rules"]:::high
+  T2["Initial Access<br/>6/11 techniques · 63 rules"]:::high
+  T3["Execution<br/>13/21 techniques · 34 rules"]:::high
+  T4["Persistence<br/>15/22 techniques · 79 rules"]:::high
   T5["Privilege Escalation<br/>12/13 techniques · 76 rules"]:::high
   T6["Stealth<br/>16/31 techniques · 50 rules"]:::high
   T7["Defense Impairment<br/>7/14 techniques · 37 rules"]:::high
@@ -44,9 +44,9 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 |---|---|---|---|
 | Reconnaissance (TA0043) | 1 / 12 | `██░░░░░░░░░░░░░░░░░░` 8% | 2 |
 | Resource Development (TA0042) | 2 / 9 | `████░░░░░░░░░░░░░░░░` 22% | 2 |
-| Initial Access (TA0001) | 6 / 11 | `███████████░░░░░░░░░` 55% | 62 |
-| Execution (TA0002) | 13 / 21 | `████████████░░░░░░░░` 62% | 33 |
-| Persistence (TA0003) | 15 / 22 | `██████████████░░░░░░` 68% | 78 |
+| Initial Access (TA0001) | 6 / 11 | `███████████░░░░░░░░░` 55% | 63 |
+| Execution (TA0002) | 13 / 21 | `████████████░░░░░░░░` 62% | 34 |
+| Persistence (TA0003) | 15 / 22 | `██████████████░░░░░░` 68% | 79 |
 | Privilege Escalation (TA0004) | 12 / 13 | `██████████████████░░` 92% | 76 |
 | Stealth (TA0005) | 16 / 31 | `██████████░░░░░░░░░░` 52% | 50 |
 | Defense Impairment (TA0112) | 7 / 14 | `██████████░░░░░░░░░░` 50% | 37 |
@@ -67,7 +67,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1566.001 Spearphishing Attachment | Initial Access | E02, E04, E13, E14, W02 |
 | T1566.002 Spearphishing Link | Initial Access | E01, E04, E05, E13, E14 |
 | T1078.004 Cloud Accounts | Stealth, Persistence, Privilege Escalation, Initial Access | C03, C11, D02, E09, I07, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, X02 |
-| T1190 Exploit Public-Facing Application | Initial Access | AD11, CS19, L03, N05, N06, N11, N12, X04 |
+| T1190 Exploit Public-Facing Application | Initial Access | AD11, CS19, CS20, L03, N05, N06, N11, N12, X04 |
 | T1133 External Remote Services | Persistence, Initial Access | C08, N01, N02, N03, X03 |
 | T1199 Trusted Relationship | Initial Access | **gap** |
 | T1059.001 PowerShell | Execution | DV02, W03, W04 |
@@ -81,7 +81,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1543.003 Windows Service | Persistence, Privilege Escalation | WE08 |
 | T1098.001 Additional Cloud Credentials | Persistence, Privilege Escalation | C04, C05, C12 |
 | T1136.001 Local Account | Persistence | W07 |
-| T1505.003 Web Shell | Persistence | AD11, CS10, CS19, L03, N11, WE10, X04 |
+| T1505.003 Web Shell | Persistence | AD11, CS10, CS19, CS20, L03, N11, WE10, X04 |
 | T1546.003 Windows Management Instrumentation Event Subscription | Privilege Escalation, Persistence | WE11 |
 | T1068 Exploitation for Privilege Escalation | Privilege Escalation | AD05, AD07, CS01, CS18, L06, W05, WE05, WE08, WE10 |
 | T1134 Access Token Manipulation | Stealth, Privilege Escalation | I14, WE03, WE05 |
@@ -153,7 +153,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 |---|---|---|
 | T1078 Valid Accounts | AD05, AD15, B05, C03, C11, D01, D02, E09, E10, I02, I06, I07, I11, N01, N03, N04, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, WE04, WE05, WE06, X02, X03, X07 | T1078.002 Domain Accounts (AD05, AD15, D01, I02, I06, I11, WE05, WE06, X07); T1078.004 Cloud Accounts (C03, C11, D02, E09, I07, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, X02) |
 | T1566 Phishing | CP02, E01, E02, E03, E04, E05, E11, E13, E14, W02, X01, X06 | T1566.001 Spearphishing Attachment (E02, E04, E13, E14, W02); T1566.002 Spearphishing Link (E01, E04, E05, E13, E14); T1566.003 Spearphishing via Service (E03) |
-| T1190 Exploit Public-Facing Application | AD11, CS19, L03, N05, N06, N11, N12, X04 | - |
+| T1190 Exploit Public-Facing Application | AD11, CS19, CS20, L03, N05, N06, N11, N12, X04 | - |
 | T1133 External Remote Services | C08, N01, N02, N03, X03 | - |
 | T1200 Hardware Additions | DV02, DV03, DV05 | - |
 | T1195 Supply Chain Compromise | AI02, AI06, AI07 | T1195.001 Compromise Software Dependencies and Development Tools (AI02, AI06, AI07) |
@@ -162,7 +162,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 
 | Technique | Rules | Sub-techniques covered |
 |---|---|---|
-| T1059 Command and Scripting Interpreter | AI02, AI07, CS19, DV02, L01, L02, L03, N05, W02, W03, W04, WE10, X01, X04 | T1059.001 PowerShell (DV02, W03, W04); T1059.003 Windows Command Shell (DV02); T1059.004 Unix Shell (L01, L02, L03) |
+| T1059 Command and Scripting Interpreter | AI02, AI07, CS19, CS20, DV02, L01, L02, L03, N05, W02, W03, W04, WE10, X01, X04 | T1059.001 PowerShell (DV02, W03, W04); T1059.003 Windows Command Shell (DV02); T1059.004 Unix Shell (L01, L02, L03) |
 | T1204 User Execution | AI05, E01, E02, E05, W02, W03, W12, WE10, X01, X06 | T1204.001 Malicious Link (E01, E05); T1204.002 Malicious File (AI05, E02, W02, W03, W12); T1204.004 Malicious Copy and Paste (W03) |
 | T1053 Scheduled Task/Job | C12, CS07, L04, W08, WE14 | T1053.003 Cron (L04); T1053.005 Scheduled Task (CS07, W08, WE14) |
 | T1698 Indirect Prompt Injection | AI03, AI07, AI08, AI10 | - |
@@ -183,7 +183,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1078 Valid Accounts | AD05, AD15, B05, C03, C11, D01, D02, E09, E10, I02, I06, I07, I11, N01, N03, N04, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, WE04, WE05, WE06, X02, X03, X07 | T1078.002 Domain Accounts (AD05, AD15, D01, I02, I06, I11, WE05, WE06, X07); T1078.004 Cloud Accounts (C03, C11, D02, E09, I07, S01, S02, S03, S04, S05, S06, S07, S08, S09, S11, S19, S22, X02) |
 | T1098 Account Manipulation | AD02, AD10, C03, C04, C05, C06, C07, C12, E08, I02, I04, I10, I11, I12, I13, I14, L04, S06, S11, S16, S17, S18, S20, S22, W07, WE03, X02, X07 | T1098.001 Additional Cloud Credentials (C04, C05, C12); T1098.002 Additional Email Delegate Permissions (E08); T1098.003 Additional Cloud Roles (C03, C06); T1098.004 SSH Authorized Keys (L04); T1098.005 Device Registration (I10, S11, S16, S17, S18, S20, S22, X02) |
 | T1556 Modify Authentication Process | C02, C11, CP03, I10, I12, L11, N03, N04, S02, S03, S16, WE07 | T1556.002 Password Filter DLL (WE07); T1556.003 Pluggable Authentication Modules (L11); T1556.006 Multi-Factor Authentication (I10, S02, S03, S16); T1556.009 Conditional Access Policies (C02, C11) |
-| T1505 Server Software Component | AD11, CS10, CS19, L03, N11, WE10, X04 | T1505.001 SQL Stored Procedures (AD11); T1505.003 Web Shell (AD11, CS10, CS19, L03, N11, WE10, X04) |
+| T1505 Server Software Component | AD11, CS10, CS19, CS20, L03, N11, WE10, X04 | T1505.001 SQL Stored Procedures (AD11); T1505.003 Web Shell (AD11, CS10, CS19, CS20, L03, N11, WE10, X04) |
 | T1133 External Remote Services | C08, N01, N02, N03, X03 | - |
 | T1053 Scheduled Task/Job | C12, CS07, L04, W08, WE14 | T1053.003 Cron (L04); T1053.005 Scheduled Task (CS07, W08, WE14) |
 | T1546 Event Triggered Execution | CS02, L04, W11, WE11 | T1546.003 Windows Management Instrumentation Event Subscription (WE11); T1546.004 Unix Shell Configuration Modification (L04); T1546.015 Component Object Model Hijacking (W11) |
@@ -441,7 +441,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CS16 | Rare program connects to RDP, SSH, SMB or WinRM on other internal hosts (activity), or a known pivot tool runs on Linux (filename fallback) | T1021, T1090.001, T1572 |
 | CS17 | Secret scanner on a host - one process tests keys against several unrelated providers (TruffleHog, Shai-Hulud, stealers) | T1083, T1552.001 |
 | CS18 | Common attacker tool started, by file name (scanners, credential and secret stealers, lateral movement, tunnels, privilege escalation, exfiltration, EDR killers) | T1003, T1021, T1046, T1068, T1090, T1110, T1552.001, T1555, T1567.002, T1572, T1685 |
-| CS19 | PHP worker (or Apache running mod_php) does something new - starts a program, writes a web script, looks up a name or connects on a port it hasn't before (PHP2Shell and web shell follow-up) | T1059, T1190, T1505.003 |
+| CS19 | PHP code that runs system commands - eval'd code calling system(), exec() and the like, or a script passing request input to one (web shells, PHP2Shell follow-up) | T1059, T1190, T1505.003 |
+| CS20 | PHP worker (or Apache running mod_php) does something new - starts a program, writes a web script, looks up a name or connects on a port it hasn't before (PHP2Shell and web shell follow-up) | T1059, T1190, T1505.003 |
 | X01 | Email phishing interaction followed by endpoint alert on the same user's host | T1059, T1204, T1566 |
 | X02 | Identity compromise fan-out: risky sign-in then persistence or privilege action | T1078.004, T1098, T1098.005, T1114.003, T1528 |
 | X03 | VPN logon anomaly followed by internal attack behaviour | T1021, T1078, T1133 |

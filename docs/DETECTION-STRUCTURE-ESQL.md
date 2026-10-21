@@ -1,162 +1,112 @@
-# Detection Structure Standard: ES|QL (Elastic)
+# Detection structure: ES|QL (Elastic)
 
-Every detection is a funnel: **refine, gate, reduce**. Each stage leaves fewer rows than the last, and expensive work only happens on rows that survived the stage before.
+Keep detections short. Most are one event, one precise match, and the fields someone needs to triage it. Write that first. Reach for counting, baselines and enrichment only when the question can't be answered from a single event, and then keep only the complexity it needs.
 
 > **Golden rule: never do work on a row you are about to throw away.**
 
 ---
 
-## 1. Pipeline (mandatory order)
+## 1. The default shape
 
 ```esql
-FROM <narrowest index>                         // 0 SCOPE
-| WHERE <index-answerable filters>             // 1 GATE
-| EVAL  <only what the aggregation needs>      // 2 SHAPE   (runs on every row: keep minimal)
-| STATS <cheap aggregates> BY <alert entity>   // 3 REDUCE  (one STATS where possible)
-| WHERE <thresholds>                           // 4 DECIDE
-| EVAL  <labels, severity, trimming>           // 5 ENRICH  (survivors only)
-| KEEP  <triage fields>                        // 6 OUTPUT
+FROM <index> METADATA _id, _index, _version
+| WHERE event.action == "<event>" AND <cheap filters>
+| GROK <content field> """(?i)(?<matched><precise pattern>)"""
+| WHERE matched IS NOT NULL
+| KEEP @timestamp, host.name, matched, <content field>, _id, _index, _version
 ```
 
-Stages may be skipped when unused, but never reordered. A non-aggregating detection is stages 0, 1 and 6 only.
+CS19 is the example:
+```esql
+FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
+| WHERE event.action == "phpevalstring" AND data.event_platform == "Lin"
+| GROK data.PhpEvalContent """(?i)(^|[^\w$>:])(?<matched>(system|shell_exec|exec|passthru|popen|proc_open|pcntl_exec)\s{0,16}\(.{1,64})"""
+| WHERE matched IS NOT NULL
+| KEEP @timestamp, event.action, host.name, matched, data.PhpEvalContent, _id, _index, _version
+```
+
+- **Filter on the event first,** with what the index answers: `==`, `IN`, `IS NULL`, ranges, `CIDR_MATCH`, prefix `LIKE "abc*"`. No function around a field here (`TO_LOWER`, `COALESCE`, casts): it makes every row run in memory. List case variants instead of lowercasing.
+- **Put the precision in the pattern.** One tight regex that says exactly what the bad thing looks like beats a list of command lines and a pile of exclusions. Bound the gaps (`.{0,32}`, `\s{0,16}`) so it can't wander across a whole script.
+- **`GROK` when `RLIKE` can't do it.** `RLIKE` is Lucene regex: no `\s`, `\b` or lookarounds, no case flag, and it must match the whole value. `GROK` takes a full regex (`(?i)`, `\s`, `\b`), matches anywhere in the value, and turns the named group into a column, so the alert shows exactly what matched. Use triple quotes so backslashes reach the regex as written. Don't name the group `match`: it collides with the `MATCH` function.
+- **`RLIKE` or `LIKE` in the `WHERE`** is fine when the pattern is simple and whole-value. A leading wildcard needs a comment saying why nothing cheaper works.
+- **Output** the time, the host, the match and the raw field, so the analyst sees the hit in context. A short `CASE` that turns a code into words (`"1"` to `"FILE WRITTEN"`) is fine. Non-aggregating rules keep `_id`, `_index` and `_version` for the alert.
+- **Comments** say what a step does when it isn't obvious from the line itself. No stage labels.
 
 ---
 
-## 2. Stage rules
+## 2. When it has to count or compare
 
-### 0. Scope
-- Use the narrowest index or data stream that holds the data.
-- Only add `METADATA` fields when the rule is non-aggregating and needs them.
+Some questions can't be answered from one event: a count over time (scanning, spraying), something seen for the first time, two events that must line up (a request denied, then issued). Then the query becomes a funnel, and the order matters for cost:
 
-### 1. Gate (most important)
-Allowed: filters Elasticsearch can answer from the index.
-- `==`, `IN (...)`, `IS NULL`, `IS NOT NULL`
-- Numeric and date ranges
-- `CIDR_MATCH`
-- Prefix `LIKE "abc*"`
+```
+FROM → WHERE (index-answerable) → EVAL (only what STATS needs) → STATS BY <alert entity> → WHERE <threshold> → EVAL labels → KEEP
+```
 
-Not allowed:
-- Functions around a field (`TO_LOWER`, `COALESCE`, `CONCAT`, casts). These can't use the index, so every row is evaluated in memory.
-- Leading-wildcard `LIKE` and `RLIKE`, unless nothing else works. If you use one, justify it in a comment.
+Keep the order in mind; don't label it in the query. B01 (scanning), CS17 (TruffleHog) and AD14 (ESC7) are this kind.
 
-Rules:
-- Gate on event type or action first.
-- Handle case variants by listing them, not with `TO_LOWER`.
-- Handle nulls deliberately. `!=` and `NOT IN` drop null rows, so write `(f IS NULL OR f NOT IN (...))` when nulls must survive.
-
-### 2. Shape
-- Only create fields that a later stage uses.
-- No per-row string building unless that exact value is grouped or counted.
-- Prefer conditional aggregation (`STATS x = COUNT(*) WHERE <cond>`) over a flag column summed later.
-
-### 3. Reduce
-- Group `BY` the entity the alert is about. One row is one potential alert.
-- The grouping key must never be null. A null key collapses unrelated events into one group.
-- Use one STATS. A second STATS needs a comment justifying it.
-- Cheap aggregates: `COUNT`, `COUNT_DISTINCT`, `MIN`, `MAX`, `SUM`, `AVG`, conditional `... WHERE`.
-- Expensive aggregates: `VALUES()` on high-cardinality fields. Replace with `COUNT_DISTINCT` and leave the detail to the triage pivot query.
-- `INLINE STATS` is only for population context that must be computed before the threshold, such as rarity across all entities.
-
-### 4. Decide
-- Thresholds live here and nowhere else.
-- Every threshold has a recorded source (see section 4).
-
-### 5. Enrich
-- `finding` and `severity` labels and other `CASE` logic go here.
-- Trim multivalue output with `MV_SLICE`.
-
-### 6. Output
-- `KEEP` the entity, the decision metrics, and the minimum triage context.
-- Detail goes in a separate pivot query, not in the alert.
+- **Reduce once,** `BY` the entity the alert is about, so one row is one potential alert. The key must never be null: a null key lumps unrelated events together. A second `STATS` needs a comment saying why.
+- **Count conditionally** (`STATS x = COUNT(*) WHERE <cond>`) rather than building a flag column and summing it.
+- **Cheap aggregates:** `COUNT`, `COUNT_DISTINCT`, `MIN`, `MAX`, `SUM`, conditional `... WHERE`. `VALUES()` on a high-cardinality field is not: bound it with `MV_SLICE` or `TOP`, or leave the detail to a pivot query.
+- **`INLINE STATS`** only for population context that has to be known before the threshold, such as how many hosts do the same thing.
+- **Thresholds** sit straight after the reduce, each with a comment saying where the number came from (section 4). Labels and lookups come after, on the few rows left.
+- **Nulls:** `!=` and `NOT IN` drop null rows. Write `(f IS NULL OR f NOT IN (...))` when nulls must survive.
 
 ---
 
 ## 3. Design rules
 
-1. **Verify telemetry before writing logic.** Confirm event names and their casing, which fields are populated on which events, and how events relate to each other.
-2. **Link events by stable IDs** (process, session, connection, request ID), never by display names.
-3. **Behaviour over static indicators.** Names, hashes and paths are fallbacks. Behaviour-backed hits rank above indicator-only hits.
-4. **Model the current state, not "ever happened in the lookback".** For stateful conditions, measure the current episode or window.
-5. **The rule schedule is the time window.** Prefer interval = window over in-query time bucketing. The lookback must be at least the longest duration the logic measures.
-6. **Always define suppression**: a field and a duration.
-7. **Narrow exclusions.** Exclude entity combinations, not whole assets or users. Keep exclusions centralised (a lookup index or list), not hardcoded per rule.
-8. **One question per rule.** If the labels answer unrelated questions, split the rule.
-9. **Document blind spots**: what the telemetry or the logic cannot see.
-10. **Be explicit about time zones.** ES|QL dates are UTC, so convert explicitly when logic depends on local time or day boundaries.
+1. **Check the telemetry before writing logic:** event names and their casing, which fields are filled on which events.
+2. **Link events by stable IDs** (process, session, request ID), never by display names.
+3. **One question per rule.** If the labels answer unrelated questions, split it.
+4. **The rule schedule is the time window.** The lookback must cover the longest duration the logic measures.
+5. **Always set suppression:** fields and a duration.
+6. **Narrow exclusions:** an entity pair (a host and the process that does this by design), never a whole host, user or address.
+7. **Time zones:** ES|QL dates are UTC. Convert explicitly when logic depends on local time.
 
 ---
 
 ## 4. Baseline before threshold
 
-Never guess a threshold. For each threshold:
-- Measure the distribution of the metric over a representative period of normal activity: count, median, upper percentiles and max.
-- Exclude known abnormal periods (maintenance, incidents) or record that they are included.
-- Split by a dimension only if it genuinely changes what "normal" looks like for this detection.
-- Check what the baseline filters out, as well as what it keeps.
-- Watch for artefacts. A max equal to a window or bucket size is a cap, not a measurement.
+Never guess a threshold. Measure the metric over a normal period (count, median, p95, p99, max), exclude or note abnormal periods, and set the threshold just above the upper percentile. Watch for artefacts: a max equal to the bucket size is a cap, not a measurement. Record the source in a comment next to the threshold; until it's measured, the comment says it's a starting value.
 
-Default: set the threshold just above the upper percentile, plus a buffer for ingest lag. Use a lower percentile when the sample is small. Record the source in a comment next to the threshold.
+```esql
+<the query up to its STATS>
+| STATS n = COUNT(), p50 = PERCENTILE(<metric>, 50), p95 = PERCENTILE(<metric>, 95),
+        p99 = PERCENTILE(<metric>, 99), max = MAX(<metric>)
+```
+
+A detection with no threshold (section 1) has nothing to baseline: run it over 30 days instead and look at what fires.
 
 ---
 
-## 5. Helper queries (templates)
+## 5. What a rule file carries
 
-**Discovery:**
-```esql
-FROM <index>
-| WHERE <event field> LIKE "<prefix>*"
-| STATS events = COUNT(), entities = COUNT_DISTINCT(<entity>) BY <event field>
-| SORT events DESC
-```
-```esql
-FROM <index>
-| WHERE <event field> == "<event>"
-| LIMIT 10
-```
+Front-matter: `id`, `name`, `category`, `status`, `language`, `index`, `mitre`, `data_source`, `suppression`. No severity: scoring is done outside the library.
 
-**Baseline:**
-```esql
-<detection stages 0-3>
-| STATS n = COUNT(), p50 = PERCENTILE(<metric>, 50), p95 = PERCENTILE(<metric>, 95),
-  p99 = PERCENTILE(<metric>, 99), max = MAX(<metric>) [BY <dimension>]
-```
+Then, in plain prose, no fixed headings required:
+- what it catches and why that's precise, in a few lines;
+- the query and its schedule. CrowdStrike rules carry both ES|QL and LogScale;
+- before turning it on: the fields to confirm, the placeholders to fill, a baseline query for any threshold;
+- what it misses;
+- what to do when it fires, with a pivot query if the alert leaves out detail the analyst needs.
 
-**Tuning:** run stages 0 to 3, then `SORT <metric> DESC | LIMIT 50` with no threshold.
-
-**Triage pivot:** a non-aggregating query keyed on the alert entity that returns the detail the rule leaves out.
+Reject the draft if (`tools/lint_detections.py` checks these):
+- a function wraps a field in the first `WHERE`, or a leading-wildcard `LIKE`/`RLIKE` there has no comment;
+- `VALUES()` on a high-cardinality field is unbounded;
+- a threshold has no recorded source;
+- a second `STATS` has no comment;
+- `METADATA` is on an aggregating rule;
+- an exclusion removes an entire host, user or address;
+- there's no suppression.
 
 ---
 
 ## 6. ES|QL gotchas
 
-- `LIKE` without a wildcard is an exact match.
-- `LIKE` and `RLIKE` are case-sensitive.
-- `RLIKE` uses Lucene regex: no `\s`, `\b`, `\d` or lookarounds, and the pattern must match the whole value.
-- There are no bitwise operators. Test bit n with `(x / 2^n) % 2 == 1`. Integer division truncates.
+- `LIKE` without a wildcard is an exact match. `LIKE` and `RLIKE` are case-sensitive.
+- `RLIKE` is Lucene regex: no `\s`, `\b`, `\d` or lookarounds, and it must match the whole value. Use `GROK` for anything more.
+- `GROK` returns null when the pattern doesn't match; filter on the named column after it.
+- No bitwise operators: test bit n with `(x / 2^n) % 2 == 1`.
 - Divide with a cast (`a / b::double`) to avoid integer division.
-- A null `CASE` condition is treated as false.
+- A null `CASE` condition counts as false. `DATE_DIFF` and similar return null on null input.
 - `COUNT(expr)` counts non-null values. `COUNT_DISTINCT` is approximate, though exact at low cardinality.
-- After `STATS ... BY a, b`, rows are unique, so `COUNT(a)` replaces `COUNT_DISTINCT(a)` in a later `BY b`.
-- Functions such as `DATE_DIFF` return null on null input. Guard before filtering on the result.
-- `VALUES()` has no useful cap. Bound it with `MV_SLICE` or don't use it.
-
----
-
-## 7. Agent output contract
-
-Every detection must include:
-1. **Query** following stages 0 to 6, with a short comment per stage.
-2. **Rule settings**: interval, lookback, suppression field and duration, severity.
-3. **Telemetry assumptions**: the events and fields relied on, and the discovery query that confirms them.
-4. **Baseline query and threshold source** for every threshold.
-5. **Blind spots.**
-6. **Triage pivot query.**
-
-Reject the draft if:
-- A function wraps a field in the gate.
-- `VALUES()` is used on a high-cardinality field.
-- A threshold has no source.
-- The lookback is shorter than the logic's longest duration.
-- An exclusion removes an entire asset or user.
-- The grouping key can be null.
-- Events are linked by name instead of an ID.
