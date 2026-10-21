@@ -192,7 +192,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 
 
 ## Behaviour-based (rules/11-behaviour) — tune thresholds on 2 weeks of data
-- [ ] **B01** Internal scanning by behaviour: mixed scan, port scan of a few hosts, sweep of many (A: connections), plus reverse-DNS sweep (B: connections and DNS); known scanners by name in the same query. Deploy A or B · `suppress: host.id, finding / 1h`
+- [ ] **B01** Internal port or host scanning by one process: outbound TCP to 100+ hosts on 5+ ports, or 200+ ports, in 2 hours · `suppress: host.name, process.name / 2h`
 - [ ] **B04** Lateral sweep over SMB/RPC/RDP/WinRM, or LDAP fan-out to several DCs, falls back to CrackMapExec/NetExec/Impacket by name · `suppress: host.id, process.name, label / 2h`
 - [ ] **B05** Network logon sweep (one account, many hosts) · `suppress: acct / 2h`
 - [ ] **B06** C2 beaconing (regular cadence) · `suppress: host.id, process.name, destination.ip / 24h`
@@ -216,7 +216,7 @@ Legend for phase: **P0** do first (fastest, highest value), **P1** core, **P2** 
 - [ ] **CP01** Defender for Office protection policy weakened/deleted, incl. ZAP disabled · `suppress: usr, event.action / 6h`
 - [ ] **CP02** Quarantine release of malicious mail / release at volume · `suppress: usr / 6h`
 - [ ] **CP03** Tenant allow-list allow entry added · `suppress: usr / 6h`
-- [ ] **CP04** CrowdStrike stuck in RFM, or in RFM and not reporting · `suppress: host.id / 24h`
+- [ ] **CP04** CrowdStrike sensor online in RFM on a host people use (human logon in 7 days; patch week after 12h) · `suppress: host.id / 24h`
 - [ ] **CP05** Defender engine/platform/signature failure, or Defender AV / MDE service stopped and stayed down · `suppress: host.name, component, problem / 24h`
 - [ ] **CP06** Defender protection weakened: real-time off, exclusion added, ASR/network protection off, tamper attempt (5007/5001/5013) · `suppress: setting, change / 24h`
 - [ ] **E13** ZAP remediation across many recipients (wave) · `suppress: sender_domain / 12h`

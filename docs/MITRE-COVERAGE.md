@@ -484,7 +484,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | WE13 | Domain controller machine account authenticating with NTLM to a non-DC or from an unexpected IP | T1187, T1557.001 |
 | WE14 | Admin share or remote management pipe accessed from a workstation | T1021.002, T1053.005, T1569.002 |
 | WE15 | RDP logon from one workstation to another | T1021.001 |
-| B01 | Internal scanning by behaviour - a mixed scan, a port scan of a few hosts or a sweep of many hosts from one process, optionally a reverse-DNS sweep, with known scanners by name as a fallback (Falcon) | T1018, T1046 |
+| B01 | Internal port or host scanning by one process (outbound TCP to many hosts or many ports) | T1018, T1046 |
 | B04 | Lateral sweep over SMB, RPC, RDP, WinRM or LDAP from one host (activity), or CrackMapExec, NetExec or Impacket by name (fallback) | T1018, T1021, T1049, T1069.002, T1087.002, T1570 |
 | B05 | Network logon sweep - catches CrackMapExec, NetExec and pass-the-hash lateral movement by behaviour | T1021.002, T1078, T1550.002 |
 | B06 | C2 beaconing - catches Cobalt Strike, Sliver, Mythic, Havoc, Brute Ratel by behaviour | T1071.001, T1095, T1573 |
@@ -503,7 +503,7 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | CP01 | Defender for Office 365 protection rule or policy disabled, deleted or switched off, including zero-hour auto purge (ZAP) | T1550, T1685 |
 | CP02 | Quarantine release of malware or high-confidence phish, or release at volume | T1566, T1685 |
 | CP03 | Tenant Allow/Block List allow entry added for a sender, domain, URL, file or spoofed sender | T1556, T1685 |
-| CP04 | CrowdStrike sensor stuck in Reduced Functionality Mode, or in RFM and no longer reporting | T1685 |
+| CP04 | CrowdStrike sensor online in Reduced Functionality Mode on a host people use | T1685 |
 | CP05 | Microsoft Defender health degraded, or the Defender AV or MDE sensor service stopped and stayed down | T1489, T1685 |
 | CP06 | Microsoft Defender protection weakened (real-time off, exclusion added, ASR or network protection off, tamper attempt) | T1112, T1685 |
 | AD01 | Rogue domain controller registration (DCShadow) | T1207 |

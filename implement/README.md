@@ -10,6 +10,8 @@ AD CS is kept to the three most accurate rules, in priority order: AD15 (any sto
 | [AD15](AD15-first-certificate-logon-for-account.md) | First certificate logon (PKINIT) for an account in 30 days - a stolen or forged certificate in use, domain controllers especially | AD CS, priority 1 | `rules/14-ad-attack/AD15-first-certificate-logon-for-account.md` |
 | [AD03](AD03-ca-private-key-backup.md) | Certificate authority private key backed up or exported (golden certificate) | AD CS, priority 2 | `rules/14-ad-attack/AD03-ca-private-key-backup.md` |
 | [AD14](AD14-adcs-denied-request-issued-or-subca-requested.md) | Certificate authority issued a request it had denied, or the SubCA template was requested (ESC7, officer rights abused) | AD CS, priority 3 | `rules/14-ad-attack/AD14-adcs-denied-request-issued-or-subca-requested.md` |
+| [B01](B01-horizontal-network-scan.md) | Internal port or host scanning by one process (outbound TCP to many hosts or many ports) | Scanning | `rules/11-behaviour/B01-horizontal-network-scan.md` |
+| [CP04](CP04-crowdstrike-rfm-or-not-reporting.md) | CrowdStrike sensor online in Reduced Functionality Mode on a host people use | Sensor health | `rules/13-controlplane/CP04-crowdstrike-rfm-or-not-reporting.md` |
 
 ## Keeping copies and originals identical
 - **In Claude Code:** the hook in `.claude/settings.json` copies an edited file over its twin after every edit.
