@@ -6,7 +6,7 @@ status: todo
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1552.001, T1083]
-data_source: CrowdStrike FDR DnsRequest
+data_source: CrowdStrike FDR DnsRequest; Zscaler ZIA web logs as a second source
 suppression:
   fields: [host.id]
   duration: 24h
@@ -98,16 +98,65 @@ FROM logs-yourorg-crowdstrike-data-default*
 ```
 The host name comes from the events here. LogScale takes it from the sensor inventory (`aid_master_main.csv`) because DNS events may not carry `ComputerName`.
 
+## Second source: Zscaler web logs
+The checks are HTTPS calls, so they also pass through Zscaler, which sees two things the endpoint can't:
+- **TruffleHog's user agent.** I believe TruffleHog's checks identify themselves with a `TruffleHog` user agent, on whatever provider they go to, not just the ones on the list. It's visible only where Zscaler inspects TLS for that traffic; confirm both with the Test below before relying on it.
+- **The same burst, without the endpoint's limits.** Linux machines whose lookups aren't credited to the program, endpoints using an explicit proxy, and devices without Falcon all still send the calls through Zscaler. Zscaler has no process, so the burst is counted per device and user, leaving out browsers and editors by their user agent.
+
+Run every 15 minutes with a 20-minute lookback, as its own rule:
+```esql
+FROM logs-zscaler_zia.web-*
+// 1 GATE: calls to the key-checking endpoints, or anything sent with TruffleHog's user agent. Exact hosts and prefix
+// matches, which the index answers, so the rest of the web traffic is never read. Every row must carry its device.
+| WHERE (url.domain IN ("api.github.com", "registry.npmjs.org", "api.openai.com", "api.anthropic.com", "api.stripe.com",
+                        "api.cloudflare.com", "api.datadoghq.com", "api.datadoghq.eu", "api.sendgrid.com", "api.twilio.com",
+                        "api.mailgun.net", "api.heroku.com", "api.digitalocean.com")
+         OR url.domain LIKE "sts*.amazonaws.com" OR user_agent.original LIKE "TruffleHog*")
+  AND source.ip IS NOT NULL
+// 2 SHAPE: the provider each call tests (none for a TruffleHog call to another host), and the user, which servers and
+// CI runners often don't have.
+| EVAL provider = CASE(url.domain LIKE "sts*.amazonaws.com", "aws", url.domain == "api.github.com", "github", url.domain == "registry.npmjs.org", "npm",
+                       url.domain == "api.openai.com", "openai", url.domain == "api.anthropic.com", "anthropic",
+                       url.domain == "api.stripe.com", "stripe", url.domain == "api.cloudflare.com", "cloudflare",
+                       url.domain LIKE "api.datadoghq*", "datadog", url.domain == "api.sendgrid.com", "sendgrid",
+                       url.domain == "api.twilio.com", "twilio", url.domain == "api.mailgun.net", "mailgun",
+                       url.domain == "api.heroku.com", "heroku", url.domain == "api.digitalocean.com", "digitalocean", NULL),
+       user = COALESCE(user.name, "unauthenticated")
+// 3 REDUCE: one row per device and user. Providers are counted only from programs, not browsers or editors (their user
+// agents start "Mozilla/"); a call with no user agent (TLS not inspected) counts.
+| STATS providers = COUNT_DISTINCT(provider) WHERE user_agent.original IS NULL OR NOT user_agent.original LIKE "Mozilla/*",
+        rare_providers = COUNT_DISTINCT(provider) WHERE provider IN ("sendgrid", "twilio", "mailgun", "heroku", "digitalocean")
+          AND (user_agent.original IS NULL OR NOT user_agent.original LIKE "Mozilla/*"),
+        trufflehog_calls = COUNT(*) WHERE user_agent.original LIKE "TruffleHog*",
+        tested = VALUES(provider), hosts_called = COUNT_DISTINCT(url.domain), sample_hosts = TOP(url.domain, 10, "asc"),
+        user_agents = TOP(user_agent.original, 5, "asc"), first_seen = MIN(@timestamp)
+    BY source.ip, user
+// 4 DECIDE: TruffleHog's own user agent, or the same burst as the endpoint rule. Thresholds: the endpoint rule's
+// starting values, not yet baselined; baseline them the same way, grouped by source.ip and user.
+| EVAL finding = CASE(trufflehog_calls > 0, "trufflehog_user_agent",
+                      providers >= 4 OR (providers >= 3 AND rare_providers >= 1), "keys_tested", NULL)
+| WHERE finding IS NOT NULL
+// 5 ENRICH: a CI runner or AppSec host and the account its scanner runs as, never the whole address (placeholders).
+| WHERE NOT (CIDR_MATCH(source.ip, "198.51.100.10/32") AND user == "<ci_scanner_account>")
+// 6 OUTPUT: the device and user, what was tested and how it identified itself.
+| KEEP source.ip, user, finding, providers, rare_providers, trufflehog_calls, tested, hosts_called, sample_hosts, user_agents,
+       first_seen
+```
+Suppress by `source.ip`, `user`, `finding` for 24h. There's no LogScale version: the Zscaler logs are in Elastic. Find the device behind `source.ip` (Zscaler Client Connector or DHCP), then run the endpoint pivot query there for the process.
+
 ## Rule settings
 | | |
 |---|---|
 | Interval / lookback | 15 minutes / 20 minutes. The schedule is the window; the five extra minutes absorb ingest lag. Keep the window short (15-30 minutes): a longer one lets busy processes add up providers. |
 | Suppression | `host.id` (`aid`) for 24h |
+| Zscaler query | 15 minutes / 20 minutes; suppress by `source.ip`, `user`, `finding` for 24h |
 
 ## Telemetry assumptions
 - `dnsrequest` events with Falcon's raw fields `data.DomainName` (may end in a dot) and `data.ContextProcessId`. The rule doesn't use ECS `dns.question.*`.
 - **The process name on DNS events** (`data.ContextBaseFileName`). The editor exclusion and the CI pairs depend on it. Where it's missing, editors aren't dropped (more noise) and the pairs can't match; the pivot query still names the program.
 - **Which process the lookup is charged to.** On Windows, it's the program that asked. TruffleHog is written in Go, and Go's resolver on Linux can send DNS itself, so on Linux (CI runners in particular) test it before trusting it (see Test).
+
+- **Zscaler:** `url.domain` and `user_agent.original` on web logs. The user agent is only there where Zscaler inspects TLS; `zscaler_zia.web.ssl_decrypted` says which. `source.ip` is the device's own address when Zscaler Client Connector forwards it; behind an office tunnel without it, many users share one address, and the burst adds up across them.
 
 Confirm the names and process IDs reach your DNS events, over the last day (the gate keeps this small):
 ```esql
@@ -121,6 +170,15 @@ FROM logs-yourorg-crowdstrike-data-default*
 #event_simpleName=DnsRequest DomainName=/^(api\.github\.com|registry\.npmjs\.org)\.?$/i
 | groupBy([event_platform], function=[count(as=lookups), count(ContextProcessId, as=with_pid), count(ContextBaseFileName, as=with_name)],
           limit=max)
+```
+
+For the Zscaler query, check over the last day how much of this traffic is inspected and carries a user agent:
+```esql
+FROM logs-zscaler_zia.web-*
+| WHERE url.domain IN ("api.github.com", "registry.npmjs.org")
+| STATS requests = COUNT(*), devices = COUNT_DISTINCT(source.ip), with_user_agent = COUNT(user_agent.original),
+        inspected = COUNT(*) WHERE zscaler_zia.web.ssl_decrypted == "Yes"
+    BY url.domain
 ```
 
 ## Baseline and threshold source
@@ -184,9 +242,10 @@ Suppress by `host.id` (`aid`) for 24h. Alerts missing a key field are not suppre
 - **Testing switched off.** TruffleHog with `--no-verification`, or a stealer that sends what it found home without testing it, makes no calls. CS18 catches TruffleHog by name; the exfiltration shows in B06, B10 and N07.
 - **The tester split across processes.** The worm's `node` often tests what TruffleHog found. If TruffleHog tests two providers and `node` another two, neither process reaches the threshold. Pairing them on the host is possible, but this rule stays per process to stay simple.
 - **A scanner renamed to an editor or browser** (`code.exe`, `chrome`) is dropped by the exclusion. The exclusion matches names because DNS events carry no path.
-- **An explicit proxy.** Endpoints set to use a proxy (a PAC file or proxy setting rather than a tunnelling client) look up the proxy's name, not `api.github.com`, and this rule goes dark. The proxy logs then show the destinations instead.
+- **An explicit proxy.** Endpoints set to use a proxy (a PAC file or proxy setting rather than a tunnelling client) look up the proxy's name, not `api.github.com`, and the endpoint rule goes dark. The Zscaler query still sees the calls.
 - **Providers not on the list.** TruffleHog checks hundreds; the list holds the ones on developer machines that matter most. Add a provider by its key-checking endpoint, and to the rare tier if it seldom appears on your developer machines.
-- Linux, where the lookup may not be charged to the program that asked (see Telemetry assumptions).
+- Linux, where the lookup may not be charged to the program that asked (see Telemetry assumptions). The Zscaler query doesn't depend on it.
+- **Zscaler: TLS not inspected.** Without inspection there's no user agent, so `trufflehog_user_agent` can't fire and browser calls can't be told apart; only the provider burst remains. A TruffleHog build with its user agent changed is also missed by that finding.
 
 ## Triage
 - Name the program and its command line with the pivot query. TruffleHog or an unknown binary started by `node` under `npm` or `bun`, from a temp or cache folder, is the worm. Find the npm package installed just before `first_seen`. Then look for a new public GitHub repository under the developer's account and a new workflow file in their repositories.
@@ -214,3 +273,4 @@ On a lab host, put well-formed test keys for four providers (GitHub, AWS, OpenAI
 - A `node` script that calls `api.github.com`, `registry.npmjs.org` and `api.sendgrid.com`: an alert, with `node` as the process.
 - `trufflehog filesystem <folder> --no-verification`: nothing here, by design. CS18 alerts by name.
 - On a Linux lab box, run the first test and check which process the lookups are charged to.
+- Zscaler: after the first test, run the Zscaler query over the test window. Expect `trufflehog_user_agent` where the traffic is inspected (that also confirms the user agent), and `keys_tested` where it isn't.
