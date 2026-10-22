@@ -4,7 +4,7 @@ Generated from the rules' `mitre:` front-matter against **ATT&CK Enterprise v20.
 
 Coverage means a rule *targets* the technique, not that every way of doing it is caught. Use it to find empty areas, not to claim completeness.
 
-**199 rules · 108 techniques covered** (198 technique and sub-technique IDs).
+**201 rules · 108 techniques covered** (199 technique and sub-technique IDs).
 
 For the interactive heat map, open `tools/attack-coverage-map.html` in a browser (download it from GitHub first, because GitHub shows HTML as source). It is a single self-contained file you can also share or host.
 
@@ -22,7 +22,7 @@ flowchart LR
   T5["Privilege Escalation<br/>12/13 techniques · 76 rules"]:::high
   T6["Stealth<br/>16/31 techniques · 50 rules"]:::high
   T7["Defense Impairment<br/>7/14 techniques · 37 rules"]:::high
-  T8["Credential Access<br/>12/18 techniques · 61 rules"]:::high
+  T8["Credential Access<br/>12/18 techniques · 63 rules"]:::high
   T9["Discovery<br/>14/34 techniques · 13 rules"]:::high
   T10["Lateral Movement<br/>6/9 techniques · 32 rules"]:::high
   T11["Collection<br/>7/16 techniques · 18 rules"]:::high
@@ -50,7 +50,7 @@ Shading: grey = nothing, light = under 15% of the tactic's techniques, mid = 15-
 | Privilege Escalation (TA0004) | 12 / 13 | `██████████████████░░` 92% | 76 |
 | Stealth (TA0005) | 16 / 31 | `██████████░░░░░░░░░░` 52% | 50 |
 | Defense Impairment (TA0112) | 7 / 14 | `██████████░░░░░░░░░░` 50% | 37 |
-| Credential Access (TA0006) | 12 / 18 | `█████████████░░░░░░░` 67% | 61 |
+| Credential Access (TA0006) | 12 / 18 | `█████████████░░░░░░░` 67% | 63 |
 | Discovery (TA0007) | 14 / 34 | `████████░░░░░░░░░░░░` 41% | 13 |
 | Lateral Movement (TA0008) | 6 / 9 | `█████████████░░░░░░░` 67% | 32 |
 | Collection (TA0009) | 7 / 16 | `█████████░░░░░░░░░░░` 44% | 18 |
@@ -255,8 +255,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | T1552 Unsecured Credentials | AD03, AD09, AI04, B07, B08, C10, CS17, CS18, D01, D02, D03, IN09, L05 | T1552.001 Credentials In Files (B07, B08, CS17, CS18, D01, D02, D03, IN09, L05); T1552.004 Private Keys (AD03, L05); T1552.005 Cloud Instance Metadata API (L05) |
 | T1556 Modify Authentication Process | C02, C11, CP03, I10, I12, L11, N03, N04, S02, S03, S16, WE07 | T1556.002 Password Filter DLL (WE07); T1556.003 Pluggable Authentication Modules (L11); T1556.006 Multi-Factor Authentication (I10, S02, S03, S16); T1556.009 Conditional Access Policies (C02, C11) |
 | T1528 Steal Application Access Token | C05, C11, D02, S05, S16, S19, S20, S23, X02 | - |
-| T1558 Steal or Forge Kerberos Tickets | AD08, D01, I03, I04, I13, W09 | T1558.001 Golden Ticket (AD08); T1558.003 Kerberoasting (D01, I03, I13, W09); T1558.004 AS-REP Roasting (D01, I04) |
-| T1649 Steal or Forge Authentication Certificates | AD03, AD06, AD14, AD15, I09 | - |
+| T1649 Steal or Forge Authentication Certificates | AD03, AD06, AD14, AD15, AD16, AD17, I09 | - |
+| T1558 Steal or Forge Kerberos Tickets | AD08, AD16, D01, I03, I04, I13, W09 | T1558.001 Golden Ticket (AD08); T1558.003 Kerberoasting (D01, I03, I13, W09); T1558.004 AS-REP Roasting (D01, I04) |
 | T1621 Multi-Factor Authentication Request Generation | C11, I07, S11, S12 | - |
 | T1557 Adversary-in-the-Middle | AD12, S07, WE13 | T1557.001 Name Resolution Poisoning and SMB Relay (WE13) |
 | T1555 Credentials from Password Stores | AD04, B08, CS18 | T1555.003 Credentials from Web Browsers (B08) |
@@ -524,6 +524,8 @@ Techniques that show up most often in real intrusions against a Windows, Microso
 | AD13 | RDP session hijacked with tscon | T1563.002 |
 | AD14 | Certificate authority issued a request it had denied, or the SubCA template was requested (ESC7, officer rights abused) | T1649 |
 | AD15 | First certificate logon (PKINIT) for an account in 30 days - a stolen or forged certificate in use, domain controllers especially | T1078.002, T1550, T1649 |
+| AD16 | Certificate logon followed by a ticket to itself (UnPAC-the-hash - Certipy auth, Rubeus /getcredentials) | T1558, T1649 |
+| AD17 | Domain controller refused a certificate logon - certificate belongs to another account, has no strong mapping, or predates the account (Kdcsvc 39, 40, 41) | T1649 |
 | DV01 | Bulk copy of documents or archives to removable media | T1052.001, T1074.001 |
 | DV02 | New keyboard device followed within seconds by a shell launched from Explorer (keystroke injection, Rubber Ducky, O.MG cable) | T1059.001, T1059.003, T1200 |
 | DV03 | USB or Bluetooth network adapter, storage or phone connected to a server or domain controller | T1011, T1052.001, T1200 |
