@@ -1,6 +1,6 @@
 # New detections
 
-Newly created detections, starting with Certipy (the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host), then ClickOnce, AD ticket sweeps and AWS identity checks. They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
+Newly created detections, starting with Certipy (the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host), then ClickOnce, BloodHound collection and AWS identity checks. They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
 
 ## What each Certipy step leaves behind
 
@@ -29,7 +29,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 |---|---|---|---|
 | 06 | [ClickOnce chain on an endpoint](06-clickonce-app-started.md) | Falcon | A program started by ClickOnce (`dfsvc.exe` or `dfsvc.ni.exe`), started by a ClickOnce app, or run from the ClickOnce cache; investigation steps in the query |
 | 07 | [ClickOnce deployment downloaded](07-clickonce-download-zscaler.md) | Zscaler | `.application` and `.deploy` downloads from sites you don't deploy from, blocked or allowed |
-| 08 | [Kerberos ticket sweep](08-kerberos-ticket-sweep-bloodhound-kerberoast.md) | DC 4769 | One client asking for tickets to many service accounts (Kerberoasting) or many computers (SharpHound collection); Falcon as a pivot, not a join |
+| 08 | [BloodHound collection sweep](08-bloodhound-collection-sweep.md) | DC 4769, target 5140, Falcon | One account reaching 50+ computers in an hour by Kerberos ticket or IPC$, with the client's process from Falcon |
 | 09 | [AWS identity checks](09-aws-identity-checks.md) | Falcon | `aws sts get-caller-identity` repeated, across several profiles, or by someone who never used the AWS CLI |
 
 ## Before turning them on
