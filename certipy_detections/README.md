@@ -1,0 +1,39 @@
+# Certipy detections
+
+Detections for Certipy, the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host. They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
+
+## What each Certipy step leaves behind
+
+| Step | What Certipy does | Detection |
+|---|---|---|
+| `find` | LDAP to a DC; on each CA, remote registry over SMB and a check of `/certsrv/` | [01](01-ntlm-client-claims-to-be-the-server.md) on the DC, [05](05-process-proxying-into-ad.md) on the pivot |
+| `req` | Requests the certificate over SMB, through the `cert` pipe on the CA (or `-web`, or `-dynamic-endpoint`) | [03](03-cert-pipe-on-ca.md), [01](01-ntlm-client-claims-to-be-the-server.md) for `-web`; AD14 and I09 on the CA's own log |
+| `account update -upn` | Sets a victim's UPN to the target's bare name (ESC9, ESC10) | [02](02-upn-set-without-domain.md) |
+| `auth` | Kerberos logon with the certificate, then a ticket to itself for the NT hash | [04](04-kerberos-from-process-other-than-lsass.md), [05](05-process-proxying-into-ad.md) on the pivot; AD16, AD17, AD15 on the DC |
+| `shadow` | Writes a key credential to the target account | I12 |
+| `template`, `ca` | Edits a template (ESC4), adds an officer or enables a template (ESC7) | AD06, AD14 |
+
+The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, written for the Elastic integration's field names (`winlog.event_data.*`).
+
+| # | Detection | Source | Catches |
+|---|---|---|---|
+| 01 | [NTLM client claims to be the server](01-ntlm-client-claims-to-be-the-server.md) | DC and CA 4624/4625 | Certipy's own NTLM, which names the server it's talking to as the client |
+| 02 | [UPN set without a domain](02-upn-set-without-domain.md) | DC 4738 | The ESC9/ESC10 UPN swap |
+| 03 | [cert pipe on the CA](03-cert-pipe-on-ca.md) | CA 5145 | `certipy req`'s default transport |
+| 04 | [Kerberos from a process other than LSASS](04-kerberos-from-process-other-than-lsass.md) | Falcon | `certipy auth`, Rubeus or Impacket through a proxy on a Windows host |
+| 05 | [One process proxying into AD](05-process-proxying-into-ad.md) | Falcon | Any tool reaching LDAP or Kerberos through a SOCKS proxy (also ADExplorer, ldapdomaindump) |
+
+## Before turning them on
+- Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
+- Auditing: 5145 needs "Audit Detailed File Share" on the CAs (03).
+- Process names on Falcon network events: check how many arrive without one (04).
+
+## Test
+In a lab, through a SOCKS proxy on a Windows host (`proxychains` on the attacker side):
+```
+certipy find -u <user>@<domain> -p <password> -dc-ip <dc> -vulnerable -stdout
+certipy req -u <user>@<domain> -p <password> -dc-ip <dc> -ca <ca name> -template User -target <ca host>
+certipy account update -u <user>@<domain> -p <password> -dc-ip <dc> -user <victim> -upn administrator
+certipy auth -pfx <user>.pfx -dc-ip <dc>
+```
+Expect: `find` fires 01 and 05; `req` fires 03; `account` fires 02; `auth` fires 04 and 05, and AD16 on the DC. Change the victim's UPN back afterwards.

@@ -24,6 +24,7 @@ rules/
   17-ai-detections/         AI01-AI11 attacks using or aimed at AI: malware calling models, hijacked coding agents, Copilot, shadow AI
 detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
 implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
+certipy_detections/         Certipy (AD CS attack tool) detections for the organisation's own schema: DC, CA and Falcon
 docs/
   DETECTION-STRUCTURE-ESQL.md    how an ES|QL detection is written: the short default shape, the funnel for rules that count, baselines
   DETECTION-STRUCTURE-CQL.md     the same standard for Falcon LogScale (CQL)
