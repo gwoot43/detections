@@ -23,6 +23,13 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 04 | [Kerberos from a process other than LSASS](04-kerberos-from-process-other-than-lsass.md) | Falcon | `certipy auth`, Rubeus or Impacket through a proxy on a Windows host |
 | 05 | [One process proxying into AD](05-process-proxying-into-ad.md) | Falcon | Any tool reaching LDAP or Kerberos through a SOCKS proxy (also ADExplorer, ldapdomaindump) |
 
+## Also in this folder: ClickOnce
+
+| # | Detection | Source | Catches |
+|---|---|---|---|
+| 06 | [Program started by the ClickOnce service](06-clickonce-app-started.md) | Falcon | A ClickOnce app actually running (`dfsvc.exe` as parent); the higher fidelity of the two |
+| 07 | [ClickOnce deployment downloaded](07-clickonce-download-zscaler.md) | Zscaler | `.application` and `.deploy` downloads from sites you don't deploy from, blocked or allowed |
+
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
 - Auditing: 5145 needs "Audit Detailed File Share" on the CAs (03).
