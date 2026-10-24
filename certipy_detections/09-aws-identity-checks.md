@@ -10,11 +10,11 @@ suppression:
   duration: 24h
   missing_fields: do_not_suppress
 ---
-`aws sts get-caller-identity` is AWS's `whoami`. Engineers check one or two profiles; someone enumerating the credentials on a host checks one profile after another to see which keys are live. This groups the checks by user and host, lists the profiles each one checked (`(default)` when none was named, which is also what keys passed in environment variables look like), and keeps users who checked 3 or more different profiles within the same 2-hour window. The window is the gate: a burst of checks is enumeration, the same profiles spread over a week are someone doing their job, and it also lets the query run over any time range as a hunt without counts piling up.
+`aws sts get-caller-identity` is AWS's `whoami`. Engineers check one or two profiles; someone enumerating the credentials on a host checks one profile after another to see which keys are live. This groups the checks by user and host, lists the profiles each one checked (`(default)` when none was named, which is also what keys passed in environment variables look like), and keeps users who checked 3 or more different profiles within the same 30-minute window. The window is the gate: a burst of checks is enumeration, the same profiles spread over a week are someone doing their job, and it also lets the query run over any time range as a hunt without counts piling up.
 
 TruffleHog doesn't show up here: it checks AWS keys through the STS API from its own binary, not the CLI. CS17 covers that.
 
-Run hourly over the last 2 hours.
+Run every 30 minutes over the last hour.
 
 **CrowdStrike (Falcon LogScale)**
 ```logscale
@@ -24,8 +24,8 @@ Run hourly over the last 2 hours.
 | regex("--profile[ =](?<profile>[^ ]+)", field=CommandLine, strict=false)
 | default(field=profile, value="(default)")
 | default(field=UserName, value="unknown")
-//The 2-hour window each check falls in
-| window_raw := @timestamp / 7200000
+//The 30-minute window each check falls in
+| window_raw := @timestamp / 1800000
 | window := math:floor(window_raw)
 //Group by window, user and host: how many different profiles they checked, and which
 | groupBy([window, UserName, ComputerName], function=[count(profile, distinct=true, as=profiles), collect([profile, FileName, ParentBaseFileName]), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen)], limit=max)
@@ -46,22 +46,22 @@ FROM logs-yourorg-crowdstrike-data-default*
 // Pull out the profile each check named
 | GROK process.command_line """--profile[ =](?<profile>[^ ]+)"""
 | EVAL profile = COALESCE(profile, "(default)")
-// Group by 2-hour window, user and host: how many different profiles they checked, and which
+// Group by 30-minute window, user and host: how many different profiles they checked, and which
 | STATS profiles = COUNT_DISTINCT(profile), profile_list = VALUES(profile), process = VALUES(process.name),
         parent = VALUES(data.ParentBaseFileName), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY window = BUCKET(@timestamp, 2 hours), user.name, host.name
+    BY window = BUCKET(@timestamp, 30 minutes), user.name, host.name
 // Keep users who checked 3+ different profiles in one window (starting value)
 | WHERE profiles >= 3
 ```
 Suppress by host and user for 24h.
 
 ## Before turning it on
-Run it over a week without the last line to see how many profiles people normally check in 2 hours, and set the 3 from it. Scripts and CI jobs that check their identity in a loop go in as host + user pairs.
+Run it over a week without the last line to see how many profiles people normally check in 30 minutes, and set the 3 from it. Scripts and CI jobs that check their identity in a loop go in as host + user pairs.
 
 ## What it misses
 - Checks made outside the CLI: the AWS SDKs (TruffleHog, scripts, stealers) and `Get-STSCallerIdentity` in PowerShell. The CLI is caught however it runs, including v1 under Python.
 - Keys checked from the attacker's own machine: only CloudTrail sees that.
-- A burst that straddles a window edge is split in two, and each half may stay under 3. The hourly run over 2 hours sees each window twice, which narrows that gap; suppression folds the repeat.
+- A burst that straddles a window edge is split in two, and each half may stay under 3. Running every 30 minutes over the last hour sees each window twice, which narrows that gap; suppression folds the repeat.
 - One profile checked over and over (keys swapped in through environment variables all show as `(default)`): only the profile count alerts.
 
 ## When it fires
