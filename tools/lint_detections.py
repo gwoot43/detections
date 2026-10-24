@@ -172,6 +172,13 @@ def lint_cql(block):
         found.append("C-THRESHOLD")
     if re.search(r"\bmath:\w+\([^)]*[-+*/]", code):
         found.append("C-MATH-EXPR")
+    # test() sharing a stage with another filter by spaces alone (an implicit AND beside a function call)
+    for stage in re.split(r"\|", code):
+        st = re.sub(r"/(?:\\.|[^/\n])*/[a-zA-Z]*", " RE ", stage)
+        st = re.sub(r'"(?:\\.|[^"])*"', " S ", st)
+        t = re.sub(r"\btest\([^)]*\)", "T", st)
+        if "T" in t.split() and re.search(r"(\w+!?=\s*\S+|RE)\s+.*\bT\b|\bT\b\s+.*(\w+!?=|RE)", t):
+            found.append("C-TEST-LOGIC"); break
     # AND / OR inside test(), or joining a function call to another condition
     for m in re.finditer(r"\btest\(", code):
         if re.search(r"\b(AND|OR|and|or)\b", balanced(code, m.end() - 1)):
