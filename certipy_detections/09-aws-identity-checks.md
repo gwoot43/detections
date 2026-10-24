@@ -18,8 +18,8 @@ Run hourly over the last 2 hours.
 
 **CrowdStrike (Falcon LogScale)**
 ```logscale
-//Filter for AWS CLI identity checks
-#event_simpleName=ProcessRollup2 FileName=/^aws(\.exe)?$/i CommandLine=/get-caller-identity/i
+//Filter for AWS CLI identity checks, whatever runs them (aws, or python for CLI v1)
+#event_simpleName=ProcessRollup2 CommandLine=/\bsts\s+get-caller-identity\b/i
 //Pull out the profile each check named
 | regex("--profile[ =](?<profile>[^ ]+)", field=CommandLine, strict=false)
 | default(field=profile, value="(default)")
@@ -27,28 +27,27 @@ Run hourly over the last 2 hours.
 //The 2-hour window each check falls in
 | window := math:floor(@timestamp / 7200000)
 //Group by window, user and host: how many different profiles they checked, and which
-| groupBy([window, UserName, ComputerName], function=[count(profile, distinct=true, as=profiles), count(as=runs), collect([profile]), min(@timestamp, as=FirstRun), max(@timestamp, as=LastRun)], limit=max)
+| groupBy([window, UserName, ComputerName], function=[count(profile, distinct=true, as=profiles), collect([profile, FileName, ParentBaseFileName]), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen)], limit=max)
 //Keep users who checked 3+ different profiles in one window (starting value)
 | profiles >= 3
 //First and last check in the window, in Sydney time
-| FirstRun := formatTime("%Y-%m-%d %H:%M:%S", field=FirstRun, timezone="Australia/Sydney")
-| LastRun := formatTime("%Y-%m-%d %H:%M:%S", field=LastRun, timezone="Australia/Sydney")
-| table([ComputerName, UserName, profiles, runs, profile, FirstRun, LastRun])
+| FirstSeen := formatTime("%Y-%m-%d %H:%M:%S", field=FirstSeen, timezone="Australia/Sydney")
+| LastSeen := formatTime("%Y-%m-%d %H:%M:%S", field=LastSeen, timezone="Australia/Sydney")
+| table([ComputerName, UserName, profiles, profile, FileName, ParentBaseFileName, FirstSeen, LastSeen])
 ```
 Leave out `| profiles >= 3` to see every user and host.
 
 **Elastic (ES|QL)**
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-// Filter for AWS CLI identity checks
-| WHERE event.action == "processrollup2" AND process.name IN ("aws.exe", "aws")
-  AND process.command_line LIKE "*get-caller-identity*"
+// Filter for AWS CLI identity checks, whatever runs them (aws, or python for CLI v1)
+| WHERE event.action == "processrollup2" AND process.command_line LIKE "*get-caller-identity*"
 // Pull out the profile each check named
 | GROK process.command_line """--profile[ =](?<profile>[^ ]+)"""
 | EVAL profile = COALESCE(profile, "(default)")
 // Group by 2-hour window, user and host: how many different profiles they checked, and which
-| STATS profiles = COUNT_DISTINCT(profile), runs = COUNT(*), profile_list = VALUES(profile),
-        first_run = MIN(@timestamp), last_run = MAX(@timestamp)
+| STATS profiles = COUNT_DISTINCT(profile), profile_list = VALUES(profile), process = VALUES(process.name),
+        parent = VALUES(data.ParentBaseFileName), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY window = BUCKET(@timestamp, 2 hours), user.name, host.name
 // Keep users who checked 3+ different profiles in one window (starting value)
 | WHERE profiles >= 3
@@ -59,10 +58,10 @@ Suppress by host and user for 24h.
 Run it over a week without the last line to see how many profiles people normally check in 2 hours, and set the 3 from it. Scripts and CI jobs that check their identity in a loop go in as host + user pairs.
 
 ## What it misses
-- Checks made outside the CLI: the AWS SDKs (TruffleHog, scripts, stealers), `Get-STSCallerIdentity` in PowerShell, AWS CLI v1 (runs as Python).
+- Checks made outside the CLI: the AWS SDKs (TruffleHog, scripts, stealers) and `Get-STSCallerIdentity` in PowerShell. The CLI is caught however it runs, including v1 under Python.
 - Keys checked from the attacker's own machine: only CloudTrail sees that.
 - A burst that straddles a window edge is split in two, and each half may stay under 3. The hourly run over 2 hours sees each window twice, which narrows that gap; suppression folds the repeat.
-- One profile checked over and over (keys swapped in through environment variables all show as `(default)`): `runs` shows it, but only the profile count alerts. If you see that, add `OR runs >= 10` to the last line in ES|QL; in LogScale, swap `| profiles >= 3` for `| case { profiles >= 3; runs >= 10; }` (each branch is an OR).
+- One profile checked over and over (keys swapped in through environment variables all show as `(default)`): only the profile count alerts.
 
 ## When it fires
-`profile` lists what was checked. Find where those credentials live on the host (`~/.aws/credentials`, `AWS_*` environment variables) and what ran just before, then check CloudTrail for the keys being used from elsewhere. Rotate any key that was live.
+`profile` lists what was checked, and `FileName` and `ParentBaseFileName` what ran the checks and what started it (a shell, a script, or something unexpected). Find where those credentials live on the host (`~/.aws/credentials`, `AWS_*` environment variables) and what ran just before, then check CloudTrail for the keys being used from elsewhere. Rotate any key that was live.
