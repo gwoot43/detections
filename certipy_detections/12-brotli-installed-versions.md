@@ -102,6 +102,72 @@ Internet exposure, criticality and owner come from Falcon Exposure Management, n
 
 Until the lookup exists, use the plain version.
 
+## Without the installed-application inventory
+The inventory only lists what an OS package manager or installer put there. These find the rest. Each one covers a different way brotli gets onto a host; none of them sees a copy that arrived as a dependency and was never written, loaded or run while you were watching.
+
+**1. Installs that name brotli on the command line.** pip, npm, yarn and pnpm installs (never in the inventory), plus the OS package managers (for when it was installed). PyPI calls the package `Brotli`, so the ES|QL matches `*rotli*` to catch both cases without lowercasing every command line. This only sees installs that name brotli: `npm install` from a lock file, or `pip install -r requirements.txt`, pulls it in without saying so.
+```logscale
+//Filter for package installs that name brotli: pip, npm, yarn, pnpm and the OS package managers
+#event_simpleName=ProcessRollup2 CommandLine=/\b(pip[0-9.]*|python[0-9.]*\s+-m\s+pip|npm|yarn|pnpm|apt(-get)?|dnf|yum|rpm|dpkg|zypper|choco|winget)\b.*(install|add|-i|-U)\b.*brotli/i
+//Display results
+| table([@timestamp, ComputerName, UserName, FileName, CommandLine])
+```
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+// Filter for process starts whose command line mentions brotli or Brotli
+| WHERE event.action == "processrollup2" AND process.command_line LIKE "*rotli*"
+// Keep package installs: pip, npm, yarn, pnpm and the OS package managers
+| WHERE TO_LOWER(process.command_line)
+        RLIKE ".*(pip|npm|yarn|pnpm|apt|apt-get|dnf|yum|rpm|dpkg|zypper|choco|winget).*(install|add| -i| -u).*brotli.*"
+// Display results
+| KEEP @timestamp, host.name, user.name, process.name, process.command_line
+```
+
+**2. The brotli command-line tool being run.** Shows where the tool is installed and used, including copies outside the package manager.
+```logscale
+//Filter for the brotli tool starting, and where it ran from
+#event_simpleName=ProcessRollup2 FileName=/^brotli(\.exe)?$/i
+| groupBy([ComputerName, ImageFileName], function=[count(as=runs), max(@timestamp, as=LastRun)], limit=max)
+| LastRun := formatTime("%Y-%m-%d %H:%M:%S", field=LastRun, timezone="Australia/Sydney")
+```
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+// Filter for the brotli tool starting, and where it ran from
+| WHERE event.action == "processrollup2" AND process.name IN ("brotli", "brotli.exe")
+| STATS runs = COUNT(*), last_run = MAX(@timestamp) BY host.name, process.executable
+```
+
+**3. Applications that bundle their own copy (Windows).** brotli's DLLs (`brotlicommon.dll`, `brotlidec.dll`, `brotlienc.dll`) being loaded, with the folder of the application that ships them, which is who you'd chase for an update. Depends on your tenant recording DLL loads (`ImageHash`); there's no equivalent on Linux.
+```logscale
+//Filter for brotli DLLs being loaded, and which application folder they come from
+#event_simpleName=ImageHash event_platform=Win FileName=/brotli/i
+| groupBy([FileName, FilePath], function=[count(ComputerName, distinct=true, as=hosts), collect([ComputerName], limit=20)], limit=max)
+```
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+// Filter for brotli DLLs being loaded, and which application folder they come from
+| WHERE event.action == "imagehash" AND data.FileName LIKE "*rotli*"
+| STATS hosts = COUNT_DISTINCT(host.name), host_sample = TOP(host.name, 20, "asc") BY data.FileName, data.FilePath
+```
+
+**4. brotli library files being written.** Python wheels (`_brotli*.so`, `_brotli*.pyd`), Node packages and applications unpacking their own copy. Falcon records writes of executable files, which these are, but not every file, so treat it as a bonus.
+```logscale
+//Filter for written files whose name contains brotli, and which process wrote them
+#event_simpleName=/Written$/ TargetFileName=/brotli/i
+| groupBy([ComputerName, TargetFileName], function=[min(@timestamp, as=FirstWritten), collect([ContextBaseFileName])], limit=max)
+| FirstWritten := formatTime("%Y-%m-%d %H:%M:%S", field=FirstWritten, timezone="Australia/Sydney")
+```
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+// Filter for written files whose name contains brotli, and which process wrote them
+| WHERE event.action LIKE "*written" AND data.TargetFileName LIKE "*rotli*"
+| STATS first_written = MIN(@timestamp), writers = VALUES(data.ContextBaseFileName) BY host.name, data.TargetFileName
+```
+
+**5. Looking on the host (Falcon RTR).** For the servers that matter (anything running Python or Node apps), search the disk directly with `runscript`. This finds what's there now, however it got there.
+- Linux: `find / -xdev \( -path '*site-packages/brotli*' -o -path '*site-packages/_brotli*' -o -path '*node_modules/brotli*' -o -name 'libbrotli*' \) 2>/dev/null`
+- Windows: `Get-ChildItem -Path C:\ -Recurse -Filter '*brotli*' -ErrorAction SilentlyContinue | Select-Object FullName, LastWriteTime`
+
 ## Reading the result
 - `internet_facing_hosts` is where to start: an internet-facing host running a vulnerable build is the one to patch first.
 - `FirstSeen` / `LastSeen` are the first and last time the inventory reported that package in the search window, not its install date. Widen the time range to see how long it's been there.
@@ -114,5 +180,5 @@ Until the lookup exists, use the plain version.
 - To hunt another package, change the `brotli` in the name filter.
 
 ## What it misses
-- Copies of brotli bundled inside Python wheels, Node modules or applications: they aren't in the installed-application inventory. Dependency scanning (Aikido) covers those.
+- Copies of brotli bundled inside Python wheels, Node modules or applications: they aren't in the installed-application inventory. The searches under "Without the installed-application inventory" catch some; dependency scanning (Aikido) covers your own code and builds.
 - Hosts without Falcon, or where the inventory hasn't refreshed since the last update.
