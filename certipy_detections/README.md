@@ -1,6 +1,6 @@
 # New detections
 
-Newly created detections, starting with Certipy (the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host), then ClickOnce, BloodHound collection, AWS identity checks, share hunting and new domain accounts. They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
+Newly created detections, starting with Certipy (the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host), then ClickOnce, BloodHound collection, AWS identity checks, share hunting, new domain accounts and a brotli version hunt. They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
 
 ## What each Certipy step leaves behind
 
@@ -33,6 +33,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 09 | [AWS identity checks](09-aws-identity-checks.md) | Falcon | `aws sts get-caller-identity` repeated, across several profiles, or by someone who never used the AWS CLI |
 | 10 | [Share hunting sweep](10-share-hunting-sweep.md) | Target 5140 | One account opening real shares (not `IPC$`) on 20+ computers in an hour: Snaffler, PowerView, NetExec spider, ransomware share discovery |
 | 11 | [New domain account](11-new-domain-account-created.md) | DC 4720 and group adds | A user account created outside the provisioning accounts, made privileged within a day, or named like a computer (`$`) |
+| 12 | [brotli installed versions (hunt)](12-brotli-installed-versions.md) | Falcon inventory | Where brotli is installed, grouped by upstream version with the distro build kept alongside |
 
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
