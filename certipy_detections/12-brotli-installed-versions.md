@@ -13,47 +13,56 @@ suppression:
 A hunt, not an alert: where brotli is installed, which version, and on which kind of host (internet-facing, its criticality and owner). Package versions come with the distro's build attached (`1.1.0-7.el10_1` on RHEL, `1.0.9-2+b2` on Debian, sometimes an epoch like `1:1.0.9-2`), so the query pulls out the upstream version (`1.1.0`, `1.0.9`) to group on, and keeps the exact builds next to it.
 
 ## Plain version (runs now, no lookup)
-Built on the original search: free text `brotli`, which is known to return the inventory data.
+Built on the original search: free text `brotli`, which is known to return the inventory data. The inventory reports the same package again and again, so each host is first cut down to its most recent report of each package: a host that upgraded counts once, at its current version.
 
 **CrowdStrike (Falcon LogScale)**
 ```logscale
 //Filter for brotli, as in the original search, keeping events that name an application
 brotli AppName=*
+//Keep each host's most recent report of each package (an upgraded host counts once, at its current version)
+| groupBy([ComputerName, AppName], function=[selectFromMax(field=@timestamp, include=[AppVersion, Appsource]), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen)], limit=max)
 //Upstream version: drop any epoch ("1:") and the distro build after it ("-7.el10_1", "-2+b2")
 | case {
     AppVersion=/^(\d+:)?v?(?<UpstreamVersion>\d+(\.\d+)*)/ ;
     * | UpstreamVersion := "unparsed";
   }
 //Group by package and upstream version, keeping the exact builds and where they are
-| groupBy([AppName, UpstreamVersion], function=[count(ComputerName, distinct=true, as=hosts), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen), collect([AppVersion, Appsource]), collect([ComputerName], limit=100)], limit=max)
+| groupBy([AppName, UpstreamVersion], function=[count(ComputerName, distinct=true, as=hosts), min(FirstSeen, as=FirstSeen), max(LastSeen, as=LastSeen), collect([AppVersion, Appsource]), collect([ComputerName], limit=100)], limit=max)
 //First and last seen in the search window, in Sydney time
 | FirstSeen := formatTime("%Y-%m-%d %H:%M:%S", field=FirstSeen, timezone="Australia/Sydney")
 | LastSeen := formatTime("%Y-%m-%d %H:%M:%S", field=LastSeen, timezone="Australia/Sydney")
 ```
 Free text reads every event for the word, so it's slow over long ranges. To speed it up, find which event the hits come from with `brotli | groupBy(#event_simpleName)` and put `#event_simpleName=<that event>` in front of the search.
 
+For one row per host instead (its current version and when it last reported it), stop after the first `groupBy` and the `case`.
+
 **Elastic (ES|QL)**
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // Filter for installed applications with brotli in the name
 | WHERE data.AppName IS NOT NULL AND TO_LOWER(data.AppName) LIKE "*brotli*"
+// Keep each host's most recent report of each package (an upgraded host counts once, at its current version)
+| INLINE STATS latest = MAX(@timestamp), host_first_seen = MIN(@timestamp) BY host.name, data.AppName
+| WHERE @timestamp == latest
 // Upstream version: drop any epoch and the distro build after it
 | GROK data.AppVersion """^(\d+:)?v?(?<upstream_version>\d+(\.\d+)*)"""
 | EVAL upstream_version = COALESCE(upstream_version, "unparsed")
 // Group by package and upstream version, keeping the exact builds and where they are
 | STATS hosts = COUNT_DISTINCT(host.name), builds = VALUES(data.AppVersion), host_sample = TOP(host.name, 20, "asc"),
-        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
+        first_seen = MIN(host_first_seen), last_seen = MAX(latest)
     BY data.AppName, upstream_version
 ```
 `first_seen` and `last_seen` stay dates, so Discover shows them in Kibana's display time zone: set Advanced Settings > `dateFormat:tz` to `Australia/Sydney`. ES|QL has no time zone conversion of its own, and a fixed `+ 10 hours` would be wrong during daylight saving.
 
 ## With asset context (internet exposure, criticality, owner)
-Needs the `asset_context` lookup described below.
+Needs the `asset_context` lookup described below. The lookup runs once per host, after the most-recent cut, so it's cheap.
 
 **CrowdStrike (Falcon LogScale)**
 ```logscale
 //Filter for brotli, as in the original search, keeping events that name an application
 brotli AppName=*
+//Keep each host's most recent report of each package (an upgraded host counts once, at its current version)
+| groupBy([ComputerName, AppName], function=[selectFromMax(field=@timestamp, include=[AppVersion, Appsource, aid]), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen)], limit=max)
 //Upstream version: drop any epoch ("1:") and the distro build after it ("-7.el10_1", "-2+b2")
 | case {
     AppVersion=/^(\d+:)?v?(?<UpstreamVersion>\d+(\.\d+)*)/ ;
@@ -66,7 +75,7 @@ brotli AppName=*
 | case { InternetExposure="Yes" | internet_host := ComputerName; * ; }
 | host_context := format("%s (%s, %s, %s)", field=[ComputerName, InternetExposure, Criticality, Owner])
 //Group by package and upstream version, keeping the exact builds and the hosts with their context
-| groupBy([AppName, UpstreamVersion], function=[count(ComputerName, distinct=true, as=hosts), count(internet_host, distinct=true, as=internet_facing_hosts), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen), collect([AppVersion, Appsource]), collect([host_context], limit=100)], limit=max)
+| groupBy([AppName, UpstreamVersion], function=[count(ComputerName, distinct=true, as=hosts), count(internet_host, distinct=true, as=internet_facing_hosts), min(FirstSeen, as=FirstSeen), max(LastSeen, as=LastSeen), collect([AppVersion, Appsource]), collect([host_context], limit=100)], limit=max)
 //First and last seen in the search window, in Sydney time
 | FirstSeen := formatTime("%Y-%m-%d %H:%M:%S", field=FirstSeen, timezone="Australia/Sydney")
 | LastSeen := formatTime("%Y-%m-%d %H:%M:%S", field=LastSeen, timezone="Australia/Sydney")
@@ -77,6 +86,9 @@ brotli AppName=*
 FROM logs-yourorg-crowdstrike-data-default*
 // Filter for installed applications with brotli in the name
 | WHERE data.AppName IS NOT NULL AND TO_LOWER(data.AppName) LIKE "*brotli*"
+// Keep each host's most recent report of each package (an upgraded host counts once, at its current version)
+| INLINE STATS latest = MAX(@timestamp), host_first_seen = MIN(@timestamp) BY host.id, data.AppName
+| WHERE @timestamp == latest
 // Upstream version: drop any epoch and the distro build after it
 | GROK data.AppVersion """^(\d+:)?v?(?<upstream_version>\d+(\.\d+)*)"""
 | EVAL upstream_version = COALESCE(upstream_version, "unparsed")
@@ -87,7 +99,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 // Group by package and upstream version, keeping the exact builds and the hosts with their context
 | STATS hosts = COUNT_DISTINCT(host.id), internet_facing_hosts = COUNT_DISTINCT(host.id) WHERE internet_exposure == "Yes",
         builds = VALUES(data.AppVersion), host_sample = TOP(host_context, 20, "asc"),
-        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
+        first_seen = MIN(host_first_seen), last_seen = MAX(latest)
     BY data.AppName, upstream_version
 ```
 
@@ -109,8 +121,9 @@ The inventory only lists what an OS package manager or installer put there. Thes
 ```logscale
 //Filter for package installs that name brotli: pip, npm, yarn, pnpm and the OS package managers
 #event_simpleName=ProcessRollup2 CommandLine=/\b(pip[0-9.]*|python[0-9.]*\s+-m\s+pip|npm|yarn|pnpm|apt(-get)?|dnf|yum|rpm|dpkg|zypper|choco|winget)\b.*(install|add|-i|-U)\b.*brotli/i
-//Display results
-| table([@timestamp, ComputerName, UserName, FileName, CommandLine])
+//One row per host and command: its most recent run, and how many times it ran
+| groupBy([ComputerName, CommandLine], function=[selectFromMax(field=@timestamp, include=[UserName, FileName]), max(@timestamp, as=LastRun), count(as=runs)], limit=max)
+| LastRun := formatTime("%Y-%m-%d %H:%M:%S", field=LastRun, timezone="Australia/Sydney")
 ```
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
@@ -119,8 +132,8 @@ FROM logs-yourorg-crowdstrike-data-default*
 // Keep package installs: pip, npm, yarn, pnpm and the OS package managers
 | WHERE TO_LOWER(process.command_line)
         RLIKE ".*(pip|npm|yarn|pnpm|apt|apt-get|dnf|yum|rpm|dpkg|zypper|choco|winget).*(install|add| -i| -u).*brotli.*"
-// Display results
-| KEEP @timestamp, host.name, user.name, process.name, process.command_line
+// One row per host and command: its most recent run, and how many times it ran
+| STATS last_run = MAX(@timestamp), runs = COUNT(*), users = VALUES(user.name) BY host.name, process.command_line
 ```
 
 **2. The brotli command-line tool being run.** Shows where the tool is installed and used, including copies outside the package manager.
@@ -154,14 +167,14 @@ FROM logs-yourorg-crowdstrike-data-default*
 ```logscale
 //Filter for written files whose name contains brotli, and which process wrote them
 #event_simpleName=/Written$/ TargetFileName=/brotli/i
-| groupBy([ComputerName, TargetFileName], function=[min(@timestamp, as=FirstWritten), collect([ContextBaseFileName])], limit=max)
-| FirstWritten := formatTime("%Y-%m-%d %H:%M:%S", field=FirstWritten, timezone="Australia/Sydney")
+| groupBy([ComputerName, TargetFileName], function=[max(@timestamp, as=LastWritten), collect([ContextBaseFileName])], limit=max)
+| LastWritten := formatTime("%Y-%m-%d %H:%M:%S", field=LastWritten, timezone="Australia/Sydney")
 ```
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // Filter for written files whose name contains brotli, and which process wrote them
 | WHERE event.action LIKE "*written" AND data.TargetFileName LIKE "*rotli*"
-| STATS first_written = MIN(@timestamp), writers = VALUES(data.ContextBaseFileName) BY host.name, data.TargetFileName
+| STATS last_written = MAX(@timestamp), writers = VALUES(data.ContextBaseFileName) BY host.name, data.TargetFileName
 ```
 
 **5. Looking on the host (Falcon RTR).** For the servers that matter (anything running Python or Node apps), search the disk directly with `runscript`. This finds what's there now, however it got there.
@@ -170,7 +183,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 
 ## Reading the result
 - `internet_facing_hosts` is where to start: an internet-facing host running a vulnerable build is the one to patch first.
-- `FirstSeen` / `LastSeen` are the first and last time the inventory reported that package in the search window, not its install date. Widen the time range to see how long it's been there.
+- `FirstSeen` / `LastSeen` are the first and last time the inventory reported that package in the search window, not its install date. Widen the time range to see how long it's been there. A host whose `LastSeen` is days old while it still reports other software has probably had the package removed.
 - **Windows, or anything installed outside the distro's package manager:** the upstream version is the answer. Compare it with the advisory's fixed version.
 - **RHEL, Debian, Ubuntu packages: don't judge on the upstream number.** Distros backport security fixes into the version they already ship and only bump the build (TuxCare's fix for CVE-2025-6176 shipped as `1.0.9-7.el9_5.tuxcare.els1`: still "1.0.9", but patched). Compare the full build in `AppVersion` / `builds` with the distro's advisory (RHSA/ALSA, DSA, USN), which names the exact fixed build.
 - `unparsed` rows have a version that doesn't start with a number; read those by hand.
