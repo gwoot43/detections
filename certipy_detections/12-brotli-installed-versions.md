@@ -17,8 +17,10 @@ A hunt, not an alert: where brotli is installed, which version, and on which kin
 //Filter for installed applications with brotli in the name (brotli, libbrotli, brotli-devel, python3-brotli...)
 #event_simpleName=InstalledApplication AppName=/brotli/i
 //Upstream version: drop any epoch ("1:") and the distro build after it ("-7.el10_1", "-2+b2")
-| regex("^(\\d+:)?v?(?<UpstreamVersion>\\d+(\\.\\d+)*)", field=AppVersion, strict=false)
-| default(field=UpstreamVersion, value="unparsed")
+| case {
+    AppVersion=/^(\d+:)?v?(?<UpstreamVersion>\d+(\.\d+)*)/ ;
+    * | UpstreamVersion := "unparsed";
+  }
 //Add asset context from your Exposure Management export (see Asset context below)
 | match(file="asset_context.csv", field=aid, include=[InternetExposure, Criticality, Owner], strict=false)
 | default(field=[InternetExposure, Criticality, Owner], value="unknown")
