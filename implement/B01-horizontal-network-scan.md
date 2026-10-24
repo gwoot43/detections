@@ -83,7 +83,8 @@ FROM logs-yourorg-crowdstrike-data-default*
                                                           "<scheduled_task_service>.exe", "<periodic_task_host>.exe",
                                                           "<scheduled_task_host>.exe"])
 // 2 SHAPE: the 2-hour bucket, and "unknown" for a process Falcon didn't name.
-| bucket := math:floor(@timestamp / 7200000)
+| bucket_raw := @timestamp / 7200000
+| bucket := math:floor(bucket_raw)
 | default(field=ContextBaseFileName, value="unknown")
 // 3 REDUCE: per bucket, process and host.
 | groupBy([bucket, aid, ContextBaseFileName], function=[count(RemoteAddressIP4, distinct=true, as=targets),

@@ -36,6 +36,7 @@ CHECKS = {
     "C-COLLECT": "collect() on a high-cardinality field",
     "C-THRESHOLD": "a threshold with no recorded source (no 'baseline' or 'source' comment)",
     "C-TEST-LOGIC": "AND or OR inside test() or beside a function call; pipe them (AND) or use case branches (OR)",
+    "C-MATH-EXPR": "a math: function given a calculation instead of a field name; assign the calculation first",
     # rule file
     "R-SUPPRESSION": "no suppression field and duration",
 }
@@ -169,6 +170,8 @@ def lint_cql(block):
     if "groupBy(" in code and re.search(r"[<>]=?\s*-?\d", code[code.find("groupBy("):]) \
             and not THRESHOLD_SOURCE.search(block):
         found.append("C-THRESHOLD")
+    if re.search(r"\bmath:\w+\([^)]*[-+*/]", code):
+        found.append("C-MATH-EXPR")
     # AND / OR inside test(), or joining a function call to another condition
     for m in re.finditer(r"\btest\(", code):
         if re.search(r"\b(AND|OR|and|or)\b", balanced(code, m.end() - 1)):

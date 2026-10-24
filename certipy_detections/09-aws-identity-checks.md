@@ -25,7 +25,8 @@ Run hourly over the last 2 hours.
 | default(field=profile, value="(default)")
 | default(field=UserName, value="unknown")
 //The 2-hour window each check falls in
-| window := math:floor(@timestamp / 7200000)
+| window_raw := @timestamp / 7200000
+| window := math:floor(window_raw)
 //Group by window, user and host: how many different profiles they checked, and which
 | groupBy([window, UserName, ComputerName], function=[count(profile, distinct=true, as=profiles), collect([profile, FileName, ParentBaseFileName]), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen)], limit=max)
 //Keep users who checked 3+ different profiles in one window (starting value)

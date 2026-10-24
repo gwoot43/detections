@@ -221,7 +221,8 @@ FROM logs-yourorg-crowdstrike-data-default*
 | regex("(?<provider>[^.]+)\.[^.]+\.?$", field=DomainName)
 | provider := lower(provider)
 // The rule's 15-minute window, rebuilt as a bucket so 30 days can be measured in one search.
-| win := math:floor(@timestamp / 900000)
+| win_raw := @timestamp / 900000
+| win := math:floor(win_raw)
 | groupBy([aid, ContextProcessId, win], function=[count(provider, distinct=true, as=providers), collect([ContextBaseFileName])], limit=max)
 // Baseline: the distribution across windows. For top talkers instead, replace the last line with:
 //   default(field=ContextBaseFileName, value="unknown")

@@ -56,6 +56,7 @@ Keep the order in mind; don't label it in the query. B01 (scanning), CS17 (Truff
 - **A `case` used as a filter** has no `*` branch on purpose. Say so in a comment on the line above (`// Deliberately no * branch`).
 - **Missing fields:** `test()` and arithmetic fail on a missing field. `default()` first.
 - **`AND` and `OR` don't work inside `test()`, or next to any function call.** For AND, pipe the conditions: `| test(a) | test(b)`. For OR, use a `case` whose branches are the alternatives, with the "deliberately no `*` branch" comment: `| case { test(a); test(b); }`. A branch can pipe several conditions (`test(a) | test(b) | label := "x";`): it only matches if the event passes all of them, otherwise the next branch is tried. Plain field filters (`RemotePort=88 OR RemotePort=389`) can still use `AND` and `OR`.
+- **`math:floor()` and the other `math:` functions take a field name, not a calculation.** `math:floor(@timestamp / 7200000)` fails with "can't convert expression to string". Assign the calculation first: `| w := @timestamp / 7200000 | w := math:floor(w)`.
 
 ---
 
