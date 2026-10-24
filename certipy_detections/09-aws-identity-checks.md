@@ -29,16 +29,21 @@ Run hourly over the last 30 days.
 | _now := now()
 | age := _now - @timestamp
 | case {
-    CommandLine=/get-caller-identity/i age<3600000 | recent_check := 1 | regex("--profile[ =](?<profile>\\S+)", field=CommandLine, strict=false);
+    CommandLine=/get-caller-identity/i age<3600000 | recent_check := 1 | regex("--profile[ =](?<profile>[^ ]+)", field=CommandLine, strict=false);
     * | recent_check := 0;
   }
 //Group by host and user: their first AWS CLI run in the window, and recent identity checks
 | groupBy([aid, UserName], function=[max(age, as=oldest_run_age), sum(recent_check, as=recent_checks), count(profile, distinct=true, as=profiles), collect([CommandLine, ParentBaseFileName], limit=5)], limit=max)
-//Keep 5+ checks or 3+ profiles in the hour, or checks by someone whose first AWS CLI run was this hour
-| test(recent_checks >= 5 OR profiles >= 3 OR (recent_checks > 0 AND oldest_run_age < 3600000))
+//Label and keep: 5+ checks or 3+ profiles in the hour, or checks by someone whose first AWS CLI run was this hour.
+//Each branch is piped filters; deliberately no * branch, so anything else is dropped.
+| case {
+    recent_checks >= 5 | finding := "repeated_identity_checks";
+    profiles >= 3 | finding := "repeated_identity_checks";
+    recent_checks > 0 | oldest_run_age < 3600000 | finding := "first_aws_cli_use";
+  }
 //Add the host name and display results
 | match(file="aid_master_main.csv", field=aid, include=[ComputerName], strict=false)
-| table([ComputerName, UserName, recent_checks, profiles, oldest_run_age, CommandLine, ParentBaseFileName])
+| table([ComputerName, UserName, finding, recent_checks, profiles, oldest_run_age, CommandLine, ParentBaseFileName])
 ```
 
 **Elastic (ES|QL)**
