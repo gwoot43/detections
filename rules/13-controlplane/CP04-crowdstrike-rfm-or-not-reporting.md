@@ -127,7 +127,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | case { last_normal > 0 | episode_start := last_normal; * | episode_start := first_rfm; }
 | rfm_episode_minutes := (_now - episode_start) / 60000
 | dom_local := formatTime("%d", field=episode_start, timezone="Australia/Sydney")
-| case { test(dom_local >= 8 AND dom_local <= 17) | in_patch_window := "true"; * | in_patch_window := "false"; }
+| case { test(dom_local >= 8) | test(dom_local <= 17) | in_patch_window := "true"; * | in_patch_window := "false"; }
 // Deliberately no * branch: this case is a filter. Outside patch week, or 12+ hours in RFM.
 | case { in_patch_window="false"; rfm_episode_minutes >= 720; }
 // 5 ENRICH: host name from the sensor inventory, in case these events don't carry ComputerName.

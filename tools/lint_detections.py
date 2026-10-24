@@ -35,6 +35,7 @@ CHECKS = {
     "C-JOIN": "join() without a comment justifying it",
     "C-COLLECT": "collect() on a high-cardinality field",
     "C-THRESHOLD": "a threshold with no recorded source (no 'baseline' or 'source' comment)",
+    "C-TEST-LOGIC": "AND or OR inside test() or beside a function call; pipe them (AND) or use case branches (OR)",
     # rule file
     "R-SUPPRESSION": "no suppression field and duration",
 }
@@ -168,6 +169,17 @@ def lint_cql(block):
     if "groupBy(" in code and re.search(r"[<>]=?\s*-?\d", code[code.find("groupBy("):]) \
             and not THRESHOLD_SOURCE.search(block):
         found.append("C-THRESHOLD")
+    # AND / OR inside test(), or joining a function call to another condition
+    for m in re.finditer(r"\btest\(", code):
+        if re.search(r"\b(AND|OR|and|or)\b", balanced(code, m.end() - 1)):
+            found.append("C-TEST-LOGIC"); break
+    else:
+        for stage in re.split(r"\n\s*\|", code):
+            flat = re.sub(r"/(?:\\.|[^/\n])*/[a-zA-Z]*", "", stage)  # drop regex literals, which may hold ( and |
+            flat = re.sub(r'"(?:\\.|[^"])*"', '""', flat)
+            if re.search(r"\b(AND|OR|and|or)\b", flat) and re.search(r"\b(test|in|cidr|match|regex)\(", flat) \
+                    and not re.match(r"\s*case\s*\{", flat):
+                found.append("C-TEST-LOGIC"); break
     return found
 
 

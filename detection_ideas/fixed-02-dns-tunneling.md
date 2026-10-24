@@ -92,7 +92,11 @@ FROM logs-yourorg-crowdstrike-data-default*
                                    max(label_len, as=max_label), collect([ComputerName, ContextBaseFileName]),
                                    collect([q], limit=10)], limit=max)
 // Mark the tunnel-shaped rows. Every host still counts towards rarity below.
-| case { test(names >= 100 AND (long_names >= 20 OR odd_types >= 20)) | tunnel_host := aid; * ; }
+| case {
+    test(names >= 100) | test(long_names >= 20) | tunnel_host := aid;
+    test(names >= 100) | test(odd_types >= 20) | tunnel_host := aid;
+    * ;
+  }
 // Rarity: one row per parent, counting every host that looked it up. Keep parents with a tunnel and at most 3 hosts.
 | groupBy([parent], function=[count(aid, distinct=true, as=hosts), max(names, as=names), max(long_names, as=long_names),
                               max(odd_types, as=odd_types), collect([tunnel_host, ComputerName, ContextBaseFileName, q])], limit=max)

@@ -67,7 +67,7 @@ FROM logs-yourorg-crowdstrike-data-default*
                                   max(first_seen, as=newest_host_start),
                                   collect([aid, ComputerName, ContextProcessId, ImageFileName, QueryStatus, FirstIP4Record])], limit=max)
 | _now := now()
-| test(hosts <= 3 AND newest_host_start > _now - 7200000)
+| test(hosts <= 3) | test(newest_host_start > _now - 7200000)
 ```
 
 **Check before deploying:** the ES|QL version needs the process name on DNS events, which Falcon sends only on some sensor versions. Run `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action == "dnsrequest" | STATS named = COUNT(process.name), total = COUNT(*)` over an hour. If `named` is near zero, use the LogScale version, which joins each lookup to its process. In LogScale, `join` caps how many rows its inner query returns; raise its `limit` if your fleet starts more editor processes than that in 7 days.

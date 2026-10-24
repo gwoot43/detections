@@ -73,7 +73,9 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([pname], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start), sum(named, as=named),
                              collect([ComputerName, RemoteAddress, RemotePort, CommandLine])], limit=max)
 | _now := now()
-| test((hosts <= 3 OR named > 0) AND newest_start > _now - 7200000)
+| test(newest_start > _now - 7200000)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(hosts <= 3); test(named > 0); }
 ```
 LogScale has no `INLINE STATS`, so this version rolls up to one row per program, listing the (at most three) hosts it runs on and the targets they reached.
 

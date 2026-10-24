@@ -93,7 +93,8 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, uname], function=[count(recon, distinct=true, as=distinct_recon),
                                   count(ad_recon, distinct=true, as=ad_recon_kinds),
                                   collect([recon, ad_recon, ParentBaseFileName, ComputerName])], limit=max)
-| test(distinct_recon >= 6 OR ad_recon_kinds >= 3)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(distinct_recon >= 6); test(ad_recon_kinds >= 3); }
 | case {
     test(ad_recon_kinds >= 1) | label := "domain_enumeration";
     * | label := "discovery_burst";

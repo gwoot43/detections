@@ -43,7 +43,8 @@ There's no filename fallback here. Known attacker tools by name, TruffleHog incl
           limit=max)
 // 4 DECIDE: four or more providers, or three with at least one rare one. Starting values; set them from the
 // baseline query (run separately over 30 days).
-| test(providers >= 4 OR (providers >= 3 AND rare_providers >= 1))
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(providers >= 4); test(providers >= 3) | test(rare_providers >= 1); }
 // 5 ENRICH, on the survivors only. Drop code editors and browsers; a process with no name on its DNS events stays in.
 | NOT ContextBaseFileName=/^(code|code - insiders|cursor|windsurf|chrome|msedge|firefox|brave)(\.exe)?$/i
 // Scanners CI runners and AppSec hosts run by design: one line per host and process (placeholders).

@@ -81,13 +81,14 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, parent], function=[count(domain, distinct=true, as=distinct_sub), count(long_name, distinct=true, as=long_names),
                                    max(label_len, as=max_label), collect([ComputerName, ContextProcessId, named_host, CommandLine])], limit=max)
 // Mark the tunnel-shaped rows. Every host still counts towards rarity below.
-| case { test(distinct_sub >= 100 AND long_names >= 20) | tunnel_host := aid; * ; }
+| case { test(distinct_sub >= 100) | test(long_names >= 20) | tunnel_host := aid; * ; }
 // Rarity: one row per parent, counting every host that looked it up. Keep parents with a tunnel and at most 3 hosts.
 | groupBy([parent], function=[count(aid, distinct=true, as=hosts), max(distinct_sub, as=distinct_sub), max(long_names, as=long_names),
                               max(max_label, as=max_label), collect([tunnel_host, named_host, ComputerName, ContextProcessId, CommandLine])],
           limit=max)
 // Activity first: a tunnel-shaped host under a parent at most 3 hosts look up. Then the filename fallback.
-| (test(hosts <= 3) AND tunnel_host=*) or named_host=*
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(hosts <= 3) | tunnel_host=*; named_host=*; }
 | case {
     named_host=* | finding := "DNS tunnel tool started (by name)";
     * | finding := "DNS tunnel by behaviour";

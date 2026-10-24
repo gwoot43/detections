@@ -45,7 +45,8 @@ FROM logs-yourorg-crowdstrike-data-default*
                            collect([UserName, ComputerName, #event_simpleName, DiskParentDeviceInstanceId]),
                            collect([fpath], limit=20),
                            min(@timestamp, as=first_write), max(@timestamp, as=last_write)], limit=max)
-| test(files >= 25 OR archives >= 3)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(files >= 25); test(archives >= 3); }
 | rename(field=fpath, as=sample_files)
 | first_write := formatTime(format="%F %T", field=first_write, timezone="Australia/Sydney")
 | last_write := formatTime(format="%F %T", field=last_write, timezone="Australia/Sydney")

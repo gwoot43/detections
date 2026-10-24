@@ -53,7 +53,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([command_shape], function=[count(aid, distinct=true, as=hosts), max(first_seen, as=newest_start),
                                      collect([aid, ComputerName, CommandLine, ParentBaseFileName, UID])], limit=max)
 | _now := now()
-| test(hosts <= 3 AND newest_start > _now - 7200000)
+| test(hosts <= 3) | test(newest_start > _now - 7200000)
 ```
 LogScale has no `INLINE STATS`, so this version rolls up to one row per command, listing the (at most three) hosts that ran it.
 

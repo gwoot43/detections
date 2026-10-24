@@ -90,7 +90,8 @@ FROM logs-yourorg-crowdstrike-data-default*
                                                         count(RemotePort, distinct=true, as=ports), min(@timestamp, as=first_seen)],
           limit=max)
 // 4 DECIDE: host sweep or port scan. Thresholds (source: tuned by the team on production data, 2-hour buckets).
-| test((targets >= 100 AND ports >= 5) OR ports >= 200)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(targets >= 100) | test(ports >= 5); test(ports >= 200); }
 // 5 ENRICH: host name from the sensor inventory, then the hosts that scan by design and the jump-box pair (placeholders).
 | match(file="aid_master_main.csv", field=aid, include=[ComputerName], strict=false)
 | NOT ComputerName=/^(<network_monitoring_host>|<event_collector_host>|<gateway_monitoring_host>|<app_backend_host>|<dr_monitoring_host>|<discovery_server_host>|<automation_host>)/i

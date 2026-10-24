@@ -96,9 +96,10 @@ FROM logs-yourorg-crowdstrike-data-default*
                                   count(rdp_ip, distinct=true, as=rdp), count(ldap_ip, distinct=true, as=ldap_targets),
                                   collect([protocol, ComputerName, CommandLine]), count(as=conns), count(named, as=named)], limit=max)
 // Activity first: the sweep and LDAP tiers. Then the filename fallback.
-| test(targets >= 15 OR ldap_targets >= 3 OR named > 0)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(targets >= 15); test(ldap_targets >= 3); test(named > 0); }
 | case {
-    test(targets >= 15 AND ldap_targets >= 1) | label := "ldap_and_lateral_sweep";
+    test(targets >= 15) | test(ldap_targets >= 1) | label := "ldap_and_lateral_sweep";
     test(targets >= 15) | label := "lateral_sweep";
     test(ldap_targets >= 3) | label := "ldap_dc_fanout";
     * | label := "lateral_tool_started_by_name";

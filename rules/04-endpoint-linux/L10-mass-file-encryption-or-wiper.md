@@ -72,7 +72,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | bucket_start := @timestamp - (@timestamp % 300000)
 | groupBy([aid, ContextProcessId, pname, bucket_start], function=[count(TargetFileName, distinct=true, as=files),
                                                                count(file_dir, distinct=true, as=dirs), collect([ext, ComputerName])], limit=max)
-| test(files >= 200 AND dirs >= 5)
+| test(files >= 200) | test(dirs >= 5)
 | bucket_start := formatTime(format="%F %T", field=bucket_start, timezone="Australia/Sydney")
 ```
 

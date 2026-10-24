@@ -75,7 +75,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | beacon_regularity := active_minutes / possible
 // Mark the beacon-shaped rows. Every row still counts towards rarity below.
 | case {
-    test(conns >= 30 AND active_minutes >= 20 AND span_minutes >= 60 AND beacon_regularity >= 0.6)
+    test(conns >= 30) | test(active_minutes >= 20) | test(span_minutes >= 60) | test(beacon_regularity >= 0.6)
       | beacon := format("%s %s port %s: %s connections, regularity %.2f", field=[aid, pname, RemotePort, conns, beacon_regularity]);
     * ;
   }

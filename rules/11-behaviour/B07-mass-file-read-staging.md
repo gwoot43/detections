@@ -90,15 +90,16 @@ FROM logs-yourorg-crowdstrike-data-default*
                                                     collect([fext, pname, ComputerName, CommandLine])], limit=max)
 // One row per process: whether any window was a mass read, and whether it started as a scanner.
 | case {
-    test(files >= 300 AND dirs >= 20) | mass_read := 1;
+    test(files >= 300) | test(dirs >= 20) | mass_read := 1;
     *;
   }
 | groupBy([aid, falconPID], function=[count(mass_read, as=mass_windows), sum(named, as=named), max(files, as=files), max(dirs, as=dirs),
                                       collect([fext, pname, ComputerName, CommandLine])], limit=max)
 // Activity first: 300+ files in 20+ folders in one window. Then the filename fallback.
-| test(mass_windows > 0 OR named > 0)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(mass_windows > 0); test(named > 0); }
 | case {
-    test(mass_windows > 0 AND named > 0) | finding := "secret scanner reading a folder tree";
+    test(mass_windows > 0) | test(named > 0) | finding := "secret scanner reading a folder tree";
     test(mass_windows > 0) | finding := "mass file read by behaviour";
     * | finding := "secret scanner started on a folder (by name)";
   }

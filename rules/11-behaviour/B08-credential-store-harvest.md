@@ -111,9 +111,10 @@ FROM logs-yourorg-crowdstrike-data-default*
 | groupBy([aid, falconPID], function=[count(harvest, as=harvest_windows), sum(named, as=named), max(store_types, as=store_types),
                                       collect([store, pname, ComputerName, CommandLine])], limit=max)
 // Activity first: three or more kinds of credential store in one window. Then the filename fallback.
-| test(harvest_windows > 0 OR named > 0)
+// Deliberately no * branch: an event passes if any branch matches.
+| case { test(harvest_windows > 0); test(named > 0); }
 | case {
-    test(harvest_windows > 0 AND named > 0) | finding := "known stealer reading credential stores";
+    test(harvest_windows > 0) | test(named > 0) | finding := "known stealer reading credential stores";
     test(harvest_windows > 0) | finding := "credential stores harvested by behaviour";
     * | finding := "known stealer started (by name)";
   }

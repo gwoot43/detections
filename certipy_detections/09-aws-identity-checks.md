@@ -1,16 +1,16 @@
 ---
 id: AWS-01
-name: AWS CLI identity check run repeatedly for a profile (aws sts get-caller-identity --profile)
+name: AWS CLI identity checks across several profiles by one user on one host (aws sts get-caller-identity --profile enumeration)
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1087.004, T1552.001, T1078.004]
 data_source: CrowdStrike FDR ProcessRollup2
 suppression:
-  fields: [host.name, user.name, profile]
+  fields: [host.name, user.name]
   duration: 24h
   missing_fields: do_not_suppress
 ---
-`aws sts get-caller-identity` is AWS's `whoami`. One run is normal; the same check run again and again is someone testing keys. This counts the checks per host, user and `--profile` (`(default)` when none was named, which is also what keys passed in environment variables look like), and keeps the ones run 5 or more times in the window.
+`aws sts get-caller-identity` is AWS's `whoami`. Engineers check one or two profiles; someone enumerating the credentials on a host checks one profile after another to see which keys are live. This groups the checks by user and host, lists the profiles each one checked (`(default)` when none was named, which is also what keys passed in environment variables look like), and keeps users who checked 3 or more different profiles in the window.
 
 TruffleHog doesn't show up here: it checks AWS keys through the STS API from its own binary, not the CLI. CS17 covers that.
 
@@ -24,13 +24,13 @@ Run hourly over the last hour.
 | regex("--profile[ =](?<profile>[^ ]+)", field=CommandLine, strict=false)
 | default(field=profile, value="(default)")
 | default(field=UserName, value="unknown")
-//Count the checks per host, user and profile
-| groupBy([ComputerName, UserName, profile], function=[count(as=runs), max(@timestamp, as=LastRun)], limit=max)
-//Keep profiles checked 5+ times (starting value)
-| runs >= 5
+//Group by user and host: how many different profiles they checked, and which
+| groupBy([UserName, ComputerName], function=[count(profile, distinct=true, as=profiles), count(as=runs), collect([profile]), max(@timestamp, as=LastRun)], limit=max)
+//Keep users who checked 3+ different profiles (starting value)
+| profiles >= 3
 | LastRun := formatTime("%Y-%m-%d %H:%M:%S", field=LastRun, timezone="Australia/Sydney")
 ```
-Leave out `| runs >= 5` to see every count.
+Leave out `| profiles >= 3` to see every user and host.
 
 **Elastic (ES|QL)**
 ```esql
@@ -41,20 +41,21 @@ FROM logs-yourorg-crowdstrike-data-default*
 // Pull out the profile each check named
 | GROK process.command_line """--profile[ =](?<profile>[^ ]+)"""
 | EVAL profile = COALESCE(profile, "(default)")
-// Count the checks per host, user and profile
-| STATS runs = COUNT(*), last_run = MAX(@timestamp) BY host.name, user.name, profile
-// Keep profiles checked 5+ times (starting value)
-| WHERE runs >= 5
+// Group by user and host: how many different profiles they checked, and which
+| STATS profiles = COUNT_DISTINCT(profile), runs = COUNT(*), profile_list = VALUES(profile), last_run = MAX(@timestamp)
+    BY user.name, host.name
+// Keep users who checked 3+ different profiles (starting value)
+| WHERE profiles >= 3
 ```
-Suppress by host, user and profile for 24h.
+Suppress by host and user for 24h.
 
 ## Before turning it on
-Run it over a week without the last line to see the normal counts, and set the 5 from it. Scripts and CI jobs that check their identity in a loop go in as host + user pairs.
+Run it over a week without the last line to see how many profiles people normally check, and set the 3 from it. Scripts and CI jobs that check their identity in a loop go in as host + user pairs.
 
 ## What it misses
 - Checks made outside the CLI: the AWS SDKs (TruffleHog, scripts, stealers), `Get-STSCallerIdentity` in PowerShell, AWS CLI v1 (runs as Python).
 - Keys checked from the attacker's own machine: only CloudTrail sees that.
-- Many profiles each checked once or twice: under the count per profile.
+- One profile checked over and over (keys swapped in through environment variables all show as `(default)`): `runs` shows it, but only the profile count alerts. If you see that, add `OR runs >= 10` to the last line in ES|QL; in LogScale, swap `| profiles >= 3` for `| case { profiles >= 3; runs >= 10; }` (each branch is an OR).
 
 ## When it fires
-Find where that profile's credentials live on the host (`~/.aws/credentials`, `AWS_*` environment variables) and what ran just before, then check CloudTrail for the keys being used from elsewhere. Rotate any key that was live.
+`profile` lists what was checked. Find where those credentials live on the host (`~/.aws/credentials`, `AWS_*` environment variables) and what ran just before, then check CloudTrail for the keys being used from elsewhere. Rotate any key that was live.
