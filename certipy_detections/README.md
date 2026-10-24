@@ -30,7 +30,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 06 | [ClickOnce chain on an endpoint](06-clickonce-app-started.md) | Falcon | A program started by ClickOnce (`dfsvc.exe` or `dfsvc.ni.exe`), started by a ClickOnce app, or run from the ClickOnce cache; investigation steps in the query |
 | 07 | [ClickOnce deployment downloaded](07-clickonce-download-zscaler.md) | Zscaler | `.application` and `.deploy` downloads from sites you don't deploy from, blocked or allowed |
 | 08 | [BloodHound collection sweep](08-bloodhound-collection-sweep.md) | DC 4769, target 5140 | One account reaching 50+ computers in an hour by Kerberos ticket or IPC$; Falcon pivot query names the host and process |
-| 09 | [AWS identity checks](09-aws-identity-checks.md) | Falcon | `aws sts get-caller-identity` across 3+ different profiles by one user on one host in an hour (credential enumeration) |
+| 09 | [AWS identity checks](09-aws-identity-checks.md) | Falcon | `aws sts get-caller-identity` across 3+ different profiles by one user on one host within a 2-hour window (credential enumeration) |
 | 10 | [Share hunting sweep](10-share-hunting-sweep.md) | Target 5140 | One account opening real shares (not `IPC$`) on 20+ computers in an hour: Snaffler, PowerView, NetExec spider, ransomware share discovery |
 | 11 | [New domain account](11-new-domain-account-created.md) | DC 4720 and group adds | A user account created outside the provisioning accounts, made privileged within a day, or named like a computer (`$`) |
 | 12 | [brotli installed versions (hunt)](12-brotli-installed-versions.md) | Falcon inventory | Where brotli is installed, grouped by upstream version with the distro build kept alongside |
