@@ -20,7 +20,10 @@ A hunt, not an alert: where brotli is installed and which version. Package versi
 | regex("^(\\d+:)?v?(?<UpstreamVersion>\\d+(\\.\\d+)*)", field=AppVersion, strict=false)
 | default(field=UpstreamVersion, value="unparsed")
 //Group by package and upstream version, keeping the exact builds and where they are
-| groupBy([AppName, UpstreamVersion], function=[count(aid, distinct=true, as=hosts), collect([AppVersion, ComputerName, AppSource], limit=100)], limit=max)
+| groupBy([AppName, UpstreamVersion], function=[count(aid, distinct=true, as=hosts), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen), collect([AppVersion, ComputerName, AppSource], limit=100)], limit=max)
+//First and last seen in the search window, in Sydney time
+| FirstSeen := formatTime("%Y-%m-%d %H:%M:%S", field=FirstSeen, timezone="Australia/Sydney")
+| LastSeen := formatTime("%Y-%m-%d %H:%M:%S", field=LastSeen, timezone="Australia/Sydney")
 ```
 
 **Elastic (ES|QL)**
@@ -33,11 +36,14 @@ FROM logs-yourorg-crowdstrike-data-default*
 | GROK data.AppVersion """^(\d+:)?v?(?<upstream_version>\d+(\.\d+)*)"""
 | EVAL upstream_version = COALESCE(upstream_version, "unparsed")
 // Group by package and upstream version, keeping the exact builds and where they are
-| STATS hosts = COUNT_DISTINCT(host.id), builds = VALUES(data.AppVersion), host_sample = TOP(host.name, 20, "asc")
+| STATS hosts = COUNT_DISTINCT(host.id), builds = VALUES(data.AppVersion), host_sample = TOP(host.name, 20, "asc"),
+        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY data.AppName, upstream_version
 ```
+`first_seen` and `last_seen` stay dates, so Discover shows them in Kibana's display time zone: set Advanced Settings > `dateFormat:tz` to `Australia/Sydney`. ES|QL has no time zone conversion of its own, and a fixed `+ 10 hours` would be wrong during daylight saving.
 
 ## Reading the result
+- `FirstSeen` / `LastSeen` are the first and last time the inventory reported that package in the search window, not its install date. Widen the time range to see how long it's been there.
 - **Windows, or anything installed outside the distro's package manager:** the upstream version is the answer. Compare it with the advisory's fixed version.
 - **RHEL, Debian, Ubuntu packages: don't judge on the upstream number.** Distros backport security fixes into the version they already ship and only bump the build (TuxCare's fix for CVE-2025-6176 shipped as `1.0.9-7.el9_5.tuxcare.els1`: still "1.0.9", but patched). Compare the full build in `AppVersion` / `builds` with the distro's advisory (RHSA/ALSA, DSA, USN), which names the exact fixed build.
 - `unparsed` rows have a version that doesn't start with a number; read those by hand.
