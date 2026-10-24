@@ -4,7 +4,7 @@ name: Hunt - brotli installed across the estate, by upstream version (distro bui
 language: esql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1190]
-data_source: CrowdStrike Falcon installed-application inventory (InstalledApplication)
+data_source: CrowdStrike Falcon installed-application inventory
 suppression:
   fields: [data.AppName]
   duration: 24h
@@ -12,10 +12,48 @@ suppression:
 ---
 A hunt, not an alert: where brotli is installed, which version, and on which kind of host (internet-facing, its criticality and owner). Package versions come with the distro's build attached (`1.1.0-7.el10_1` on RHEL, `1.0.9-2+b2` on Debian, sometimes an epoch like `1:1.0.9-2`), so the query pulls out the upstream version (`1.1.0`, `1.0.9`) to group on, and keeps the exact builds next to it.
 
+## Plain version (runs now, no lookup)
+Built on the original search: free text `brotli`, which is known to return the inventory data.
+
 **CrowdStrike (Falcon LogScale)**
 ```logscale
-//Filter for installed applications with brotli in the name (brotli, libbrotli, brotli-devel, python3-brotli...)
-#event_simpleName=InstalledApplication AppName=/brotli/i
+//Filter for brotli, as in the original search, keeping events that name an application
+brotli AppName=*
+//Upstream version: drop any epoch ("1:") and the distro build after it ("-7.el10_1", "-2+b2")
+| case {
+    AppVersion=/^(\d+:)?v?(?<UpstreamVersion>\d+(\.\d+)*)/ ;
+    * | UpstreamVersion := "unparsed";
+  }
+//Group by package and upstream version, keeping the exact builds and where they are
+| groupBy([AppName, UpstreamVersion], function=[count(ComputerName, distinct=true, as=hosts), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen), collect([AppVersion, Appsource]), collect([ComputerName], limit=100)], limit=max)
+//First and last seen in the search window, in Sydney time
+| FirstSeen := formatTime("%Y-%m-%d %H:%M:%S", field=FirstSeen, timezone="Australia/Sydney")
+| LastSeen := formatTime("%Y-%m-%d %H:%M:%S", field=LastSeen, timezone="Australia/Sydney")
+```
+Free text reads every event for the word, so it's slow over long ranges. To speed it up, find which event the hits come from with `brotli | groupBy(#event_simpleName)` and put `#event_simpleName=<that event>` in front of the search.
+
+**Elastic (ES|QL)**
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+// Filter for installed applications with brotli in the name
+| WHERE data.AppName IS NOT NULL AND TO_LOWER(data.AppName) LIKE "*brotli*"
+// Upstream version: drop any epoch and the distro build after it
+| GROK data.AppVersion """^(\d+:)?v?(?<upstream_version>\d+(\.\d+)*)"""
+| EVAL upstream_version = COALESCE(upstream_version, "unparsed")
+// Group by package and upstream version, keeping the exact builds and where they are
+| STATS hosts = COUNT_DISTINCT(host.name), builds = VALUES(data.AppVersion), host_sample = TOP(host.name, 20, "asc"),
+        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
+    BY data.AppName, upstream_version
+```
+`first_seen` and `last_seen` stay dates, so Discover shows them in Kibana's display time zone: set Advanced Settings > `dateFormat:tz` to `Australia/Sydney`. ES|QL has no time zone conversion of its own, and a fixed `+ 10 hours` would be wrong during daylight saving.
+
+## With asset context (internet exposure, criticality, owner)
+Needs the `asset_context` lookup described below.
+
+**CrowdStrike (Falcon LogScale)**
+```logscale
+//Filter for brotli, as in the original search, keeping events that name an application
+brotli AppName=*
 //Upstream version: drop any epoch ("1:") and the distro build after it ("-7.el10_1", "-2+b2")
 | case {
     AppVersion=/^(\d+:)?v?(?<UpstreamVersion>\d+(\.\d+)*)/ ;
@@ -25,10 +63,10 @@ A hunt, not an alert: where brotli is installed, which version, and on which kin
 | match(file="asset_context.csv", field=aid, include=[InternetExposure, Criticality, Owner], strict=false)
 | default(field=[InternetExposure, Criticality, Owner], value="unknown")
 //Mark internet-facing hosts so they're counted on their own, and label each host with its context
-| case { InternetExposure="Yes" | internet_aid := aid; * ; }
+| case { InternetExposure="Yes" | internet_host := ComputerName; * ; }
 | host_context := format("%s (%s, %s, %s)", field=[ComputerName, InternetExposure, Criticality, Owner])
 //Group by package and upstream version, keeping the exact builds and the hosts with their context
-| groupBy([AppName, UpstreamVersion], function=[count(aid, distinct=true, as=hosts), count(internet_aid, distinct=true, as=internet_facing_hosts), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen), collect([AppVersion, AppSource]), collect([host_context], limit=100)], limit=max)
+| groupBy([AppName, UpstreamVersion], function=[count(ComputerName, distinct=true, as=hosts), count(internet_host, distinct=true, as=internet_facing_hosts), min(@timestamp, as=FirstSeen), max(@timestamp, as=LastSeen), collect([AppVersion, Appsource]), collect([host_context], limit=100)], limit=max)
 //First and last seen in the search window, in Sydney time
 | FirstSeen := formatTime("%Y-%m-%d %H:%M:%S", field=FirstSeen, timezone="Australia/Sydney")
 | LastSeen := formatTime("%Y-%m-%d %H:%M:%S", field=LastSeen, timezone="Australia/Sydney")
@@ -38,8 +76,7 @@ A hunt, not an alert: where brotli is installed, which version, and on which kin
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // Filter for installed applications with brotli in the name
-| WHERE event.action == "installedapplication" AND data.AppName IS NOT NULL
-| WHERE TO_LOWER(data.AppName) LIKE "*brotli*"
+| WHERE data.AppName IS NOT NULL AND TO_LOWER(data.AppName) LIKE "*brotli*"
 // Upstream version: drop any epoch and the distro build after it
 | GROK data.AppVersion """^(\d+:)?v?(?<upstream_version>\d+(\.\d+)*)"""
 | EVAL upstream_version = COALESCE(upstream_version, "unparsed")
@@ -53,7 +90,6 @@ FROM logs-yourorg-crowdstrike-data-default*
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY data.AppName, upstream_version
 ```
-`first_seen` and `last_seen` stay dates, so Discover shows them in Kibana's display time zone: set Advanced Settings > `dateFormat:tz` to `Australia/Sydney`. ES|QL has no time zone conversion of its own, and a fixed `+ 10 hours` would be wrong during daylight saving.
 
 To see only internet-facing hosts, add `| InternetExposure="Yes"` after the `match` (LogScale) or `| WHERE internet_exposure == "Yes"` after the `LOOKUP JOIN` (ES|QL).
 
@@ -64,7 +100,7 @@ Internet exposure, criticality and owner come from Falcon Exposure Management, n
 3. **Upload it** as `asset_context.csv` under Next-Gen SIEM > Lookup files (or with the NGSIEM lookup-file API). Refresh it on a schedule, say weekly, with a Falcon Fusion workflow or a script, or the context goes stale.
 4. **In Elastic,** load the same CSV into an index created with `index.mode: lookup`, named `asset_context`, with the host ID in a field called `host.id` and the others as `internet_exposure`, `criticality`, `owner`. `LOOKUP JOIN` needs Elastic 8.18 or 9.x.
 
-Until the lookup exists, the `match` / `LOOKUP JOIN` line fails: comment it out (and the lines that use its fields) to run the plain version.
+Until the lookup exists, use the plain version.
 
 ## Reading the result
 - `internet_facing_hosts` is where to start: an internet-facing host running a vulnerable build is the one to patch first.
@@ -74,7 +110,7 @@ Until the lookup exists, the `match` / `LOOKUP JOIN` line fails: comment it out 
 - `unparsed` rows have a version that doesn't start with a number; read those by hand.
 
 ## Before running it
-- Check the field names: `AppSource` (it may be spelled `Appsource` in your tenant), and in Elastic `data.AppName`, `data.AppVersion` and the `event.action` value. If your hits come from a different event, find it with `brotli | groupBy(#event_simpleName)` in LogScale.
+- Check the field names: `Appsource` (as in the original search), and in Elastic `data.AppName` and `data.AppVersion`. The asset-context version matches the lookup on `aid`: check the inventory events carry it, or match on `ComputerName` instead.
 - To hunt another package, change the `brotli` in the name filter.
 
 ## What it misses
