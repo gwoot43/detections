@@ -40,6 +40,10 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 16 | [Lateral sweep over admin protocols](16-lateral-sweep-admin-protocols.md) | Falcon | One process reaching 15+ internal hosts on SMB/RPC/WinRM/RDP in a short window: NetExec, CrackMapExec, PsExec loops - by fan-out, not name |
 | 17 | [A user process speaking SMB](17-user-process-speaking-smb.md) | Falcon | A user-mode process (not the kernel redirector) making outbound SMB on Windows: the Impacket suite, a renamed SMB tool, `smbclient.py` - the single-connection cut 16 misses |
 | 18 | [smbclient on Linux](18-smbclient-linux-share-access.md) | Falcon | Samba `smbclient` or Impacket `smbclient.py` on Linux reaching an admin share or pulling files in bulk |
+| 19 | [Keylogger in script content](19-keylogger-script-content.md) | Falcon script control | A script referencing the keyboard-capture APIs (`GetAsyncKeyState`, low-level keyboard hook, raw input): PowerShell/.NET keyloggers |
+| 20 | [Pivot relay: internet to internal](20-pivot-relay-internet-to-internal.md) | Falcon | One process bridging a public address and 5+ internal hosts: ligolo-ng, chisel, gost, a SOCKS proxy in a beacon - by behaviour, not name |
+| 21 | [VS Code tunnel started](21-vscode-tunnel-started.md) | Falcon | `code tunnel` / Remote Tunnel Access used as C2 (ported from CS13) |
+| 22 | [Isolated Web App abuse](22-isolated-web-app-abuse.md) | Falcon | An IWA installed (`.swbn`, install switches) or a browser opening raw sockets to internal hosts (Direct Sockets scanning/pivoting) |
 
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
