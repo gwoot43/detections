@@ -1,6 +1,6 @@
 # New detections
 
-Newly created detections, starting with Certipy (the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host), then ClickOnce, BloodHound collection, AWS identity checks, share hunting, Domain Admins adds, a brotli version hunt a web-RCE post-exploitation hunt and SMB-from-a-user-process. They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
+Newly created detections, starting with Certipy (the AD CS attack tool, run from the attacker's own machine and usually through a SOCKS proxy on a compromised host), then ClickOnce, BloodHound collection, AWS identity checks, share hunting, Domain Admins adds, a brotli version hunt, a web-RCE post-exploitation hunt, and three lateral-movement detections (the Impacket exec output artifact, remote-exec pipes and service installs on the target, and an admin-protocol sweep). They're written for the organisation's own schema: `logs-yourorg-crowdstrike-data-default*` (FDR, `data.*` fields, lowercase `event.action`) and `logs-yourorg-microsoft-windows*` (Windows events, `winevt.event_data.*`). Replace `yourorg` and the `<placeholders>` before deploying.
 
 ## What each Certipy step leaves behind
 
@@ -35,7 +35,9 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 11 | [Member added to Domain Admins](11-user-added-to-domain-admins.md) | DC 4728 | Anyone added to Domain Admins, matched by the group's SID (`-512`), with an optional version for the other Tier-0 groups |
 | 12 | [brotli installed versions (hunt)](12-brotli-installed-versions.md) | Falcon inventory | Where brotli is installed, grouped by upstream version with the distro build kept alongside |
 | 13 | [PHP web-worker post-exploitation](13-php-web-worker-post-exploitation.md) | Falcon | Recon, shells, downloads and credential access spawned from a PHP or web-worker process (web RCE follow-on, PHP2Shell) |
-| 14 | [SMB from a user-mode process](14-smb-from-user-process.md) | Falcon | A user process (not the kernel) speaking SMB (Impacket, smbclient, custom), or the Impacket exec `$\__` output artifact - by behaviour, not name |
+| 14 | [Impacket exec output artifact](14-smb-from-user-process.md) | Falcon (target) | `cmd.exe` redirecting output to a `$\__` admin-share file: wmiexec, dcomexec, smbexec - by behaviour, not name |
+| 15 | [Remote-exec pipes and service installs](15-remote-exec-pipes-and-service-installs.md) | Target 5145/4697 | A remote-exec named pipe on IPC$ (svcctl, atsvc, winreg, RemCom) or a command-shell service install: psexec, smbexec, atexec on the target |
+| 16 | [Lateral sweep over admin protocols](16-lateral-sweep-admin-protocols.md) | Falcon | One process reaching 15+ internal hosts on SMB/RPC/WinRM/RDP in a short window: NetExec, CrackMapExec, PsExec loops - by fan-out, not name |
 
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
