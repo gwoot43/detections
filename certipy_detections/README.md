@@ -38,6 +38,8 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 14 | [Impacket exec output artifact](14-smb-from-user-process.md) | Falcon (target) | `cmd.exe` redirecting output to a `$\__` admin-share file: wmiexec, dcomexec, smbexec - by behaviour, not name |
 | 15 | [Remote-exec pipes and service installs](15-remote-exec-pipes-and-service-installs.md) | Target 5145/4697 | A remote-exec named pipe on IPC$ (svcctl, atsvc, winreg, RemCom) or a command-shell service install: psexec, smbexec, atexec on the target |
 | 16 | [Lateral sweep over admin protocols](16-lateral-sweep-admin-protocols.md) | Falcon | One process reaching 15+ internal hosts on SMB/RPC/WinRM/RDP in a short window: NetExec, CrackMapExec, PsExec loops - by fan-out, not name |
+| 17 | [A user process speaking SMB](17-user-process-speaking-smb.md) | Falcon | A user-mode process (not the kernel redirector) making outbound SMB on Windows: the Impacket suite, a renamed SMB tool, `smbclient.py` - the single-connection cut 16 misses |
+| 18 | [smbclient on Linux](18-smbclient-linux-share-access.md) | Falcon | Samba `smbclient` or Impacket `smbclient.py` on Linux reaching an admin share or pulling files in bulk |
 
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
