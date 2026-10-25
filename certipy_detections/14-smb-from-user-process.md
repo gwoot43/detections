@@ -100,5 +100,33 @@ No count to baseline for the exec artifact. The SMB threshold is `hosts <= 3`; s
 - An Impacket module told to write its output somewhere other than a `__` admin-share file.
 - Non-Windows hosts; the `System`-vs-user-process discriminator is Windows-only. On Linux, Samba's `smbclient` and Impacket still open 445 from their own process, but legitimate Linux SMB clients do too, so there it needs rarity alone (drop `event_platform=Win` and lean on `hosts <= 3`).
 
+## Microsoft logs (target side), like detection 10
+The process-vs-kernel discriminator above is Falcon-only. Your Windows Security logs can't see which process on the source spoke SMB, but on the **target** they see what the Impacket exec family does once connected, and that is behaviour, not a name. Two signals, both on the Security channel detection 10 already uses:
+
+**A remote-exec named pipe opened on IPC$ (5145).** psexec/smbexec drive the service-control manager (`svcctl`), atexec the task scheduler (`atsvc`), and many modules read the registry (`winreg`). A remote client opening these pipes is remote control of the host.
+```esql
+FROM logs-yourorg-microsoft-windows* METADATA _id, _index, _version
+// 5145: access to a remote-exec pipe on IPC$ - service control, task scheduler, remote registry
+| WHERE event.code == "5145" AND winevt.event_data.share_name == "\\\\*\\IPC$"
+  AND winevt.event_data.relative_target_name IN ("svcctl", "atsvc", "winreg", "svcctl\\", "atsvc\\")
+| KEEP @timestamp, host.name, winevt.event_data.relative_target_name, winevt.event_data.subject_user_name,
+       winevt.event_data.ip_address, _id, _index, _version
+```
+Needs "Audit Detailed File Share" (5145) on the targets, as detection 10 does. `svcctl` is noisier than `atsvc` (some remote management uses it); baseline first and keep `atsvc` as the high-fidelity one.
+
+**A service installed to run a command (4697).** psexec and smbexec install a short-lived service whose image is a `cmd`/`%COMSPEC%` one-liner, a PowerShell command, or a binary dropped in a temp path, then delete it. That image shape is the behaviour, whatever the service is named.
+```esql
+FROM logs-yourorg-microsoft-windows* METADATA _id, _index, _version
+// 4697: a service whose image is a command interpreter, an inline redirect, or a temp-path binary
+| WHERE event.code == "4697"
+| EVAL img = TO_LOWER(winevt.event_data.service_file_name)
+| WHERE img RLIKE """.*(cmd(\.exe)?\s|%comspec%|powershell|pwsh|\\windows\\temp\\|\\perflogs\\|2>&1|\^>).*"""
+| KEEP @timestamp, host.name, winevt.event_data.service_name, winevt.event_data.service_file_name,
+       winevt.event_data.subject_user_name, _id, _index, _version
+```
+If you collect the System channel, event **7045** is the same service install with `ServiceFileName`; match it the same way. 4697 (Security) is listed here because it is the channel you already have for detection 10. Run both every 5 minutes over the last 10; suppress by host and the pipe or service image.
+
+Field names (`relative_target_name`, `service_file_name`, `ip_address`, `subject_user_name`) are guesses at your pipeline's snake_case; confirm against a 5145 and a 4697 in Discover.
+
 ## When it fires
 `proc` is the program that spoke SMB (`python.exe`, a frozen Impacket exe, a renamed binary, `smbclient`). `impacket_exec_output` with the `$\__` command line is remote code execution: read `command_lines` for what ran, and `ParentBaseFileName` on the source for how (`services.exe` = psexec/smbexec, `WmiPrvSE.exe` = wmiexec, `taskeng.exe`/`svchost.exe` = atexec). Pivot on the process for what followed, and check 7045 (service install) on the target. Treat the account and source host as compromised.
