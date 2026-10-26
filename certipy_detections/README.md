@@ -44,7 +44,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 20 | [Pivot relay: internet to internal](20-pivot-relay-internet-to-internal.md) | Falcon | One process bridging a public address and 5+ internal hosts: ligolo-ng, chisel, gost, a SOCKS proxy in a beacon - by behaviour, not name |
 | 21 | [VS Code tunnel started](21-vscode-tunnel-started.md) | Falcon | `code tunnel` / Remote Tunnel Access used as C2 (ported from CS13) |
 | 22 | [Isolated Web App abuse](22-isolated-web-app-abuse.md) | Falcon | An IWA installed (`.swbn`, install switches) or a browser opening raw sockets to internal hosts (Direct Sockets scanning/pivoting) |
-| 23 | [Red/purple-team tools by command line](23-red-team-tools-by-command-line.md) | Falcon | Known tools by their invocation - certipy, Impacket `*.py`, netexec, bloodhound-python, adexplorer, nmap, smbclient and more. The command-line fallback that complements CS18 (process name) and the behaviour rules |
+| 23 | [Red/purple-team tools by file name](23-red-team-tools-by-name.md) | Falcon | Known tools by the binary they run as - certipy, ADExplorer, smbclient, smbmap, nmap, nxc and more. Name fallback (one alert per start); interpreter-run tools stay with the behaviour rules |
 
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.
