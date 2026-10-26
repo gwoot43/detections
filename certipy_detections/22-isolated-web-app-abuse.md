@@ -4,7 +4,7 @@ name: Isolated Web App installed or used for internal network access (Direct Soc
 language: cql
 index: logs-yourorg-crowdstrike-data-default*
 mitre: [T1090.001, T1046, T1572]
-data_source: CrowdStrike FDR ProcessRollup2 and NetworkConnectIP4/IP6
+data_source: CrowdStrike FDR ProcessRollup2 and NetworkConnectIP4/IP6; Zscaler ZIA web logs
 suppression:
   fields: [host.id, finding]
   duration: 12h
@@ -12,21 +12,29 @@ suppression:
 ---
 **Catches:** an Isolated Web App (IWA) being installed or used as an attack tool. IWAs are Chromium apps packaged as Signed Web Bundles (`.swbn`) that get the **Direct Sockets API** - raw TCP/UDP from inside the browser. That capability turns the browser into a port scanner, a proxy, or a C2 client that runs under a signed, trusted process and reaches wherever the browser can. It's an emerging offensive technique, so treat this as a hunt and confirm the signals against the Chromium build in your estate.
 
-Two signals, kept as separate findings:
+Three signals, kept as separate findings:
 
-**`iwa_install` - the app being set up.** Dev-mode IWA install needs an explicit switch or a bundle file:
-- a browser command line with `--install-isolated-web-app-from-file`, `--install-isolated-web-app-from-url`, or the `IsolatedWebAppDevMode`/`IsolatedWebApps` feature flag;
-- a `.swbn` bundle written to disk.
+**`iwa_install` - the app being set up on the endpoint.** A Chromium browser (IWA is Chromium-only, so no Firefox) started with a switch that installs or enables a dev-mode IWA: `--install-isolated-web-app-from-file`, `--install-isolated-web-app-from-url`, or the `IsolatedWebAppDevMode`/`IsolatedWebApps` feature flag. `iwa_method` says which one.
+
+**`iwa_bundle_download` - the package crossing the proxy.** A Signed Web Bundle (`.swbn`) fetched through Zscaler, the companion to detection 07's ClickOnce download. This is what the proxy can see when the install itself happens off the command line (through `chrome://flags` or `chrome://web-app-internals`).
 
 **`browser_direct_sockets` - the app in use.** A browser reaching several internal hosts on non-web ports is not browsing - it's the Direct Sockets API scanning or pivoting. (Detection 20 excludes browsers on purpose; this is the browser case it leaves out.)
 
 Run every 15 minutes over the last 30.
 ```logscale
-// iwa_install: the browser switch or feature flag that installs a dev-mode IWA
+// iwa_install: a Chromium browser started with a switch that installs or enables a dev-mode IWA (Chromium-only, no Firefox)
 #event_simpleName=ProcessRollup2
+| in(field="FileName", ignoreCase=true, values=["chrome.exe", "msedge.exe", "brave.exe", "chromium.exe", "opera.exe", "vivaldi.exe"])
 | CommandLine=/(?<Match>--install-isolated-web-app-from-(file|url)|isolatedwebapp(devmode|s))/iF
+// which switch was used
+| case {
+    CommandLine=/--install-isolated-web-app-from-file/i | iwa_method := "install_from_file" ;
+    CommandLine=/--install-isolated-web-app-from-url/i | iwa_method := "install_from_url" ;
+    CommandLine=/isolatedwebappdevmode/i | iwa_method := "devmode_enabled" ;
+    * | iwa_method := "feature_flag" ;
+  }
 | finding := "iwa_install"
-| select([@timestamp, ComputerName, UserName, ImageFileName, ParentBaseFileName, finding, Match, CommandLine])
+| select([@timestamp, ComputerName, UserName, FileName, ImageFileName, ParentBaseFileName, finding, iwa_method, Match, CommandLine])
 ```
 ```logscale
 // browser_direct_sockets: a browser reaching internal hosts on non-web ports (raw sockets, not browsing)
@@ -48,13 +56,17 @@ Run every 15 minutes over the last 30.
 **Elastic (ES|QL)**
 ```esql
 FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
-// iwa_install: the browser switch or feature flag that installs a dev-mode IWA
+// iwa_install: a Chromium browser started with a switch that installs or enables a dev-mode IWA (Chromium-only, no Firefox)
 | WHERE event.action == "processrollup2"
-| EVAL cmd = TO_LOWER(COALESCE(process.command_line, ""))
-| WHERE cmd LIKE "*--install-isolated-web-app-from-file*" OR cmd LIKE "*--install-isolated-web-app-from-url*"
-     OR cmd LIKE "*isolatedwebappdevmode*" OR cmd LIKE "*isolatedwebapps*"
-| EVAL finding = "iwa_install"
-| KEEP @timestamp, host.id, host.name, user.name, process.name, process.parent.name, finding, process.command_line, _id, _index, _version
+| EVAL proc = TO_LOWER(COALESCE(process.name, "")), cmd = TO_LOWER(COALESCE(process.command_line, ""))
+| WHERE proc IN ("chrome.exe", "msedge.exe", "brave.exe", "chromium.exe", "chromium", "opera.exe", "vivaldi.exe")
+  AND (cmd LIKE "*--install-isolated-web-app-from-file*" OR cmd LIKE "*--install-isolated-web-app-from-url*"
+       OR cmd LIKE "*isolatedwebappdevmode*" OR cmd LIKE "*isolatedwebapps*")
+| EVAL iwa_method = CASE(cmd LIKE "*--install-isolated-web-app-from-file*", "install_from_file",
+                        cmd LIKE "*--install-isolated-web-app-from-url*", "install_from_url",
+                        cmd LIKE "*isolatedwebappdevmode*", "devmode_enabled", "feature_flag"),
+       finding = "iwa_install"
+| KEEP @timestamp, host.id, host.name, user.name, process.name, process.parent.name, finding, iwa_method, process.command_line, _id, _index, _version
 ```
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
@@ -72,6 +84,21 @@ FROM logs-yourorg-crowdstrike-data-default*
 | WHERE internal_hosts >= 5
 | EVAL finding = "browser_direct_sockets"
 ```
+
+**Zscaler (ES|QL)** - the `iwa_bundle_download` signal, a Signed Web Bundle crossing the proxy (companion to detection 07, same index and fields):
+```esql
+FROM logs-zscaler_zia.web-*
+// a Signed Web Bundle (.swbn) downloaded - the IWA package, visible at the proxy even when the install is off the command line
+| WHERE url.extension == "swbn"
+// leave out the sites you deploy IWAs from, if any (placeholders)
+| WHERE NOT url.domain IN ("<approved_iwa_host>")
+| EVAL finding = "iwa_bundle_download"
+| STATS first_seen = MIN(@timestamp), requests = COUNT(*), files = TOP(url.path, 10, "asc"),
+        actions = VALUES(event.action), source_ip = MV_SLICE(VALUES(source.ip), 0, 19), status = VALUES(http.response.status_code)
+    BY user.name, url.domain, finding
+```
+If `url.extension` isn't filled on your Zscaler events, use `url.path LIKE "*.swbn"` instead (slower - every request is read), as detection 07 notes.
+
 Suppress by host and finding for 12h.
 
 ## Before turning it on
@@ -85,4 +112,4 @@ Suppress by host and finding for 12h.
 - IWAs doing their socket work over 443 to blend with browsing - the install signal still catches the setup.
 
 ## When it fires
-`iwa_install` with the command line shows who set it up and from where (`--install-isolated-web-app-from-url` names the source). `browser_direct_sockets` with `port_sample`/`host_sample` shows the scan or pivot - a spread of hosts on one port is a sweep, many ports on few hosts is a port scan. Find the browser's parent and the profile in use, check what `.swbn` bundles exist on the host, and whether the same host also shows a tunnel (20, 21). A browser speaking raw sockets across the internal network is not a user browsing - treat it as tooling.
+`iwa_install` with the command line shows who set it up and how (`iwa_method`: a file bundle, a URL, or dev mode turned on); `iwa_bundle_download` names the site the `.swbn` came from, and pairs with an `iwa_install` on the same host/user when the install happened off the command line. `browser_direct_sockets` with `port_sample`/`host_sample` shows the scan or pivot - a spread of hosts on one port is a sweep, many ports on few hosts is a port scan. Find the browser's parent and the profile in use, check what `.swbn` bundles exist on the host, and whether the same host also shows a tunnel (20, 21). A browser speaking raw sockets across the internal network is not a user browsing - treat it as tooling.
