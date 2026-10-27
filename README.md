@@ -25,6 +25,7 @@ rules/
 detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
 implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
 certipy_detections/         Certipy (AD CS attack tool) detections for the organisation's own schema: DC, CA and Falcon
+PORTS-REFERENCE.md          ports each red/purple-team tool targets, and the detection that watches each (library-wide tuning aid)
 docs/
   DETECTION-STRUCTURE-ESQL.md    how an ES|QL detection is written: the short default shape, the funnel for rules that count, baselines
   DETECTION-STRUCTURE-CQL.md     the same standard for Falcon LogScale (CQL)
@@ -50,6 +51,9 @@ Each rule file is self-contained: front-matter (id, MITRE, data source, suppress
 
 ## Field-name caveat
 Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names, except CrowdStrike FDR, which comes from your own pipeline: `logs-yourorg-crowdstrike-data-default*` (replace `yourorg`), with lowercase `event.action` and raw fields under `data.*`. The mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).
+
+## Ports & tools reference
+[`PORTS-REFERENCE.md`](PORTS-REFERENCE.md) maps every network port used across the library to what it's for, which tools target it (Certipy, Impacket, BloodHound, NetExec, ligolo, coercion, DNS tunnels, ADWS and more) and the detection that watches each. Use it when setting port/CIDR filters or checking where a tool would surface.
 
 ## Getting started
 See `docs/IMPLEMENTATION-TRACKER.md`. Start with Phase 0 (Falcon passthrough + visibility protection + shared lookups), then Identity/Cloud P1, then Endpoint P1, then Email/Network P1, then the correlation rules.

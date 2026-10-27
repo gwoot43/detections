@@ -47,7 +47,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 23 | [Red/purple-team tools by file name](23-red-team-tools-by-name.md) | Falcon | Known tools by the binary they run as - certipy, ADExplorer, smbclient, smbmap, nmap, nxc and more. Name fallback (one alert per start); interpreter-run tools stay with the behaviour rules |
 | 24 | [Directory enumeration sweep](24-directory-enumeration-sweep.md) | Falcon | One process reaching 3+ directory servers over LDAP, Global Catalog or **ADWS (9389)**: SharpHound, ADExplorer, ldapdomaindump, SOAPHound. The one consolidated LDAP rule, covering the 9389 evasion path the LDAP-only rules miss |
 
-See also [PORTS-REFERENCE.md](PORTS-REFERENCE.md) - which ports each tool targets and which detection watches them.
+See also [PORTS-REFERENCE.md](../PORTS-REFERENCE.md) (repo root) - which ports each tool targets and which detection watches them, library-wide.
 
 ## Before turning them on
 - Field names: `winevt.logon.type`, `winevt.event_data.workstation_name`, `user_principal_name`, `target_user_name`, `subject_user_name`, `relative_target_name` and `source.ip` are guesses at your pipeline's names. Check each against an event in Discover.

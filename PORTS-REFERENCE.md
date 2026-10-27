@@ -1,6 +1,8 @@
 # Ports and tools reference
 
-A tuning aid for the network-based detections in this folder: which ports each tool targets, and which detection watches them. Use it when setting the port and CIDR filters, and to see where a tool would show up.
+A library-wide tuning aid for the network-based detections: which ports each red/purple-team tool targets, and which detection watches them. Use it when setting the port and CIDR filters, and to see where a tool would show up.
+
+In the **Detection** column, a bare number (01-24) is a rule in `certipy_detections/`; a letter-prefixed id (CS / B / W / N / AD / CP) is a rule in `rules/` (e.g. CS16 = `rules/07-crowdstrike-fdr/`, B04 = `rules/11-behaviour/`). "no rule yet" marks a gap worth building.
 
 Private ranges throughout are `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` (internal IPv6).
 
