@@ -1,6 +1,45 @@
 # New TTPs and MITRE additions to build for (as of 2026-10)
 
-This is the answer to "any new attack TTPs in the last couple of months, and new MITRE additions?" It maps recent tradecraft to the rules in this library and flags gaps to add next.
+This is the answer to "any new attack TTPs in the last couple of months, and new MITRE additions?" It maps recent tradecraft to the rules in this library and flags gaps to add next. Newest findings go at the top; keep adding dated sections.
+
+## Field update 2026-10-27 (post-June-2026 research)
+
+External, vendor-sourced - verify each against CISA KEV and the vendor advisory before acting. Scoped to what is weaponisable against this estate (Entra/O365, AD, CrowdStrike, Zscaler, Mimecast).
+
+### 2. Entra ID token-replay / "token spraying" - weaponisable, partial coverage
+Attackers replay stolen session tokens in bulk (Huntress, Jul-Sep 2026: ~97 accounts across 79 orgs) - no password, no MFA prompt. Tokens come from AiTM relays, device-code phishing and in-session social engineering. The post-access chain is the detectable part: **register a rogue Entra device -> replace the victim's MFA methods -> add inbox rules to hide comms.** Partly covered by C11/C05/X02 and I10; the *sequence* is the gap. Response must do token/session revocation (CAE), not just a password reset.
+
+### 3. Entra ID RCE CVE-2026-69836 (claimed CVSS 10) - verify
+Single-source claim of an unauthenticated RCE in Entra ID via unsafe deserialization. Microsoft-managed - you cannot patch it; confirm remediation with Microsoft and that audit logging is on.
+
+### 4. AD CS coercion / ESC8 and the live ESC chains - on-prem gap
+No new primitive, but the active chains are ACL abuse -> Shadow Credentials -> ESC14/15/16, run with Certipy + BloodHound. Covered by certipy_detections 01-05, 08, 24; the shadow-cred/ACL writes are the 389/636 side (bloodyAD/dacledit/pywhisker). **Coercion (PetitPotam, Coercer, PrinterBug, DFSCoerce) feeding an ESC8 relay remains the clearest on-prem gap** - 01 catches the relay landing on the CA, nothing names the coercion.
+
+### 5. New C2 kits, autonomous ransomware, BYOVD, dev-endpoint supply chain
+Microsoft 2026 DDR: JADEPUFFER, first fully autonomous ransomware extortion (Jul 2026); AI cut exploit windows to <24h. New kits: RedC2 4.0 (LLM-driven, delivered via trojanised npm), Lotus C2 (Defender tamper, process hollowing, in-memory). Trusted-app abuse (Teams, Quick Assist) per Zscaler ThreatLabz. Covered in part by CS01/W05/X05 (BYOVD/EDR tamper), AI01/AI02/AI07, B06 (beaconing), W10 (Quick Assist ~ RMM). Reinforces the dev-endpoint / Shai-Hulud gap.
+
+## Detection ideas for the above (not built yet - sketches only)
+
+### Idea A - Entra token-replay sequence (item 2)
+- **Source:** Entra sign-in logs + audit logs (O365/Entra integration).
+- **Signal, as a sequence per user in a short window:** a sign-in with an anomalous token/session (new ASN, especially a hosting provider; token used from an IP/device that never did the interactive auth; impossible travel) **then** one or more of - a new Entra device registered, an MFA method added or replaced, an inbox rule created that deletes/moves/marks-read.
+- **Fidelity:** highest as the *chain*, not any single event (token-anomaly + device-registration + MFA-swap is near-certain takeover). This is X-series correlation territory.
+- **Tuning:** baseline device registration and MFA changes by help-desk/onboarding and exclude those flows; a rogue device persists in the directory until deleted, so a standing "unknown registered device" list helps.
+
+### Idea B - Entra RCE CVE-2026-69836 fallout (item 3)
+- You can't detect the RCE itself (Microsoft-side). Detect what it would enable: a new service principal / app registration, new credentials on an existing SP, a directory-role grant, or token-issuance anomalies, by an identity new to that action.
+- **Source:** Entra audit log; overlaps C05 (consent) and Idea A. Mainly an assurance action (confirm remediation + audit coverage).
+
+### Idea C - Coercion / ESC8 (item 4)
+- **Source:** DC Security 5145 (Audit Detailed File Share, as detections 10/15 use), plus the DC's own outbound authentication.
+- **Signal:** a client opening the coercion named pipes on a DC over IPC$ - `lsarpc`/`efsrpc` (PetitPotam), `spoolss` (PrinterBug), `netdfs` (DFSCoerce) - especially from a non-admin host; stronger still when the DC's machine account then authenticates outbound to a host that isn't a known relay/service.
+- **Fidelity:** pairs with 01 to cover the whole ESC8 chain; highest when pipe-access is followed by the DC auth to an unexpected host.
+- **Tuning:** some management legitimately uses `spoolss`/`efsr`; baseline and keep `lsarpc`/`efsr` **to a DC** as the high-signal cut.
+
+### Idea D - BYOVD refresh + dev-endpoint supply chain (item 5)
+- **BYOVD:** keep CS01/W05/X05; schedule a fresh loldrivers.io hash-list import so new vulnerable drivers (Reynolds-class) stay current - a rule that flags a driver load whose hash is on the list, or whose signer is a known-abused cert.
+- **Dev-endpoint / npm (RedC2-class):** a package post-install step (`npm`/`pip`/`node` parent) spawning a network tool or shell, or reading credentials; or a dev tool making its first beacon-like outbound. Source: CrowdStrike process starts on dev hosts + B06 for the beacon. Ties to the Shai-Hulud gap below.
+- **Optional:** the browser-profile-launch technique (browser started with `--profile`/`--user-data-dir` by a non-desktop parent) we scoped but did not build.
 
 ## MITRE ATT&CK framework changes you should reflect
 

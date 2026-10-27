@@ -26,11 +26,11 @@ detection_ideas/            copies of the C2, tunnelling, post-exploitation and 
 implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
 certipy_detections/         Certipy (AD CS attack tool) detections for the organisation's own schema: DC, CA and Falcon
 PORTS-REFERENCE.md          ports each red/purple-team tool targets, and the detection that watches each (library-wide tuning aid)
+NEW-TTPS-2026.md            running log of recent tradecraft, MITRE v18-v20 changes, AI attacks and detection ideas (add new findings here)
 docs/
   DETECTION-STRUCTURE-ESQL.md    how an ES|QL detection is written: the short default shape, the funnel for rules that count, baselines
   DETECTION-STRUCTURE-CQL.md     the same standard for Falcon LogScale (CQL)
   IMPLEMENTATION-TRACKER.md      tick-off checklist + build order
-  NEW-TTPS-2026.md               recent tradecraft, MITRE v18-v20 changes, AI attack rules and ideas
   ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping, rule checklist
 tools/
   lint_detections.py             checks every rule against the standards' reject criteria
