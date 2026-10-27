@@ -32,42 +32,44 @@ Private ranges throughout are `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `
 
 ## Tools, their target ports, and the detection that sees them
 
-| Tool / technique | Target port(s) | Doing what | Detection |
-|---|---|---|---|
-| **Certipy** `find` | 389/636, 3268/3269; 445; 80/443 | enumerate templates + CAs | [01], [05], [24] |
-| **Certipy** `req` | **445** (`\pipe\cert`), or 135 + dynamic, or 80/443 (`-web`) | request the certificate | [03], [01] |
-| **Certipy** `auth` | **88** (PKINIT, then U2U) | logon with the cert for the NT hash | [04], [05] |
-| **Certipy** `shadow` | 389 (write key credential), 88, sometimes 464 | key-credential persistence | [02]-adjacent, AD rules |
-| **Certify** (C# AD CS, Windows twin of Certipy) | 389/636, 445, 80/443 | find / request vulnerable templates | [01], [03], [23] |
-| **ADExplorer** | **389**, 636, 3268/3269 | browse / snapshot the directory | [24], [05] |
-| **AdFind / ldapdomaindump / windapsearch** | 389, 636, 3268/3269 | directory enumeration | [24] |
-| **bloodyAD / dacledit / owneredit / pywhisker / Whisker** | **389 / 636** | DACL abuse & shadow-credential *writes* (add to a group, grant rights, write a key credential) | [24] (reads only); DC 4728/5136 on the write |
-| **SOAPHound** | **9389 (ADWS)** | directory enumeration, LDAP-rule evasion | **[24]** (`directory_sweep_adws`) |
-| **SharpHound / BloodHound** | 389/636, 3268/3269 (+ **9389**); **445** (IPC$); **88** | directory + session/local-admin collection | [24] (LDAP/ADWS), [08] (Kerberos/IPC$) |
-| **smbclient** (Samba / `smbclient.py`) | **445**, 139 | share access, file pull | [18], [17], [23] |
-| **Impacket** psexec / smbexec / atexec | **445** | service/task/pipe over IPC$ | [14], [15] |
-| **Impacket** wmiexec / dcomexec | **135 + dynamic**, 445 | WMI/DCOM exec, read output over SMB | [14], [15] |
-| **Impacket** secretsdump | 445 (remote registry); **135 + dynamic** (DCSync/DRSUAPI) | hash/secret dump | [15] (registry path) |
-| **DCSync** (Mimikatz `lsadump::dcsync`, `secretsdump -just-dc`, NetExec `--ntds`) | **135 + dynamic** (DRSUAPI/MS-DRSR) | replicate every hash from the DC | DC 4662 (replication GUID); no FDR network rule yet |
-| **Kerberoast / GetUserSPNs / AS-REP** | **88**, 389 (find SPNs) | request roastable tickets | [04] |
-| **Rubeus** | **88** | asktgt / asktgs / kerberoast / s4u / pass-the-ticket | [04], [23] |
-| **Kerbrute** | **88** (TCP/UDP) | username enum, password spray | [23] |
-| **NetExec / CrackMapExec** | 445, 5985/5986, 3389, 389/636, 1433, 22, 135+dynamic | multi-protocol lateral movement | [16], [23] |
-| **mssqlclient.py / PowerUpSQL** | **1433** | MSSQL access, `xp_cmdshell`, relay target | [23] (name); [16] (fan-out) |
-| **evil-winrm** | **5985 / 5986** | remote shell | [23] |
-| **Coercion: PetitPotam, Coercer, PrinterBug/SpoolSample, DFSCoerce** | **445** (`\pipe\lsarpc`/`efsr`/`spoolss`/`netdfs`), some 135 + dynamic | force a DC/host to authenticate → relayed to AD CS (ESC8) or LDAP | no rule yet; front of the chain [01] catches |
-| **Responder** | listens; poisons **UDP 5355/137/5353**, relays to 445/80/389 | name poisoning + relay | (not yet a rule) |
-| **mitm6** | **UDP 547** (+ DNS), relays to 389/636, 445 | IPv6 takeover + relay | (not yet a rule) |
-| **ntlmrelayx** | relays to 445, 389/636, 80/443 (AD CS), 1433 | NTLM relay | [01] (AD CS web leg) |
-| **ligolo-ng** | **11601** control (TLS); **any port** relayed to internal | pivot relay | [20] (bridge behaviour), [CS16] |
-| **chisel / gost** | operator server (443/8080/any); any port relayed | pivot relay | [20], [CS16], [CS18] |
-| **Commercial tunnels: ngrok, cloudflared, Tailscale, ZeroTier** | vendor relay ports (7844, 443, 3478, 41641…) | remote access / C2 | [CS14] (fixed vendor ports), [W10] |
-| **DNS tunnelling: iodine, dnscat2, dns2tcp** | **53** (UDP/TCP) | C2 / exfil over DNS | [CS03], [CS18] |
-| **VS Code tunnel** | **443** to Microsoft dev-tunnels | remote access / C2 | [21] |
-| **IWA Direct Sockets** | **any non-web port** to internal | scan / pivot from the browser | [22] |
-| **C2 beacons: Cobalt Strike, Sliver, Havoc, Mythic** | 443 / 80 / **53** / 445 (SMB named-pipe beacon) | implant traffic (port-agnostic) | [B06] (beaconing) |
-| **rclone** | 443, 22 | cloud / SFTP exfiltration | [CS18] (name), [B07] |
-| **nmap / masscan / rustscan** | **any port** | scanning | [23], [16] |
+Platform is where the tool *runs* (where you'd see the process); several run from a Linux attacker box but target Windows, noted in How it works.
+
+| Tool / technique | Platform | How it works | Target port(s) | Detection |
+|---|---|---|---|---|
+| **Certipy** `find` | Both | Enumerates AD CS over LDAP for vulnerable certificate templates, then probes each CA's RPC, registry and `/certsrv/` web endpoint. | 389/636, 3268/3269; 445; 80/443 | [01], [05], [24] |
+| **Certipy** `req` | Both | Requests a certificate for a target identity through the CA's `cert` RPC pipe over SMB (or the DCOM / web endpoint). | **445** (`\pipe\cert`), or 135 + dynamic, or 80/443 (`-web`) | [03], [01] |
+| **Certipy** `auth` | Both | Authenticates with the issued cert via Kerberos PKINIT, then a user-to-user request to recover the account's NT hash. | **88** (PKINIT, then U2U) | [04], [05] |
+| **Certipy** `shadow` | Both | Writes a key credential (`msDS-KeyCredentialLink`) onto the victim over LDAP, then logs in as them with PKINIT - no password reset needed. | 389 (write key credential), 88, sometimes 464 | [02]-adjacent, AD rules |
+| **Certify** (C# twin of Certipy) | Windows | Same AD CS abuse as Certipy, compiled C# run from a Windows foothold instead of a Python box. | 389/636, 445, 80/443 | [01], [03], [23] |
+| **ADExplorer** | Windows | Sysinternals GUI tool that binds to a DC over LDAP and snapshots the entire directory to an offline file. | **389**, 636, 3268/3269 | [24], [05] |
+| **AdFind / ldapdomaindump / windapsearch** | Both (AdFind: Windows) | Command-line LDAP clients that dump users, groups, computers, trusts and ACLs from a DC. | 389, 636, 3268/3269 | [24] |
+| **bloodyAD / dacledit / owneredit / pywhisker / Whisker** | Both (Whisker: Windows) | *Write* to AD over LDAP - add a group member, edit a DACL, take ownership, or plant a shadow-credential key. | **389 / 636** | [24] (reads only); DC 4728/5136 on the write |
+| **SOAPHound** | Windows | Collects BloodHound directory data over AD Web Services (SOAP) instead of raw LDAP, to slip past LDAP-based rules. | **9389 (ADWS)** | **[24]** (`directory_sweep_adws`) |
+| **SharpHound / BloodHound** | Both (SharpHound: Windows; `bloodhound-python`: Linux) | Reads the directory over LDAP, then reaches every computer for sessions and local-admins; builds the attack-path graph. | 389/636, 3268/3269 (+ **9389**); **445** (IPC$); **88** | [24] (LDAP/ADWS), [08] (Kerberos/IPC$) |
+| **smbclient** (Samba / `smbclient.py`) | Both (Samba binary: Linux) | Interactive SMB client - connects to a share and lists, gets or puts files; used to loot shares from a foothold. | **445**, 139 | [18], [17], [23] |
+| **Impacket** psexec / smbexec / atexec | Both (targets Windows) | Run a command on a remote Windows host over SMB - install a short-lived service (psexec/smbexec) or scheduled task (atexec); output read back from a `__` admin-share file. | **445** | [14], [15] |
+| **Impacket** wmiexec / dcomexec | Both (targets Windows) | Run a command on a remote Windows host via WMI or DCOM; the spawned `cmd.exe` writes output back over SMB. | **135 + dynamic**, 445 | [14], [15] |
+| **Impacket** secretsdump | Both (targets Windows) | Dumps secrets - remote registry for SAM/LSA, or DRSUAPI replication for domain hashes (DCSync). | 445 (remote registry); **135 + dynamic** (DCSync/DRSUAPI) | [15] (registry path) |
+| **DCSync** (Mimikatz `lsadump::dcsync`, `secretsdump -just-dc`, NetExec `--ntds`) | Both (Mimikatz: Windows) | Impersonates a DC and asks a real DC to replicate account secrets over DRSUAPI - pulls any hash, including krbtgt. | **135 + dynamic** (DRSUAPI/MS-DRSR) | DC 4662 (replication GUID); no FDR network rule yet |
+| **Kerberoast / GetUserSPNs / AS-REP** | Both | Requests Kerberos service tickets for SPN accounts (or AS-REP for no-preauth users) and cracks them offline. | **88**, 389 (find SPNs) | [04] |
+| **Rubeus** | Windows | C# Kerberos toolkit - request, renew or forge tickets, kerberoast, S4U abuse, pass-the-ticket. | **88** | [04], [23] |
+| **Kerbrute** | Both | Sprays usernames/passwords against Kerberos pre-auth - fast, and failures raise no logon event. | **88** (TCP/UDP) | [23] |
+| **NetExec / CrackMapExec** | Both | Swiss-army lateral tool - authenticates to many hosts over SMB/WinRM/RDP/LDAP/MSSQL and runs exec, dump and spider modules. | 445, 5985/5986, 3389, 389/636, 1433, 22, 135+dynamic | [16], [23] |
+| **mssqlclient.py / PowerUpSQL** | Both (PowerUpSQL: Windows) | Connects to MSSQL and abuses it - `xp_cmdshell` for exec, linked-server hops, credential theft. | **1433** | [23] (name); [16] (fan-out) |
+| **evil-winrm** | Both (targets Windows) | Interactive WinRM shell to a Windows host - PowerShell remoting over 5985/5986 with hash or Kerberos auth. | **5985 / 5986** | [23] |
+| **Coercion: PetitPotam, Coercer, PrinterBug/SpoolSample, DFSCoerce** | Both (targets Windows DC) | Calls MS-EFSR / MS-RPRN / MS-DFSNM RPCs over named pipes to force a DC to authenticate to the attacker, feeding an NTLM relay (ESC8). | **445** (`\pipe\lsarpc`/`efsr`/`spoolss`/`netdfs`), some 135 + dynamic | no rule yet; front of the chain [01] catches |
+| **Responder** | Linux (Inveigh: Windows) | Answers LLMNR/NBT-NS/mDNS name lookups to poison them, capturing or relaying the NTLM auth that follows. | listens; poisons **UDP 5355/137/5353**, relays to 445/80/389 | (not yet a rule) |
+| **mitm6** | Both | Spoofs DHCPv6 to become the network's IPv6 DNS server, then relays the authentication it redirects. | **UDP 547** (+ DNS), relays to 389/636, 445 | (not yet a rule) |
+| **ntlmrelayx** | Both | Relays captured NTLM authentication onward to SMB/LDAP/HTTP(AD CS)/MSSQL to act as the coerced victim. | relays to 445, 389/636, 80/443 (AD CS), 1433 | [01] (AD CS web leg) |
+| **ligolo-ng** | Both | Agent on a compromised host dials out to the operator over TLS and relays a userland TUN interface into the internal network. | **11601** control (TLS); **any port** relayed to internal | [20] (bridge behaviour), [CS16] |
+| **chisel / gost** | Both | Tunnel / SOCKS proxy - a client on the host connects out and relays arbitrary traffic back for the operator. | operator server (443/8080/any); any port relayed | [20], [CS16], [CS18] |
+| **Commercial tunnels: ngrok, cloudflared, Tailscale, ZeroTier** | Both | Legitimate remote-access agents that expose a host through the vendor's relay on fixed ports - abused as C2. | vendor relay ports (7844, 443, 3478, 41641…) | [CS14] (fixed vendor ports), [W10] |
+| **DNS tunnelling: iodine, dnscat2, dns2tcp** | Both | Encodes C2 and exfil traffic inside DNS queries and responses to an attacker-controlled domain. | **53** (UDP/TCP) | [CS03], [CS18] |
+| **VS Code tunnel** | Both | `code tunnel` exposes a host through Microsoft's dev-tunnels relay; whoever holds the linked GitHub/MS account gets a terminal and files. | **443** to Microsoft dev-tunnels | [21] |
+| **IWA Direct Sockets** | Both | An Isolated Web App uses the browser's Direct Sockets API to open raw TCP/UDP from inside Chromium - a scanner or proxy in the browser. | **any non-web port** to internal | [22] |
+| **C2 beacons: Cobalt Strike, Sliver, Havoc, Mythic** | Both (CS/Havoc: Windows-focused) | Implant beacons to a controller on an interval and runs tasked commands, often in memory; SMB beacons talk over a named pipe. | 443 / 80 / **53** / 445 (SMB named-pipe beacon) | [B06] (beaconing) |
+| **rclone** | Both | Fast file-sync tool pointed at attacker-controlled cloud or SFTP storage for bulk exfiltration. | 443, 22 | [CS18] (name), [B07] |
+| **nmap / masscan / rustscan** | Both | Port and host scanners that map reachable services across the network. | **any port** | [23], [16] |
 
 ## The ports worth watching by behaviour, not name
 
