@@ -29,7 +29,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 |---|---|---|---|
 | 06 | [ClickOnce chain on an endpoint](06-clickonce-app-started.md) | Falcon | A program started by ClickOnce (`dfsvc.exe` or `dfsvc.ni.exe`), started by a ClickOnce app, or run from the ClickOnce cache; investigation steps in the query |
 | 07 | [ClickOnce deployment downloaded](07-clickonce-download-zscaler.md) | Zscaler | `.application` and `.deploy` downloads from sites you don't deploy from, blocked or allowed |
-| 08 | [BloodHound collection sweep](08-bloodhound-collection-sweep.md) | DC 4769, target 5140 | One account reaching 50+ computers in an hour by Kerberos ticket or IPC$; Falcon pivot query names the host and process |
+| 08 | [BloodHound collection sweep](08-bloodhound-collection-sweep.md) | DC 4769 (optional target 5140) | One account asking the DC for service tickets to 50+ computer accounts; optional IPC$ companion; Falcon pivot query names the host and process |
 | 09 | [AWS identity checks](09-aws-identity-checks.md) | Falcon | `aws sts get-caller-identity` across 3+ different profiles by one user on one host within a 30-minute window (credential enumeration) |
 | 10 | [Share hunting sweep](10-share-hunting-sweep.md) | Target 5140 | One account opening real shares (not `IPC$`) on 20+ computers in an hour: Snaffler, PowerView, NetExec spider, ransomware share discovery |
 | 11 | [Member added to Domain Admins](11-user-added-to-domain-admins.md) | DC 4728 | Anyone added to Domain Admins, matched by the group's SID (`-512`), with an optional version for the other Tier-0 groups |
@@ -46,7 +46,6 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 22 | [Isolated Web App abuse](22-isolated-web-app-abuse.md) | Falcon | An IWA installed (`.swbn`, install switches) or a browser opening raw sockets to internal hosts (Direct Sockets scanning/pivoting) |
 | 23 | [Red/purple-team tools by file name](23-red-team-tools-by-name.md) | Falcon | Known tools by the binary they run as - certipy, ADExplorer, smbclient, smbmap, nmap, nxc and more. Name fallback (one alert per start); interpreter-run tools stay with the behaviour rules |
 | 24 | [Directory enumeration sweep](24-directory-enumeration-sweep.md) | Falcon | One process reaching 3+ directory servers over LDAP, Global Catalog or **ADWS (9389)**: SharpHound, ADExplorer, ldapdomaindump, SOAPHound. The one consolidated LDAP rule, covering the 9389 evasion path the LDAP-only rules miss |
-| 25 | [Browser credential store access](25-browser-credential-store-access.md) | Falcon | A non-browser process naming a browser password store (`logins.json`, `key4.db`, `Login Data`) or a known dumper on its command line - credential theft for lateral movement |
 
 See also [PORTS-REFERENCE.md](../PORTS-REFERENCE.md) (repo root) - which ports each tool targets and which detection watches them, library-wide.
 
