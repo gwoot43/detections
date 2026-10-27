@@ -46,6 +46,7 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 22 | [Isolated Web App abuse](22-isolated-web-app-abuse.md) | Falcon | An IWA installed (`.swbn`, install switches) or a browser opening raw sockets to internal hosts (Direct Sockets scanning/pivoting) |
 | 23 | [Red/purple-team tools by file name](23-red-team-tools-by-name.md) | Falcon | Known tools by the binary they run as - certipy, ADExplorer, smbclient, smbmap, nmap, nxc and more. Name fallback (one alert per start); interpreter-run tools stay with the behaviour rules |
 | 24 | [Directory enumeration sweep](24-directory-enumeration-sweep.md) | Falcon | One process reaching 3+ directory servers over LDAP, Global Catalog or **ADWS (9389)**: SharpHound, ADExplorer, ldapdomaindump, SOAPHound. The one consolidated LDAP rule, covering the 9389 evasion path the LDAP-only rules miss |
+| 25 | [Browser credential store access](25-browser-credential-store-access.md) | Falcon | A non-browser process naming a browser password store (`logins.json`, `key4.db`, `Login Data`) or a known dumper on its command line - credential theft for lateral movement |
 
 See also [PORTS-REFERENCE.md](../PORTS-REFERENCE.md) (repo root) - which ports each tool targets and which detection watches them, library-wide.
 
