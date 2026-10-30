@@ -10,6 +10,7 @@ FROM logs-yourorg-microsoft-windows*
 | WHERE event.code == "4662"
   AND winevt.event_data.access_mask IN ("0x10", "0x100")
 // The replication rights are DCSync - that is I01's rule. Leaving them in makes this fire on every DCSync.
+// Leading wildcard on purpose: the GUID sits inside a brace list in the properties field, not at the start.
   AND NOT (winevt.event_data.properties LIKE "*1131f6aa-9c07-11d1-f79f-00c04fc2dcd2*"
         OR winevt.event_data.properties LIKE "*1131f6ad-9c07-11d1-f79f-00c04fc2dcd2*"
         OR winevt.event_data.properties LIKE "*89e95b76-444d-4c62-991a-0facbeda640c*")
