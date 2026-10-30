@@ -1,145 +1,124 @@
 ---
-id: SWEEP-01
-name: BloodHound / SharpHound collection sweep - one account asks the DC for tickets to dozens of computers in minutes
+id: SMBENUM-01
+name: SMB enumeration fan-out - one account opening srvsvc, samr or wkssvc pipes on 15+ hosts in minutes
 language: esql
 index: logs-yourorg-microsoft-windows*
 mitre: [T1087.002, T1069.002, T1018, T1049]
-data_source: Windows Security 4769 (DCs); optional 5140 (targets)
+data_source: Windows Security 5145 (Audit Detailed File Share) on the hosts you audit
 suppression:
   fields: [user.name]
   duration: 6h
   missing_fields: do_not_suppress
 ---
-SharpHound's session, local-admin and group collection connects to every computer it can reach, and on a domain-joined host each connection first asks the DC for that computer's Kerberos service ticket. So **one account collecting tickets to dozens of different services inside a few minutes** is the sweep - a single event type, a single count, a single threshold.
+**Catches the collection itself, not its side effects.** SharpHound's session, logged-on and local-admin collection is three RPC calls repeated host by host - `NetSessionEnum` over the **srvsvc** pipe, `NetWkstaUserEnum` over **wkssvc**, `NetLocalGroupGetMembers` over **samr** - and every one of those opens a named pipe on `\\host\IPC$`. So the sweep leaves a row per host in 5145, written by the host that was interrogated, naming the pipe that was opened and the account that opened it.
 
-What separates a collection run from a busy admin is **breadth in a short window**, not a name or a tool. A person opening sessions by hand reaches a handful of hosts in a quarter of an hour; SharpHound reaches them in seconds. So the measure is distinct service names per account over the rule's window, and the window is deliberately short enough that routine work cannot reach the threshold.
+The behaviour is the fan-out: **one account opening those pipes on 15+ different hosts inside a few minutes**. A person does not read fifteen servers' session tables in a quarter hour; `net view \\host` or browsing a share is a single row on a single host, and the admin tools that do touch many hosts use `svcctl`/`atsvc` (15's territory) rather than the enumeration pipes.
 
-## Reading a 4769, field by field
-- **`user.name`** (`TargetUserName`) is the account that **asked** for the ticket. When a machine asks, it arrives as `HOST$` or `HOST$@DOMAIN` - that `$` is the machine's own account name.
-- **`winevt.event_data.service_name`** (`ServiceName`) is the **SPN that was requested**, e.g. `HOST/DC01`, `TERMSRV/FS01`, `MSSQLSvc/sql01:1433`, `krbtgt`. It is **not** an account name, so a ticket to a computer does **not** end in `$` - matching `*$` on this field matches almost nothing and the rule goes quietly blind.
-- **`winevt.event_data.status`** is `0x0` on success. `0x20` (expired ticket, retried) is noise and is not an attack signal on its own.
+It also catches a collector over **NTLM** as well as Kerberos, because 5145 records the pipe access however the client authenticated - which is exactly what a Kerberos ticket count cannot see.
 
-The old version of this rule filtered `ENDS_WITH(service_name, "$")`. That is the machine-account `$` read out of the requester field and on to the wrong one: in this tenant `service_name` is the SPN, so there is no suffix to match. Check it with the probe in **Before turning it on** before you deploy anything built on a suffix.
+## Reading a 5145
+- **`winevt.event_data.share_name`** is the share, and Windows masks the server: it arrives as `\\*\IPC$`, not `\\fileserver\IPC$` (Microsoft's 5145 sample shows `\\*\Documents`).
+- **`winevt.event_data.relative_target_name`** is what was opened on that share - a file name on a data share, the **pipe name** on IPC$. That field is what says whether this was a session query, a group query or a registry read.
+- **`user.name`** is the account that opened it, **`source.ip`** the client, **`host.name`** the host being interrogated. If your pipeline leaves the subject only in `winevt.event_data.subject_user_name` / `winevt.event_data.ip_address`, as 15 uses, swap those two field names and nothing else changes.
 
-Run every 10 minutes over the last 15. The window is the rate control - shorten it or lengthen it, but measure the threshold for the window you choose. Overlapping runs re-count the same burst, which is why suppression is 6h.
+Run every 5 minutes over the last 15. The window is the rate control: an admin who genuinely works through fifteen hosts does it over an afternoon, not inside a quarter hour.
 
 ## Query
 ```esql
 FROM logs-yourorg-microsoft-windows*
-// 4769 = a service ticket was handed out. 0x0 and 0x00000000 are the same success in different pipelines.
-| WHERE event.code == "4769"
-  AND winevt.event_data.status IN ("0x0", "0x00000000")
-// Machine requesters ask for host tickets by design (HOST$, HOST$@DOMAIN). Nothing in the event says
-// "machine account", so this is a leading-wildcard LIKE on purpose; IS NULL keeps a row whose requester
-// field is missing instead of dropping it without a trace.
+// 5145 on IPC$ = a named pipe was opened. srvsvc = sessions, wkssvc = logged-on users, samr = local
+// groups, winreg = the registry collection.
+| WHERE event.code == "5145"
+// Leading wildcard on purpose: ShareName is logged as \\*\IPC$ with the server masked, so there is no
+// prefix to index. If your pipeline lowercases it, add the lowercase variant of this pattern.
+  AND winevt.event_data.share_name LIKE "*\\IPC$"
+  AND winevt.event_data.relative_target_name IN ("srvsvc", "samr", "wkssvc", "winreg")
+// Machine accounts talk to these pipes as normal service traffic (monitoring, backup, inventory agents),
+// and nothing in 5145 says "machine account", so this is a leading-wildcard test on purpose.
+// IS NULL keeps a row whose subject is missing instead of dropping it silently.
   AND (user.name IS NULL
        OR (NOT user.name LIKE "*$" AND NOT user.name LIKE "*$@*"))
-// Sanctioned collectors and scanners as account + address pairs (placeholders, repeat the clause per pair).
-// Both fields, so the same account borrowed by an attacker from anywhere else still alerts.
-  AND NOT (user.name == "<collector_account>" AND source.ip == "<collector_ip>")
-// Group key normalised in place, and a missing requester stays visible as its own group
-| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-requester"))
-// One row per account over the whole window: no hour bucket, so a burst that straddles the boundary
-// is not split into two halves that each sit under the threshold.
-| STATS computers = COUNT_DISTINCT(winevt.event_data.service_name, 4000),
-        sample = TOP(winevt.event_data.service_name, 10, "asc"),
+// Sanctioned inventory / monitoring account, as an account + address pair (placeholders, repeat per pair).
+// Both fields, so the same account driven from anywhere else still alerts.
+  AND NOT (user.name == "<inventory_account>" AND source.ip == "<inventory_ip>")
+| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user"))
+// One row per account over the whole window - no time bucket, so a sweep that straddles a boundary is
+// not split into two halves that each sit under the threshold.
+| STATS hosts_touched = COUNT_DISTINCT(host.name),
+        pipes = COUNT_DISTINCT(winevt.event_data.relative_target_name),
+        pipes_seen = MV_SLICE(VALUES(winevt.event_data.relative_target_name), 0, 8),
+        hosts_seen = TOP(host.name, 10, "asc"),
         addrs = COUNT_DISTINCT(source.ip),
-        enc = MV_SLICE(VALUES(winevt.event_data.ticket_encryption_type), 0, 4),
-        dcs = COUNT_DISTINCT(host.name),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name
-// 40 distinct SPNs in 15 minutes is a starting value: a collection run is hundreds inside seconds, the
-// busiest legitimate account in a real estate is single digits per quarter hour. Replace it with the
-// p99 from the Baseline query below, or let the account baseline itself do it (Baseline, Tier 2).
-| WHERE computers >= 40
+// Label, not a filter: -c Session alone touches srvsvc only and is still collection, but a single pipe
+// across many hosts is also what an inventory script looks like, so the analyst has to see which this is.
+| EVAL pattern = CASE(pipes >= 2, "multi-pipe collection", "single-pipe sweep")
+// 15 hosts in 15 minutes is a starting value - a collection run reaches hundreds, a person reaches a
+// handful. Replace it with the p99 from the Baseline query below.
+| WHERE hosts_touched >= 15
 | EVAL span_s = DATE_DIFF("second", first_seen, last_seen)
-| SORT computers DESC
+| SORT hosts_touched DESC
 | LIMIT 100
 ```
-
-`computers` counts **distinct SPNs**, not distinct hosts: one computer can answer to `HOST/`, `RestrictedKrbHost/` and `TERMSRV/`, so a sweep of 40 hosts can read 40-120. That inflation is the same for attacker and admin, so the threshold holds - it just means the number is "services reached", not "machines touched". `sample` is bounded and alphabetical, not the worst ten; the pivot query below finds the rest.
+`hosts_seen` and `pipes_seen` are bounded and alphabetical, not "the most interesting ten"; the pivot in **When it fires** finds the rest. `pattern` answers the first triage question: `multi-pipe collection` with `samr` in the set is local-admin collection, which is the step before an attacker knows what is worth stealing.
 
 ## Baseline
-One query over the last 7 days at the rule's window. Nothing is filtered before the second `STATS` on purpose - a pre-filter hides every account whose peak is under the threshold, which is exactly the population the threshold has to clear. Percentiles are over **active** buckets only: a quarter hour with no ticket requests produces no row, so `active_buckets` says how much of the week the account was actually seen.
+One query over the last 7 days at the rule's window. Nothing is filtered before the second `STATS` on purpose - a pre-filter would hide every account whose peak sits under the threshold, which is exactly the population the threshold has to clear. Percentiles are over **active** buckets only: a quarter hour with none of this traffic produces no row.
 ```esql
 FROM logs-yourorg-microsoft-windows*
-// the rule's gate, unchanged (the same leading-wildcard machine exclusion)
-| WHERE event.code == "4769"
-  AND winevt.event_data.status IN ("0x0", "0x00000000")
+// the rule's gate, unchanged (including the leading-wildcard IPC$ test)
+| WHERE event.code == "5145"
+  AND winevt.event_data.share_name LIKE "*\\IPC$"
+  AND winevt.event_data.relative_target_name IN ("srvsvc", "samr", "wkssvc", "winreg")
   AND (user.name IS NULL
        OR (NOT user.name LIKE "*$" AND NOT user.name LIKE "*$@*"))
-| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-requester")),
+| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")),
        bucket = DATE_TRUNC(15 minutes, @timestamp)
-| STATS computers = COUNT_DISTINCT(winevt.event_data.service_name, 4000) BY user.name, bucket
-// this is the baseline: no threshold on `computers` here, because filtering first would hide the accounts
+| STATS hosts = COUNT_DISTINCT(host.name) BY user.name, bucket
+// this is the baseline: no threshold on `hosts` here, because filtering first would hide the accounts
 // this query exists to measure
 | STATS active_buckets = COUNT(*),
-        p50 = PERCENTILE(computers, 50),
-        p95 = PERCENTILE(computers, 95),
-        p99 = PERCENTILE(computers, 99),
-        peak = MAX(computers),
-        hot_buckets = COUNT(*) WHERE computers >= 40
+        p50 = PERCENTILE(hosts, 50),
+        p95 = PERCENTILE(hosts, 95),
+        p99 = PERCENTILE(hosts, 99),
+        peak = MAX(hosts),
+        hot_buckets = COUNT(*) WHERE hosts >= 15
     BY user.name
 | SORT peak DESC
 | LIMIT 50
 ```
-Read it as: `p99` single digits and `peak` in the hundreds means a human whose worst quarter hour is normal - exclude the account **and its address** as a pair. `peak` of 200+ is a scanner or management tool. Set the rule's threshold above the highest legitimate `p99` and well below a real collection run.
+An account with `p99` of 1-2 and a `peak` in the hundreds is a collector: find out what it is, then exclude it as an account + address pair. An account whose `peak` is 200+ every day is an inventory or monitoring product, and belongs in the exclusion with its address - not the rule switched off.
 
-The cheapest alternative is to let the rule baseline itself: deploy it at `>= 40` with notifications off for a week, then read the alerts.
-
-## Baseline, Tier 2: let each account carry its own threshold
-A fixed number still needs a list of exceptions, and a list of exceptions is what an attacker borrows. Turning the baseline into a per-account threshold removes both: a scanner's p99 raises its own bar out of the way, and an account that never sweeps anything needs to reach 30 to alert at all.
-
-Transform, every 30 minutes over the last 30 days, into `ticket_baseline` (lookup index mode, keyed on `user.name`):
+## Before turning it on
+- **Audit Detailed File Share (5145) must be on for every host you want to count**, not just servers. The rule cannot count what it cannot see, so a workstation-only collection shows only its server touches - coverage sets the usable threshold, and partial coverage is the difference between this rule firing and staying silent.
+- Check which pipes your estate actually opens on IPC$, and from which accounts:
 ```esql
 FROM logs-yourorg-microsoft-windows*
-| WHERE event.code == "4769"
-  AND winevt.event_data.status IN ("0x0", "0x00000000")
-// same leading-wildcard machine exclusion as the rule, for the same reason
-  AND (user.name IS NULL
-       OR (NOT user.name LIKE "*$" AND NOT user.name LIKE "*$@*"))
-| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-requester")),
-       bucket = DATE_TRUNC(15 minutes, @timestamp)
-| STATS computers = COUNT_DISTINCT(winevt.event_data.service_name, 4000) BY user.name, bucket
-// second STATS on purpose: the first one measures each quarter hour, this one turns 30 days of them into
-// one threshold per account, which is what the rule compares a burst against
-| STATS p99 = PERCENTILE(computers, 99), peak = MAX(computers), active_buckets = COUNT(*) BY user.name
-// three times the account's own 99th-percentile quarter hour, and never below 30
-| EVAL threshold = CASE(p99 * 3 > 30, p99 * 3, 30)
-| KEEP user.name, threshold, p99, peak, active_buckets
+// leading wildcard here for the same reason as the rule: ShareName masks the server name
+| WHERE event.code == "5145" AND winevt.event_data.share_name LIKE "*\\IPC$"
+| STATS n = COUNT(*), hosts = COUNT_DISTINCT(host.name) BY winevt.event_data.relative_target_name
+| SORT n DESC
+| LIMIT 25
 ```
-The rule then stops carrying a number of its own. Everything above the `STATS` is identical; add the join and replace the threshold:
-```esql
-| LOOKUP JOIN ticket_baseline ON user.name
-// an account with no baseline yet falls back to the fixed starting value
-| WHERE (threshold IS NULL AND computers >= 40) OR (threshold IS NOT NULL AND computers >= threshold)
-```
-`LOOKUP JOIN` needs the target index in `lookup` mode and Elastic 9.x (tech preview in late 8.x) - confirm the version. Until the transform has run once, or for an account created yesterday, the fallback number is what protects you.
+- Check the subject field name: `user.name` (ECS) or `winevt.event_data.subject_user_name` (what 15 uses). Machine accounts should dominate; if a **user** account appears in the top rows, put that account and its address in the exclusion.
+- 5145 is a high-volume event. If ingest cost is the objection, keep the `IN` list rather than dropping the collection - that is what makes the query cheap.
+- Suppress by `user.name`: it is the entity that survives the `STATS`, and a re-run of the same sweep folds into one alert.
 
-## Optional: the target side (5140)
-If you collect **Audit File Share** (5140) from your servers and workstations, the same sweep shows there as IPC$ opened on many computers - and it also catches a collector running over NTLM, which raises no 4769. Run it the same way; it only counts targets whose Security log you actually collect, so with workstation logs missing the 4769 side does the work.
-```esql
-FROM logs-yourorg-microsoft-windows*
-// IPC$ opened on many computers by a user account (LIKE, so the \\host\ part is a wildcard)
-| WHERE event.code == "5140"
-  AND winevt.event_data.share_name LIKE "\\\\*\\IPC$"
-  AND (user.name IS NULL OR (NOT user.name LIKE "*$" AND NOT user.name LIKE "*$@*"))
-| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-requester"))
-| STATS computers = COUNT_DISTINCT(host.name, 4000),
-        sample = TOP(host.name, 10, "asc"),
-        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY user.name
-// same 40-target starting value and the same 15-minute window as the 4769 rule - baseline it the same way
-| WHERE computers >= 40
-| SORT computers DESC
-| LIMIT 100
-```
+## What it misses
+- **Collection that never touches SMB.** `-c DCOnly`, `bloodhound.py` and ADExplorer read the directory over LDAP or ADWS and open no pipe - **08b** catches the LDAP security-descriptor read, **24** catches one process fanning out across DCs on 389/636/3268/9389.
+- **Hosts whose 5145 you don't collect.** A server-only audit makes a workstation sweep look small; 24 is the transport-independent backstop.
+- **A sweep split across several accounts or several collector hosts**, each staying under the threshold. The entity is the account, so this needs a destination-side view (5156 on the targets, or `host.name` grouped across accounts).
+- **Single-pipe fan-out at low volume** - an inventory script that only reads `srvsvc` looks like `-c Session`. That is what `pattern` and the per-account baseline are for.
+- **Remote-registry collection** also lands in `winreg`, which 15 alerts on per host. Both firing means a full collection run; 15 names the moment.
 
-## Which host and process sent it
-Falcon, for the alert's address only, so it's cheap. No rows means the address isn't a managed host (the attacker's own machine, or a device behind a proxy - check 05 on the hosts around it). SharpHound's SMB goes through the kernel and shows as `System`; its LDAP (389/9389) shows the tool, `sharphound.exe` or `powershell.exe` - which 24 catches as a directory sweep.
+## When it fires
+Take `user.name` and identify it: a normal user account means the collector ran with that user's token, so either the user ran it or the credential is stolen - treat the second as the assumption until proven otherwise.
+
+Then name the host and the binary. SharpHound's pipe traffic is SMB through the kernel, so Falcon shows the process as `System`; the LDAP half of the same run shows `sharphound.exe` or `powershell.exe`, which 24 catches. Run this for one address from `addrs`:
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-// one address from the alert (expand TOP(source.ip) from the alert row); leading wildcard is not needed here
+// one address from the alert; no leading wildcard, this one is an equality on an indexed field
 | WHERE event.action == "networkconnectip4" AND source.ip == "<source.ip>"
   AND destination.port IN (88, 389, 445, 636, 3268, 3269, 9389)
 | STATS connections = COUNT(*), ports = VALUES(destination.port), first_seen = MIN(@timestamp)
@@ -152,35 +131,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | match(file="aid_master_main.csv", field=aid, include=[ComputerName])
 | select([ComputerName, ContextBaseFileName, connections, _collect])
 ```
+No rows means the address is not a managed host: the attacker's own machine, or a device behind a proxy - check 05 on the hosts around it.
 
-## Before turning it on
-- **Audit Kerberos Service Ticket Operations** (Success) on every DC, or there is no 4769 to count.
-- **Confirm `service_name` really is the SPN** in your pipeline before trusting anything that pattern-matches it. Values should look like `HOST/DC01`, `MSSQLSvc/…`, `krbtgt`:
-```esql
-FROM logs-yourorg-microsoft-windows*
-| WHERE event.code == "4769" AND winevt.event_data.status IN ("0x0", "0x00000000")
-| STATS n = COUNT(*) BY winevt.event_data.service_name
-| SORT n DESC
-| LIMIT 20
-```
-- **Confirm the requester shapes** your machines use, so the exclusion in the gate is the right one. If machine accounts arrive as `HOST$@DOMAIN` only, `*$` is redundant but harmless; if they arrive as `HOST$`, `*$` is what keeps them out:
-```esql
-FROM logs-yourorg-microsoft-windows*
-| WHERE event.code == "4769"
-| STATS n = COUNT(*) BY user.name
-| SORT n DESC
-| LIMIT 20
-```
-- Put every account from the baseline that legitimately crosses the threshold into the gate as an **account + address pair** - give it both fields, since a sanctioned collector account is exactly the one an attacker would borrow.
-- Set the suppression key to `user.name`; it is the only entity that survives the `STATS`, and it is what a re-run of the same sweep folds into.
-- Proxy and NAT: `source.ip` is the Kerberos client address the DC recorded, so a collector behind a SOCKS proxy appears as the proxy's address. The account is still the entity the rule decides on.
-
-## What it misses
-- SharpHound from the attacker's own machine over NTLM, or `bloodhound.py` without `-k`: no 4769. The optional 5140 companion catches it where you audit file shares; 05 sees the proxy on the pivot; 24 sees the LDAP/ADWS collection.
-- LDAP-only (`-c DCOnly`) and Stealth collection, which skip most computers - 24 covers the directory read.
-- A sweep throttled under the threshold inside the window. The Tier 2 account baseline catches slow runs better than a fixed number, because it compares the account against itself; a genuinely slow run spread across many days still needs a daily rule at a lower threshold, baselined the same way.
-- A run split across **several accounts**, each staying under its own threshold. The entity is the account, so this needs a host-level or destination-level view (5168, or 5140 grouped by `host.name` across accounts) rather than a bigger threshold.
-- Ticket requests answered from a DC you don't collect 4769 from, and cross-forest tickets requested in another domain.
-
-## When it fires
-Run the pivot query for an address from the alert. A managed host with `sharphound.exe`, `powershell.exe` or an unknown binary on 389/9389 is the collector; look on it for the output (a zip of JSON) and treat the account as compromised until the run is explained. No managed host means the attacker's machine or a proxy: check 05 on the hosts around it.
+## Why not the ticket-count version
+An earlier version of this rule counted Kerberos service-ticket requests (4769) per account. That measured a **consequence**: every SMB session needs a ticket, so ticket breadth is shared with any busy admin, backup job or vulnerability scanner, and the number had to sit high enough to clear them. The pipe is the action the tool takes, it carries the collection method in `relative_target_name`, and it shows even when the client authenticated over NTLM. 08b covers the directory-side read that neither sees.
