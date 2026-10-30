@@ -21,7 +21,7 @@ rules/
   14-ad-attack/             AD01-AD17 Active Directory attack paths, ranked by criticality
   15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
   16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
-  17-ai-detections/         AI01-AI11 attacks using or aimed at AI: malware calling models, hijacked coding agents, Copilot, shadow AI
+  17-ai-detections/         AI01-AI12 attacks using or aimed at AI: malware calling models, agentic attack frameworks, hijacked coding agents, Copilot, shadow AI
 detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
 implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
 certipy_detections/         Certipy (AD CS attack tool) detections for the organisation's own schema: DC, CA and Falcon
@@ -69,4 +69,4 @@ The coverage map is generated from each rule's `mitre:` front-matter, so it can'
 
 Technique IDs follow ATT&CK v20. Since v19, Defense Evasion is split into Stealth and Defense Impairment and the old T1562 sub-techniques moved to T1685/T1686; v20 added AI techniques (T1698-T1700).
 
-Total: 201 detections across 17 groups.
+Total: 202 detections across 17 groups.

@@ -102,6 +102,7 @@ Scattered Spider-style help-desk resets and MFA fatigue remain prominent; deepfa
 | AI09 | A Copilot Studio agent published, or its authentication changed, by someone new to it (T1700) | Purview audit (Copilot Studio records) |
 | AI10 | Defender for Cloud alerts on your own Azure AI apps: jailbreaks, prompt injection, data leaks (T1699) | Defender XDR alerts |
 | AI11 | A user's first large upload to an AI app few people in the organisation use (shadow AI) | Zscaler web logs |
+| AI12 | A host driving several LLM APIs at once, or a non-sanctioned model - an agentic attack framework like ARTEX (TAG-217, South Korean banks, 2026) | CrowdStrike DNS; Zscaler as an alternative |
 
 **Not detectable from your logs:**
 - T1682, T1683 and T1588.007: researching targets, generating lures and obtaining AI access happen outside your network.
@@ -111,5 +112,5 @@ Scattered Spider-style help-desk resets and MFA fatigue remain prominent; deepfa
 1. **CI/CD pipeline** detections (T1677) — needs build-system logs onboarded.
 2. **Developer endpoint / package-manager** supply-chain rules (Shai-Hulud class). AI02 and AI07 cover malware driving local AI agents and install scripts that download and run code; CS17 covers the worm's TruffleHog secret scan.
 3. **SaaS / Cloud App** detections beyond Entra (Defender for Cloud Apps / MDA) if licensed — mass download, OAuth app anomaly, SharePoint/OneDrive exfil.
-4. **AI system monitoring**: `rules/17-ai-detections` (AI01-AI11). Use MITRE ATLAS as well if you deploy your own LLM agents.
+4. **AI system monitoring**: `rules/17-ai-detections` (AI01-AI12). Use MITRE ATLAS as well if you deploy your own LLM agents.
 5. The library is tagged against **ATT&CK v20**; re-import `docs/attack-navigator-layer.json` into ATT&CK Navigator after each regeneration.
