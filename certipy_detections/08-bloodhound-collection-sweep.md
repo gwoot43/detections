@@ -1,6 +1,6 @@
 ---
 id: SMBENUM-01
-name: BloodHound / SharpHound SMB enumeration - several directory interfaces opened per host, across many hosts
+name: BloodHound / SharpHound SMB enumeration - several directory interfaces opened across many hosts
 language: esql
 index: logs-yourorg-microsoft-windows*
 mitre: [T1087.002, T1069.002, T1018, T1049]
@@ -10,21 +10,19 @@ suppression:
   duration: 6h
   missing_fields: do_not_suppress
 ---
-**BloodHound's directory collection over SMB, by the interfaces it opens.** SharpHound asks each host three questions, each through its own RPC interface: `NetSessionEnum` over the **srvsvc** pipe, `NetWkstaUserEnum` over **wkssvc**, `NetLocalGroupGetMembers` over **samr**, and the registry collection over **winreg**. Every one of those is a named pipe opened on `\\host\IPC$`, so the host that was interrogated writes a 5145 naming the pipe, the account and the client.
+**BloodHound's directory collection over SMB, by the interfaces it opens.** SharpHound asks each host three questions, each through its own RPC interface - `NetSessionEnum` over **srvsvc**, `NetWkstaUserEnum` over **wkssvc**, `NetLocalGroupGetMembers` over **samr**, and the registry collection over **winreg** - and every one is a named pipe opened on `\\host\IPC$`. The host that was interrogated writes a 5145 naming the pipe, the account and the client.
 
-The fingerprint is **several of those interfaces on the same host, then the same thing on the next host**: per host `pipes_on_host >= 2`, and ten or more such hosts by one account in a quarter hour.
+One event type, one count: **one account opening these interfaces on ten or more hosts, using two or more different interfaces, inside a quarter hour**. An inventory script or a `net view \\host` sweep uses a single interface; SharpHound's default collection uses three.
 
 ## What this is not
-- **Not Snaffler.** Snaffler reads **files** - it opens real shares and walks directories looking for secrets. It touches none of these pipes, and its detection is **10** (data shares opened on many computers). A 08 alert with no data-share activity in the window is confirmation rather than a gap: the collector was asking the directory who is logged on, not reading data.
-- **Not remote execution.** `svcctl`, `atsvc` and `remcom_*` are **15**'s pipes. This rule excludes them, so a psexec loop does not look like a collection sweep.
-- **Not the LDAP half.** `-c DCOnly`, `bloodhound.py` and ADExplorer never open a pipe: **08b** catches their security-descriptor requests, **24** their fan-out across DCs.
-
-One interface per host is what ordinary management looks like - an inventory script, `net view \\host`, a monitoring agent. Several interfaces per host, on host after host, is a graph being built.
+- **Not Snaffler** - it reads **files** on real shares and touches none of these pipes. That is **10**.
+- **Not remote execution** - `svcctl`, `atsvc`, `remcom_*` belong to **15** and are deliberately left out of the pipe list here.
+- **Not the LDAP half** - `-c DCOnly`, `bloodhound.py` and ADExplorer open no pipe: **08b** sees their security-descriptor reads, **24** their fan-out across DCs.
 
 ## Reading a 5145
-- **`winevt.event_data.share_name`** is the share, with the server masked by Windows: `\\*\IPC$` (Microsoft's own 5145 sample shows `\\*\Documents`).
-- **`winevt.event_data.relative_target_name`** is what was opened on it - on IPC$, the **pipe name**. That field is the whole detection.
-- **`user.name`** is the account, **`source.ip`** the client, **`host.name`** the host interrogated. If your pipeline keeps the subject only in `winevt.event_data.subject_user_name` / `winevt.event_data.ip_address`, as 15 uses, change those two field names and nothing else.
+- **`winevt.event_data.share_name`** is the share, with the server masked by Windows: `\\*\IPC$` (Microsoft's 5145 sample shows `\\*\Documents`).
+- **`winevt.event_data.relative_target_name`** is what was opened on it - on IPC$, the **pipe name**. That field is the detection.
+- **`user.name`** is the account, **`source.ip`** the client, **`host.name`** the host interrogated. If your pipeline keeps the subject only in `winevt.event_data.subject_user_name` / `winevt.event_data.ip_address`, as 15 uses, change those two names and nothing else.
 
 Run every 5 minutes over the last 15. The window is the rate control.
 
@@ -46,49 +44,25 @@ FROM logs-yourorg-microsoft-windows*
 // Both fields, so the same account driven from anywhere else still alerts.
   AND NOT (user.name == "<inventory_account>" AND source.ip == "<inventory_ip>")
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user"))
-// Reduce per host first: which interfaces did this account open on ONE host? A collector opens several;
-// an inventory script or `net view` opens one.
-| STATS pipes_on_host = COUNT_DISTINCT(winevt.event_data.relative_target_name),
-        sessions = COUNT(*) WHERE winevt.event_data.relative_target_name == "srvsvc",
-        logged_on = COUNT(*) WHERE winevt.event_data.relative_target_name == "wkssvc",
-        local_admin = COUNT(*) WHERE winevt.event_data.relative_target_name == "samr",
-        registry = COUNT(*) WHERE winevt.event_data.relative_target_name == "winreg"
-    BY user.name, host.name
-// 2 interfaces on one host is a starting value: SharpHound's default collection opens three, a management
-// script opens one. Confirm what your estate does with the probe in Before turning it on.
-| WHERE pipes_on_host >= 2
-// Second STATS on purpose: the fan-out is the sweep, and only hosts that passed the interface test count.
-| STATS hosts_enumerated = COUNT(*),
-        hosts_sessions = COUNT(*) WHERE sessions > 0,
-        hosts_logged_on = COUNT(*) WHERE logged_on > 0,
-        hosts_local_admin = COUNT(*) WHERE local_admin > 0,
-        hosts_registry = COUNT(*) WHERE registry > 0,
-        sample_hosts = TOP(host.name, 10, "asc"),
+// One row per account: how many hosts it touched, and how many different interfaces it used.
+| STATS hosts = COUNT_DISTINCT(host.name),
+        pipes = COUNT_DISTINCT(winevt.event_data.relative_target_name),
+        pipes_seen = MV_SLICE(VALUES(winevt.event_data.relative_target_name), 0, 4),
+        addrs = COUNT_DISTINCT(source.ip),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name
-// 10 hosts in 15 minutes is a starting value - a collection run reaches hundreds, an admin working by hand
-// does not open two interfaces on ten hosts. Replace it with the p99 from the Baseline query below.
-| WHERE hosts_enumerated >= 10
-| EVAL span_s = DATE_DIFF("second", first_seen, last_seen)
-| SORT hosts_enumerated DESC
+// 10 hosts and 2 interfaces in 15 minutes are starting values - a collection run reaches hundreds of hosts
+// and three interfaces, an admin working by hand does neither. Measure with the Baseline query below.
+| WHERE hosts >= 10 AND pipes >= 2
+| SORT hosts DESC
 | LIMIT 100
 ```
-The four `hosts_*` counts are the collection methods, read straight off the alert: `hosts_local_admin` is `NetLocalGroupGetMembers` (who is a local admin where), `hosts_logged_on` is `NetWkstaUserEnum` (where is the target user logged on), `hosts_sessions` is `NetSessionEnum`, `hosts_registry` the registry read. All four high means `-c All`; `hosts_local_admin` alone is the collection that precedes lateral-movement planning.
+`pipes` is counted **across the window, not per host**. For SharpHound that costs nothing - it uses the same three interfaces on every host it visits - and it keeps the rule to one reduce. A tool that used one interface per host would slip past; that is the trade, and 24 covers the same activity from the network side.
 
-`sample_hosts` is bounded and alphabetical, not "the most interesting ten"; the pivot in **When it fires** lists the rest.
-
-## If you also need `-c Session`
-A session-only run opens one interface per host, so it fails the per-host test. Drop that stage and keep the fan-out, which costs precision - `net view` sweeps and inventory scripts look the same:
-```esql
-| STATS hosts_enumerated = COUNT(*), sample_hosts = TOP(host.name, 10, "asc"),
-        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY user.name
-| WHERE hosts_enumerated >= 15
-```
-Run it as a second rule rather than widening this one: two questions, two thresholds, and the analyst can tell which fired.
+`pipes_seen` names the interfaces, which is the triage detail: `samr` means local-group collection (who is a local admin where, the step before lateral movement), `wkssvc` means logged-on users, `srvsvc` means sessions.
 
 ## Baseline
-Over 7 days at the rule's window, same two stages, nothing filtered before the last `STATS` - a pre-filter would hide every account the threshold has to clear. Percentiles over active buckets only.
+Over 7 days at the rule's window, same gate, nothing filtered before the last `STATS` - a pre-filter would hide every account the threshold has to clear. Percentiles over active buckets only.
 ```esql
 FROM logs-yourorg-microsoft-windows*
 // the rule's gate, unchanged (including the leading-wildcard IPC$ and machine-account tests)
@@ -99,10 +73,9 @@ FROM logs-yourorg-microsoft-windows*
        OR (NOT user.name LIKE "*$" AND NOT user.name LIKE "*$@*"))
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")),
        bucket = DATE_TRUNC(15 minutes, @timestamp)
-| STATS pipes_on_host = COUNT_DISTINCT(winevt.event_data.relative_target_name) BY user.name, host.name, bucket
-| WHERE pipes_on_host >= 2
-// second STATS: hosts per account per quarter hour, the metric the rule's threshold is set on
-| STATS hosts = COUNT(*) BY user.name, bucket
+| STATS hosts = COUNT_DISTINCT(host.name), pipes = COUNT_DISTINCT(winevt.event_data.relative_target_name)
+    BY user.name, bucket
+| WHERE pipes >= 2
 // this is the baseline: no threshold on `hosts` here, because filtering first would hide the accounts
 // this query exists to measure
 | STATS active_buckets = COUNT(*), p50 = PERCENTILE(hosts, 50), p99 = PERCENTILE(hosts, 99),
@@ -111,10 +84,10 @@ FROM logs-yourorg-microsoft-windows*
 | SORT peak DESC
 | LIMIT 50
 ```
-`p50` and `p99` at 1-2 with a `peak` in the hundreds is a collector. A `peak` of 100+ every day is an inventory or monitoring product: exclude it as an account + address pair - and note that it means your estate opens these interfaces routinely, which is worth knowing on its own.
+`p99` of 1-2 with a `peak` in the hundreds is a collector. A `peak` of 100+ every day is an inventory or monitoring product - exclude it as an account + address pair, and note that your estate opens these interfaces routinely.
 
 ## Before turning it on
-- **Audit Detailed File Share (5145) must be on for every host you want to count** - workstations as well as servers. The rule cannot count what it cannot see, and a server-only audit makes a workstation sweep look small.
+- **Audit Detailed File Share (5145) must be on for every host you want to count** - workstations as well as servers, or a workstation sweep only shows its server touches.
 - Check the interface mix your estate actually produces:
 ```esql
 FROM logs-yourorg-microsoft-windows*
@@ -124,21 +97,17 @@ FROM logs-yourorg-microsoft-windows*
 | SORT n DESC
 | LIMIT 25
 ```
-- Check the subject field name: `user.name` (ECS) or `winevt.event_data.subject_user_name` (what 15 uses).
-- The machine-account exclusion is what keeps agents out. If your monitoring product runs as a **user** account, it will be in the baseline's top rows - exclude that account plus its address rather than raising the threshold.
-- Suppress by `user.name`: it is the entity that survives both reduces, and a re-run of the same sweep folds into one alert.
+- Check the subject field name: `user.name` (ECS) or `winevt.event_data.subject_user_name` (what 15 uses). If your monitoring product runs as a **user** account it will be in the baseline's top rows - exclude that account plus its address rather than raising the threshold.
+- Suppress by `user.name`: it is the entity the rule decides on, and a re-run of the same sweep folds into one alert.
 
 ## What it misses
-- **`-c Session` alone** (one interface per host) - the variant above. Deliberately out of this rule.
+- **A single-interface sweep** - `-c Session` only touches `srvsvc`. Drop `pipes >= 2` and keep `hosts >= 15` for that, as a separate rule rather than widening this one.
 - **Hosts whose 5145 you do not collect** - 24 is the transport-independent backstop, 08b the directory-side one.
-- **A sweep split across accounts or collector hosts**, each under the threshold. The entity is the account; that case needs a destination-side view (5156 on the targets).
-- **SOAPHound and any ADWS-based collector**: it may open no SMB pipe at all and may not appear as an LDAP search - 24 flags `directory_sweep_adws` for that path.
-- **Collection through a share you already alert on**: Snaffler-class file hunting is 10. The two rules should not both fire for one activity; if they do, the actor was doing both.
+- **A sweep split across accounts or collector hosts**, each under the threshold. The entity is the account; that needs a destination-side view (5156 on the targets).
+- **SOAPHound and ADWS-based collection**, which may open no SMB pipe at all - 24 flags `directory_sweep_adws`.
 
 ## When it fires
-1. Identify `user.name`: a normal user account means the collector ran with that user's token - the user ran it, or the credential is stolen. Assume the second until it is explained.
-2. Read the four `hosts_*` counts for which collection methods ran, and `sample_hosts` for whether it was the server tier or the whole estate.
-3. Name the host and binary with Falcon for one address; SharpHound's pipe traffic is SMB through the kernel, so the process shows as `System`. The LDAP half of the same run is what 24 and 08b see.
+Identify `user.name` first: a normal user account means the collector ran with that user's token - the user ran it, or the credential is stolen. Assume the second until it is explained. Then read `pipes_seen` for which collection methods ran, and name the host and binary with Falcon for one address from `addrs`:
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 // one address from the alert; no leading wildcard, this is an equality on an indexed field
@@ -154,4 +123,4 @@ FROM logs-yourorg-crowdstrike-data-default*
 | match(file="aid_master_main.csv", field=aid, include=[ComputerName])
 | select([ComputerName, ContextBaseFileName, connections, _collect])
 ```
-No rows means the address is not a managed host: the attacker's own machine, or a device behind a proxy - check 05 on the hosts around it.
+SharpHound's pipe traffic is SMB through the kernel, so the process shows as `System`; the LDAP half of the same run is what 24 and 08b see. No rows means the address is not a managed host - the attacker's own machine or a proxy; check 05 on the hosts around it.
