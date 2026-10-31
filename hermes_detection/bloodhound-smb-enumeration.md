@@ -58,6 +58,7 @@ FROM logs-yourorg-microsoft-windows*
         addrs = COUNT_DISTINCT(source.ip),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name
+// 10 hosts and 2 interfaces in 15 minutes - the same starting values as above, measure your own p99
 | WHERE hosts >= 10 AND pipes >= 2
 | SORT hosts DESC
 | LIMIT 100
