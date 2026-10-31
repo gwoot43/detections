@@ -26,6 +26,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 Before deploying, confirm the event and its fields in your own feed - this prints one raw row per pipe-event name, which is all you need to fix the field names:
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
+// leading wildcard on purpose: this probes for event names, it is not a detection
 | WHERE event.action LIKE "*pipe*"
 | STATS n = COUNT(*) BY event.action
 | SORT n DESC
