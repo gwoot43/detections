@@ -7,7 +7,8 @@ What keeps it off Snaffler: Snaffler reads files on data shares and never opens 
 ```esql
 FROM logs-yourorg-microsoft-windows*
 // Both halves of a collection run live in this index: 5140 IPC$ opens on the targets being interrogated,
-// 4662 read-property/control-access on the DC as the ACLs come back.
+// 4662 read-property/control-access on the DC as the ACLs come back. Both patterns are leading-wildcard
+// tests on purpose - ShareName ends in \IPC$, and a machine account is only identifiable by its "$".
 | WHERE (event.code == "5140" AND winevt.event_data.share_name LIKE "*IPC$")
      OR (event.code == "4662" AND winevt.event_data.access_mask IN ("0x10", "0x100"))
 // Machine accounts do both by design - monitoring agents, DCs, backup, Entra Connect
