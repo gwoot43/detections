@@ -7,7 +7,8 @@ FROM logs-yourorg-microsoft-windows*
 // 5140 = a network share was opened. Every SMB session opens IPC$ first, so the count only means
 // something when it is read against what else the same account opened.
 | WHERE event.code == "5140"
-// Machine accounts open IPC$ on every host they manage - monitoring, backup, inventory agents
+// Machine accounts open IPC$ on every host they manage - monitoring, backup, inventory agents - and
+// nothing in the event says "machine account", so this is a leading-wildcard test on purpose
   AND (user.name IS NULL OR NOT user.name LIKE "*$")
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")),
        touched_ipc = winevt.event_data.share_name LIKE "*\\IPC$"
