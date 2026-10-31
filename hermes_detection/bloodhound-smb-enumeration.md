@@ -1,45 +1,46 @@
 # BloodHound / SharpHound SMB enumeration
 
-SharpHound's collection is four RPC calls, each opening its own named pipe on `\\host\IPC$`: `Session` uses `NetSessionEnum` over **srvsvc**, `LoggedOn` uses `NetWkstaUserEnum` over **wkssvc**, `LocalAdmin` uses `NetLocalGroupGetMembers` (SAMR) over **samr**, and remote-registry logons use `RegEnumKeyW` over **winreg**. On the target that is a **5145** naming the pipe, the account and the client - the best view there is, and the one this rule was built on - but 5145 has not been ingesting here for eight months, so the rule below works from Falcon instead: **one host fanning out over SMB to ten or more destinations while also talking to a directory server**, which is the same collection seen from the collector's own sensor. It is lower fidelity than the pipe version because FDR shows the TCP connection, not which pipe was opened, and it only sees managed hosts. If 5145 comes back, deploy the second query too: it names the collection method outright. The pair with the LDAP half (`ldap-security-descriptor-enumeration.md`) is deliberate - this catches the SMB sweep, that one the directory read, and `-c DCOnly` only produces the latter.
+SharpHound's collection is four RPC calls, each opening its own named pipe on `\\host\IPC$`: `Session` uses `NetSessionEnum` over **srvsvc**, `LoggedOn` uses `NetWkstaUserEnum` over **wkssvc**, `LocalAdmin` uses `NetLocalGroupGetMembers` (SAMR) over **samr**, and remote-registry logons use `RegEnumKeyW` over **winreg**. **The pipe name is the whole detection** - Snaffler reads files on data shares and opens none of these, so a rule keyed on the pipe separates the two tools by construction; a rule keyed on "one host connecting to SMB on many hosts" cannot, because both tools do exactly that. With 5145 gone from the feed, the source to build on is Falcon's own client-side pipe event (`SmbClientNamedPipeConnectEtw`), which is arguably better than 5145 was: it comes from the collector's sensor, needs no audit policy, and carries the process. Verify the two field names with the probe below before deploying - the pipe field is `data.PipeName` in the usual FDR mapping, but this is an ETW-derived event and the mapping is the one thing I could not confirm from public sources.
 
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-// SMB fan-out plus a directory connection from the same host. SharpHound's collection is exactly that
-// pair: a connect to each host's 445, and LDAP/GC/ADWS to a DC from the same machine.
-| WHERE event.action == "networkconnectip4"
-  AND destination.port IN (445, 389, 636, 3268, 3269, 9389)
-| STATS smb_hosts = COUNT_DISTINCT(destination.ip) WHERE destination.port == 445,
-        dir_conns = COUNT(*) WHERE destination.port != 445,
+// Falcon's client-side named-pipe event: the collector's sensor records the pipe it opened and the host.
+| WHERE event.action == "smbclientnamedpipeconnectetw"
+// The collection interfaces. Verify the field name with the probe below before trusting this.
+  AND data.PipeName IN ("srvsvc", "samr", "wkssvc", "winreg")
+// Machine accounts run these pipes as normal service traffic - monitoring, backup, inventory agents
+  AND (data.UserName IS NULL OR NOT data.UserName LIKE "*$")
+| STATS hosts = COUNT_DISTINCT(destination.ip),
+        pipes = COUNT_DISTINCT(data.PipeName),
+        pipes_seen = MV_SLICE(VALUES(data.PipeName), 0, 4),
         procs = MV_SLICE(VALUES(data.ContextBaseFileName), 0, 5),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY host.name
-// 10 SMB destinations and at least one directory connection in the window is a starting value: routine
-// file-server and backup traffic does one or the other, not both at that rate. Measure your own p99.
-| WHERE smb_hosts >= 10 AND dir_conns >= 1
-| SORT smb_hosts DESC
+// 10 hosts and 2 interfaces in 15 minutes are starting values - SharpHound reaches hundreds of hosts and
+// three interfaces, an inventory script uses one. Measure your own p99 before tuning.
+| WHERE hosts >= 10 AND pipes >= 2
+| SORT hosts DESC
 | LIMIT 100
 ```
 
-Two things to check in your own data before trusting it. First, whether FDR carries the **client-side share event**, which would be the real replacement for 5145 - it names the share opened (`\\host\IPC$`), and unlike 5145 it also carries the process:
-
+Before deploying, confirm the event and its fields in your own feed - this prints one raw row per pipe-event name, which is all you need to fix the field names:
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-| WHERE event.action LIKE "smbclient*" OR event.action LIKE "smbserver*"
+| WHERE event.action LIKE "*pipe*"
 | STATS n = COUNT(*) BY event.action
 | SORT n DESC
 | LIMIT 20
 ```
-If `smbclientshareopenedetw` appears there, build the detection on it instead: group by host, count distinct remote hosts with share `\\*\IPC$`, and you have the 5145 rule back with a process name attached.
+If `smbclientnamedpipeconnectetw` is not there, the fallbacks in order are `smbclientshareopenedetw` (names the share - `\\host\IPC$` - but not the pipe), then 5145 below, then nothing: do **not** fall back to a TCP fan-out on 445, which fires on Snaffler's share sweep as readily as on a collection run.
 
-Second, the FP this shape carries: a **backup or management server** legitimately opens SMB to many hosts and talks to a DC in the same window. That is the account/host pair to exclude, and it should show up at the top of a 7-day run at a lower threshold (`smb_hosts >= 5`).
+Why the account filter matters: agents run as machine accounts and open the same pipes to every host they manage, so without the `$` exclusion the rule is a mirror of your monitoring product.
 
 ## If 5145 starts ingesting again
-The pipe-level rule, which is the high-fidelity one - same account, two or more interfaces, ten or more hosts, fifteen minutes:
-
+Same logic from the target side - no process name, but the pipe and the account, on the host that was interrogated:
 ```esql
 FROM logs-yourorg-microsoft-windows*
-// 5145 on IPC$ = a named pipe was opened. These are the directory-enumeration interfaces:
-// srvsvc = sessions, wkssvc = logged-on users, samr = local group members, winreg = registry.
+// 5145 on IPC$ = a named pipe was opened. srvsvc = sessions, wkssvc = logged-on users,
+// samr = local group members, winreg = registry.
 | WHERE event.code == "5145"
 // Leading wildcard on purpose: ShareName is logged as \\*\IPC$ with the server masked, so there is no
 // prefix to index. If your pipeline lowercases it, add the lowercase variant of this pattern.
@@ -58,21 +59,21 @@ FROM logs-yourorg-microsoft-windows*
         addrs = COUNT_DISTINCT(source.ip),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name
-// 10 hosts and 2 interfaces in 15 minutes - the same starting values as above, measure your own p99
+// 10 hosts and 2 interfaces in 15 minutes - the same starting values, measure your own p99
 | WHERE hosts >= 10 AND pipes >= 2
 | SORT hosts DESC
 | LIMIT 100
 ```
 
 ## What this is not
-- **Not Snaffler** - it reads files on real shares and touches none of these pipes. That is certipy 10.
+- **Not Snaffler** - it reads files on real shares and opens none of these pipes. That is certipy 10, and the pipe name is why the two rules cannot collide.
 - **Not remote execution** - `svcctl`/`atsvc`/`remcom_*` belong to certipy 15.
-- **Not the LDAP half** - `-c DCOnly`, `bloodhound.py` and ADExplorer open no pipe and make no SMB sweep; `ldap-security-descriptor-enumeration.md` covers that, and certipy 24 covers network fan-out across DCs.
+- **Not the LDAP half** - `-c DCOnly`, `bloodhound.py` and ADExplorer open no pipe; `ldap-security-descriptor-enumeration.md` covers that, and certipy 24 covers network fan-out across DCs.
 
 ## References
 
 - Compass Security, *BloodHound Inner Workings & Limitations* parts 1-3 - Wireshark trace of each pipe open: `blog.compass-security.com/2022/05/bloodhound-inner-workings-part-1` and `-part-2`
 - iPurple, *SharpHound Detection* (2024) - API-to-pipe table (`RegEnumKeyW` → `winreg`), 5140/5145 usage including the SYSVOL case: `ipurple.team/2024/07/15/sharphound-detection`
 - SpecterOps, *SharpHound target selection and API usage*: `specterops.io/blog/2018/03/05/sharphound-target-selection-and-api-usage`
-- Microsoft, event 5145 schema - `ShareName` rendered as `\\*\<share>`, `RelativeTargetName`, `ObjectType`
-- Schwartz, *From Code to Coverage* (TROOPERS26) - BloodHound/SOAPHound/Impacket coverage, and the `nltest /dbflag:0x2080ffff` netlogon technique: `troopers.de/downloads/troopers26/TR26_From_Code_to_Coverage_TPGLJU.pdf`
+- Microsoft, event 5145 schema - `ShareName` as `\\*\<share>`, `RelativeTargetName`, `ObjectType`
+- Schwartz, *From Code to Coverage* (TROOPERS26) - the LDAP/SOAPHound side and the netlogon technique: `troopers.de/downloads/troopers26/TR26_From_Code_to_Coverage_TPGLJU.pdf`
