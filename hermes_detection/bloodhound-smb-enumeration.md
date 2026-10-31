@@ -11,7 +11,9 @@ FROM logs-yourorg-microsoft-windows*
 // nothing in the event says "machine account", so this is a leading-wildcard test on purpose
   AND (user.name IS NULL OR NOT user.name LIKE "*$")
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")),
-       touched_ipc = winevt.event_data.share_name LIKE "*\\IPC$"
+// Triple quotes on purpose: a normal string eats one backslash level, and LIKE then sees an escape
+// character that is not followed by a wildcard and errors out.
+       touched_ipc = winevt.event_data.share_name LIKE """*\\IPC$"""
 // Conditional aggregates: if your version rejects COUNT_DISTINCT(...) WHERE, split into two STATS on
 // this flag - the logic is the same, it just costs a second pass.
 | STATS ipc_hosts = COUNT_DISTINCT(host.name) WHERE touched_ipc,
