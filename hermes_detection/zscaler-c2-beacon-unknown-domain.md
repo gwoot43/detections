@@ -29,13 +29,15 @@ FROM logs-zscaler_zia.web-*
         uris = COUNT_DISTINCT(uri),
         ua_variants = COUNT_DISTINCT(user_agent.original),
         referrer_hits = COUNT(*) WHERE has_referrer,
-        avg_per_slot = ROUND(requests / COUNT_DISTINCT(DATE_TRUNC(5 minutes, @timestamp))::double, 2),
         sample_uris = MV_SLICE(VALUES(uri), 0, 10),
         user_agent.original = MV_SLICE(VALUES(user_agent.original), 0, 3),
         destination.ip = MV_SLICE(VALUES(destination.ip), 0, 5),
         destination.geo.country_name = MV_SLICE(VALUES(destination.geo.country_name), 0, 3),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name, url.domain
+// Rate is context, not a condition: references per occupied 5-minute slot. It has to be an EVAL after the
+// STATS - an alias cannot be read inside the aggregation that creates it.
+| EVAL avg_per_slot = ROUND(requests::double / slots, 2)
 // Rarity window-wide, before the beacon checks: every user who reached the domain counts, so a site
 // many people visit drops out even if only one of them left it open.
 | INLINE STATS domain_users = COUNT_DISTINCT(user.name) BY url.domain

@@ -37,8 +37,7 @@ FROM logs-zscaler_zia.web-*
     BY user.name, url.domain
 // The fleet's own shape on that domain, window-wide: how many people reach it, and how varied a normal
 // session there is. This is what makes the domain's reputation irrelevant.
-| INLINE STATS domain_users = COUNT_DISTINCT(user.name) BY url.domain,
-               domain_avg_uris = AVG(uris) BY url.domain
+| INLINE STATS domain_users = COUNT_DISTINCT(user.name), domain_avg_uris = AVG(uris) BY url.domain
 // Shared site, but this account barely touches it and never like a browser: a third of the usual breadth,
 // one user agent, no referrer, across a dozen or more hours. 5 users and 12 hours are starting values -
 // measure the fleet baseline per domain (p50/p99 of uris) before tuning.
