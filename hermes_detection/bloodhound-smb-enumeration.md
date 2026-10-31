@@ -8,7 +8,8 @@ FROM logs-yourorg-crowdstrike-data-default*
 | WHERE event.action == "smbclientnamedpipeconnectetw"
 // The collection interfaces. Verify the field name with the probe below before trusting this.
   AND data.PipeName IN ("srvsvc", "samr", "wkssvc", "winreg")
-// Machine accounts run these pipes as normal service traffic - monitoring, backup, inventory agents
+// Machine accounts run these pipes as normal service traffic - monitoring, backup, inventory agents,
+// and nothing in the event says "machine account", so this is a leading-wildcard test on purpose
   AND (data.UserName IS NULL OR NOT data.UserName LIKE "*$")
 | STATS hosts = COUNT_DISTINCT(destination.ip),
         pipes = COUNT_DISTINCT(data.PipeName),
