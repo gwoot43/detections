@@ -4,10 +4,13 @@ BloodHound-class collection ends by asking the directory for the **security desc
 
 ```esql
 FROM logs-yourorg-microsoft-windows*
+// 15-minute window stated in the query - the rule settings are not enough, an analyst who reopens this in
+// Discover over a week is running a different rule.
+| WHERE @timestamp >= NOW() - 15 minutes
 // 4662 = an operation on a SACL-audited AD object. 0x10 = read property, 0x100 = control access - the
 // rights that cover reading an object's security descriptor. (winlog.event_data.* if you run the
 // Elastic integration rather than this pipeline.)
-| WHERE event.code == "4662"
+  AND event.code == "4662"
   AND winevt.event_data.access_mask IN ("0x10", "0x100")
 // The replication rights are DCSync - that is I01's rule. Leaving them in makes this fire on every DCSync.
 // Leading wildcard on purpose: the GUID sits inside a brace list in the properties field, not at the start.
