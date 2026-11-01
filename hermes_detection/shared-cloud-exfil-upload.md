@@ -14,11 +14,14 @@ FROM logs-zscaler_zia.web-*
 // Parents that accept writes and are free to register under. Regex in the gate on purpose: there is no
 // cheaper filter for "any subdomain of these", and the volume test above has already cut the set.
   AND url.domain RLIKE ".*\\.(blob\\.core\\.windows\\.net|dfs\\.core\\.windows\\.net|file\\.core\\.windows\\.net|storage\\.googleapis\\.com|firebasestorage\\.googleapis\\.com|amazonaws\\.com|cloudfront\\.net|azurewebsites\\.net|azurecontainerapps\\.io|workers\\.dev|run\\.app|supabase\\.co)$"
-| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), url.domain = TO_LOWER(url.domain)
+// The sample string is built before the STATS, so the aggregate is VALUES(uri) over a plain column -
+// the same shape file 2 and detection 09 use, and one less thing for the parser to disagree about.
+| EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), url.domain = TO_LOWER(url.domain),
+       uri = CONCAT(COALESCE(http.request.method, "?"), " ", url.path, " -> ",
+                    COALESCE(TO_STRING(zscaler_zia.web.response.code), "?"))
 | STATS bytes_out = SUM(zscaler_zia.web.request.size),
         uploads = COUNT(),
-        sample_uris = MV_SLICE(VALUES(CONCAT(http.request.method, " ", url.path, " -> ",
-                          TO_STRING(zscaler_zia.web.response.code))), 0, 10),
+        sample_uris = MV_SLICE(VALUES(uri), 0, 10),
         destination.ip = MV_SLICE(VALUES(destination.ip), 0, 5),
         destination.geo.country_name = MV_SLICE(VALUES(destination.geo.country_name), 0, 3),
         user_agent.original = MV_SLICE(VALUES(user_agent.original), 0, 3),

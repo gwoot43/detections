@@ -31,6 +31,10 @@ FROM logs-zscaler_zia.web-*
     BY user.name, url.domain
 // Rarity: a subdomain one to three people reach is either a niche tool or somebody's infrastructure.
 | INLINE STATS domain_users = COUNT_DISTINCT(user.name) BY url.domain
+// The payload branch is limited to parents that serve static content. S3 and CloudFront are not: a toolchain
+// download to one admin, one user agent, no referrer, tens of megabytes is the AWS CLI doing its job - the
+// worst false positive this rule would otherwise have, and the reason the parent list splits at this point.
+| EVAL static_host = url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|azurestaticapps\\.net|cloudapp\\.azure\\.com|pages\\.dev|web\\.app|firebaseapp\\.com|github\\.io|netlify\\.app|vercel\\.app|workers\\.dev)$"
 // Two shapes, because staging and C2 look different from the client side:
 //   1. a heartbeat - one or two fixed URIs, one user agent, no referrer, for days;
 //   2. a single payload pull - a few requests, megabytes back, by something that never browsed the site
@@ -39,8 +43,8 @@ FROM logs-zscaler_zia.web-*
 // below before tuning, and treat the persistence thresholds as the shape they describe, not as tuning knobs.
 | WHERE ((uris <= 2 AND ua_variants = 1 AND referrer_hits = 0 AND domain_users <= 3)
         AND ((slots >= 72 AND hours >= 12) OR hours >= 36))
-   OR (requests <= 5 AND max_response >= 5000000 AND ua_variants = 1 AND referrer_hits = 0
-        AND domain_users <= 1)
+   OR (static_host AND requests <= 5 AND max_response >= 5000000 AND ua_variants = 1
+        AND referrer_hits = 0 AND domain_users <= 1)
 | SORT hours DESC, bytes_in DESC
 | LIMIT 100
 ```
@@ -73,6 +77,10 @@ FROM logs-zscaler_zia.web-*
 Sort ascending by `users`: the bottom of that list is the population this rule hunts, and the longest-lived entries in it are the ones to exclude as pairs.
 
 ## What it misses
+- **A payload pulled from a storage parent** (S3, CloudFront, blob, Google Storage) - deliberately out of the
+  payload branch, because a legitimate toolchain download looks identical to it: one user, one user agent, no
+  referrer, tens of megabytes. Storage parents are the upload rule's population; the read side of them is not
+  covered by either rule yet.
 - **A payload hosted on a subdomain the estate already uses.** Shared CDNs and `github.io` are heavily used legitimately; an attacker's payload on a host your estate fetches every day is invisible to a rarity test.
 - **TLS-pinned destinations.** Uninspected CONNECTs never reach this index, so a pinned-TLS download is invisible here - B06 is the endpoint view.
 - **Fronting rather than subdomain abuse.** Microsoft prohibited domain fronting on Azure Front Door and Azure CDN from Microsoft (announced 2022, enforced 2024), so the classic SNI/Host mismatch through `azureedge`/`azurefd` is largely closed; what remains is the attacker-owned subdomain this rule targets. On other CDNs fronting still exists, and it is only visible where SNI and Host are both logged.
