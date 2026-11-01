@@ -49,6 +49,20 @@ FROM logs-yourorg-microsoft-windows*
 ```
 If `0x10` / `nTSecurityDescriptor` never appears there while you know a tool read ACLs, that SACL is not set: no DC-side rule will see the read, and 24 (FDR fan-out across DCs) is the only view left.
 
+## The probe that established this
+
+Run before deploying, and again if the SACL is ever widened - it is the difference between a rule that works and one that matches nothing:
+
+```esql
+FROM logs-yourorg-microsoft-windows*
+| WHERE @timestamp >= NOW() - 24 hours
+  AND event.code == "4662"
+| STATS events = COUNT(*), last = MAX(@timestamp) BY winevt.event_data.access_mask
+| SORT events DESC
+| LIMIT 25
+```
+`0x10` (read property) and `0x100` (control access) absent = SD reads are not audited, and the `access_mask IN ("0x10", "0x100")` gate above returns nothing. On this estate that is exactly what it returns: only the write-side masks appear, which is why the deployed rule is `ldap-directory-reach.md`.
+
 ## References
 
 - Schwartz, *From Code to Coverage - A Detection Engineer's Journey Through the LDAP Wilderness* (TROOPERS26) - SDFlags 0x4/0x5 for SharpHound and 0x7 for SoaPy/SOAPHound, the 1644 Level-5 prerequisite and its EPS cost, `SDFlags`-based Sigma rule for the BloodHound family, the ADWS `[::1]` attribution problem: `troopers.de/downloads/troopers26/TR26_From_Code_to_Coverage_TPGLJU.pdf`

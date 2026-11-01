@@ -61,6 +61,33 @@ Either of these restores the direct view, and the 4662 rule in `ldap-security-de
 1. **Widen the SACL** so that *Read Property* on `nTSecurityDescriptor` is audited on the domain NC - then the `0x10`/`0x100` masks appear and the 4662 rule works with no threshold guesswork.
 2. **Raise NTDS diagnostics to Level 5** with a tuned expensive-search threshold for a bounded hunt window - then 1644 returns the filter and `SDFlags`, which is the most precise signal of the three.
 
+## Probes — how the two Windows losses were confirmed
+
+Neither loss is an assumption: both are one query away, and the rule's whole shape depends on them. Re-run after any audit-policy change.
+
+**4662: which access masks are actually written?** Read property is `0x10`, control access is `0x100` - the two rights that cover reading an object's security descriptor. If neither appears, nothing audits SD reads regardless of what the SACL looks like.
+
+```esql
+FROM logs-yourorg-microsoft-windows*
+| WHERE @timestamp >= NOW() - 24 hours
+  AND event.code == "4662"
+| STATS events = COUNT(*), last = MAX(@timestamp) BY winevt.event_data.access_mask
+| SORT events DESC
+| LIMIT 25
+```
+A healthy ACL-enumeration feed shows `0x10` and `0x100` carrying most of the volume on directory objects. This estate returns only the write-side masks (add/delete/write-property), which is why the 4662 rule in `ldap-security-descriptor-enumeration.md` cannot fire. Follow-up worth running at the same time: if `0x100` is genuinely absent, any DCSync rule that requires control access is also matching nothing - check I01's gate against this same output.
+
+**1644: is Directory Service diagnostic logging on?** The event only exists at NTDS diagnostics Level 5, so absence is the expected answer.
+
+```esql
+FROM logs-yourorg-microsoft-windows*
+| WHERE @timestamp >= NOW() - 7 days
+  AND event.code == "1644"
+| STATS n = COUNT(*) BY host.name
+| SORT n DESC
+```
+Empty = Level 5 is off on every DC, so no rule can key on the search filter or `SDFlags`. That is the single most valuable missing signal here; it is also the most expensive to enable.
+
 ## Verify before enabling
 - Confirm both directions land as assumed - `ConnectionDirection`, and the ports in ECS rather than the raw `LocalPort`/`RemotePort`:
 ```esql

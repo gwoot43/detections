@@ -29,9 +29,10 @@ FROM logs-yourorg-microsoft-windows*
         addrs = COUNT_DISTINCT(source.ip),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name
-// 20 hosts of IPC$ with no data share opened, and the whole sweep inside ten minutes. The absence of data
-// shares is what removes Snaffler and every file-hunting tool by construction - they read files on data
-// shares and never open these pipes. The rate is what removes an admin working through a list.
+// 20 hosts of IPC$ with no data share opened, inside ten minutes. The absence of data shares is what
+// removes Snaffler and every file-hunting tool by construction - they read files on data shares and never
+// open these pipes. The rate removes an admin working through a list. Starting values only: the baseline
+// below measures this estate's own p99, and that is the source for both numbers.
 | WHERE ipc_hosts >= 20 AND data_share_opens == 0
   AND DATE_DIFF("second", first_seen, last_seen) <= 600
 | SORT ipc_hosts DESC
@@ -63,6 +64,8 @@ Deploy every 15 minutes over the last 30. Suppress by `user.name` for 6h.
 FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 7 days
   AND event.code == "5140"
+// same leading-wildcard tests as the rule, for the same reasons: a machine account is only identifiable by
+// its "$", and ShareName always ends in \IPC$
   AND (user.name IS NULL OR NOT user.name LIKE "*$")
   AND winevt.event_data.share_name LIKE "*IPC$"
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), bucket = DATE_TRUNC(1 hour, @timestamp)
@@ -75,16 +78,42 @@ FROM logs-yourorg-microsoft-windows*
 ```
 An account with `p99` of one or two hosts and a `peak` in the hundreds is a sweep. An account with a `peak` in the hundreds every hour is a scanner: an entity pair, not a bigger threshold.
 
-## If the telemetry comes back
-5145 with `relative_target_name` restores the method test, and it is the version to prefer: `srvsvc`/`samr`/`wkssvc`/`winreg` on IPC$ is enumeration by name, with no rate tuning at all. Probe before assuming it is still off:
+## Probes — how the two gaps were confirmed
+
+Both losses are facts about this estate's telemetry, not assumptions about the tools. These are the queries that establish them; re-run them after any audit-policy change, because the rule's shape depends on the answer and nothing in the rule reveals it.
+
+**Is 5145 collected at all, and is `relative_target_name` populated?** The two halves matter separately: no rows means the audit subcategory is off, while rows with `named` at zero mean the event is collected but the pipe name is not being written — which is the state described above.
+
 ```esql
 FROM logs-yourorg-microsoft-windows*
-| WHERE event.code == "5145"
-| STATS n = COUNT(*), last = MAX(@timestamp) BY winevt.event_data.relative_target_name
-| SORT n DESC
-| LIMIT 25
+| WHERE @timestamp >= NOW() - 30 days
+  AND event.code == "5145"
+| STATS events = COUNT(*),
+        last = MAX(@timestamp),
+        named = COUNT(*) WHERE winevt.event_data.relative_target_name IS NOT NULL,
+        names = COUNT_DISTINCT(winevt.event_data.relative_target_name)
+    BY host.name
+| SORT events DESC
+| LIMIT 20
 ```
-An empty result, or a `last` older than a week, means the audit subcategory is still off. Same check for Falcon pipe events: `FROM logs-yourorg-crowdstrike-data-default* | WHERE event.action LIKE "*pipe*" | STATS n = COUNT(*) BY event.action`.
+Expected on a healthy Detailed File Share feed: every DC and file server with a large `events`, a `last` within the hour, and `named` roughly equal to `events` with `names` in the dozens (`srvsvc`, `samr`, `lsarpc`, `winreg`, `spoolss`, ...). What this estate returns: no rows at all, so the pipe-name version of this rule cannot fire regardless of thresholds.
+
+**Is the ACL half observable?** The same probe in `ldap-directory-reach.md` answers it for 4662: a mask distribution with no `0x10` and no `0x100` means read-property and control-access on directory objects are not audited, so the correlated version of this rule is dead too. Worth knowing before someone spends a day tuning `acl_reads`.
+
+**Does Falcon carry a pipe event?**
+```esql
+FROM logs-yourorg-crowdstrike-data-default*
+// leading wildcard on purpose: event.action values are CamelCase in the raw feed (SmbClientNamedPipeConnectEtw),
+// so there is no prefix to anchor on
+| WHERE event.action LIKE "*pipe*"
+| STATS n = COUNT(*) BY event.action
+| SORT n DESC
+| LIMIT 20
+```
+Empty = the sensor is not emitting pipe connects on this feed, so 5140 breadth is genuinely the best available anchor.
+
+## If the telemetry comes back
+5145 with `relative_target_name` restores the method test and is the version to prefer: `srvsvc`/`samr`/`wkssvc`/`winreg` on IPC$ is enumeration by name, with no rate tuning at all. The earlier revision of this file keys on exactly that, and it is recoverable from the branch history if the audit subcategory is ever switched on.
 
 ## References
 - Compass Security, *BloodHound Inner Workings & Limitations* parts 1-3 - the Wireshark trace showing one pipe per API: `blog.compass-security.com/2022/05/bloodhound-inner-workings-part-1`
