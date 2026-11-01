@@ -13,7 +13,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 // 15 minutes, stated in the query: the write and the first execution are usually seconds apart.
 | WHERE @timestamp >= NOW() - 15 minutes
   AND event.action IN ("processrollup2", "syntheticprocessrollup2", "fileopeninfo", "fspostopen")
-| EVAL is_proc = event.action LIKE "%processrollup2",
+| EVAL is_proc = event.action LIKE "*processrollup2",
        parent = TO_LOWER(COALESCE(process.parent.name, "")),
        child = TO_LOWER(COALESCE(process.name, "")),
        cl = TO_LOWER(COALESCE(process.command_line, "")),
@@ -30,17 +30,17 @@ FROM logs-yourorg-crowdstrike-data-default*
                                "ipconfig.exe", "tasklist.exe", "hostname.exe", "quser.exe"),
 // The worker identity, not an administrator. Maintenance is done by a human as SYSTEM or admin; a web shell
 // inherits the app-pool or www-data context it was uploaded into.
-       worker_identity = user LIKE "%iis apppool%\\%" OR user LIKE "%nt authority\\network service%"
+       worker_identity = user LIKE """*iis apppool*\\*""" OR user LIKE """*nt authority\\network service*"""
                          OR user IN ("www-data", "apache", "nginx", "nobody", "tomcat", "httpd", "php-fpm"),
 // Payload shape in the spawned command line: fetch it, encode it, or look around.
-       payload = cl LIKE "%http://%" OR cl LIKE "%https://%" OR cl LIKE "% -enc%" OR cl LIKE "%frombase64%"
-                 OR cl LIKE "%certutil%" OR cl LIKE "%bitsadmin%" OR cl LIKE "%whoami%" OR cl LIKE "%net user%"
-                 OR cl LIKE "%net group%" OR cl LIKE "%nltest%" OR cl LIKE "%systeminfo%" OR cl LIKE "%/dev/tcp/%"
-                 OR cl LIKE "%invoke-%" OR cl LIKE "%downloadstring%",
+       payload = cl LIKE "*http://*" OR cl LIKE "*https://*" OR cl LIKE "* -enc*" OR cl LIKE "*frombase64*"
+                 OR cl LIKE "*certutil*" OR cl LIKE "*bitsadmin*" OR cl LIKE "*whoami*" OR cl LIKE "*net user*"
+                 OR cl LIKE "*net group*" OR cl LIKE "*nltest*" OR cl LIKE "*systeminfo*" OR cl LIKE "*/dev/tcp/*"
+                 OR cl LIKE "*invoke-*" OR cl LIKE "*downloadstring*",
 // Server-side extensions a web server will execute, as opposed to static files it will only serve.
-       webshell_ext = path LIKE "%.aspx" OR path LIKE "%.ashx" OR path LIKE "%.asmx" OR path LIKE "%.ascx"
-                      OR path LIKE "%.jsp" OR path LIKE "%.jspx" OR path LIKE "%.php" OR path LIKE "%.phtml"
-                      OR path LIKE "%.cer" OR path LIKE "%.war",
+       webshell_ext = path LIKE "*.aspx" OR path LIKE "*.ashx" OR path LIKE "*.asmx" OR path LIKE "*.ascx"
+                      OR path LIKE "*.jsp" OR path LIKE "*.jspx" OR path LIKE "*.php" OR path LIKE "*.phtml"
+                      OR path LIKE "*.cer" OR path LIKE "*.war",
        deploy_tool = child IN ("msiexec.exe", "setup.exe", "installutil.exe", "devenv.exe", "robocopy.exe",
                                "xcopy.exe", "7z.exe", "winrar.exe", "tar", "unzip", "git", "svn", "dotnet.exe")
 // Execution: a web server forking a shell, with the worker identity or a fetch/discovery payload to confirm it.
