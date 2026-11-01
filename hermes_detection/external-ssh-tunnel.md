@@ -20,10 +20,10 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | GROK process.command_line "%{USERNAME:ssh_user}@(?<dest_at>[A-Za-z0-9.-]+)"
 | GROK process.command_line "(?<dest_dotted>(?:[A-Za-z0-9_-]+(?:\.[A-Za-z0-9-]+)+)(?:\s|$))"
 | EVAL dest = TO_LOWER(COALESCE(dest_at, dest_dotted))
-// External only: drop unparsed, dotless short names / ssh-config aliases, .asx suffixes, private IPs
+// External only: drop unparsed, dotless short names / ssh-config aliases, corporate DNS suffixes, private IPs
 | WHERE dest LIKE "%.%"   // also drops null (unparsed) destinations
-  AND NOT dest LIKE "*.asx.com.au"
-  AND NOT dest LIKE "*.asx.local"
+  AND NOT dest LIKE "*.corp.example"
+  AND NOT dest LIKE "*.ad.example"
 | EVAL is_ip = dest RLIKE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
 | EVAL is_private = CASE(is_ip, CIDR_MATCH(dest, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                                            "127.0.0.0/8", "169.254.0.0/16"), false)
@@ -81,12 +81,12 @@ FROM logs-yourorg-crowdstrike-data-default*
 // Destination: user@host when present, else the last token - which keeps aliases instead of dropping them.
 | GROK process.command_line """%{USERNAME:ssh_user}@(?<dest_at>[A-Za-z0-9.-]+)"""
 | EVAL dest = TO_LOWER(COALESCE(dest_at, last_token)),
-       dest_class = CASE(dest RLIKE """^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$""", "ipv4",
+       dest_class = CASE(dest RLIKE """[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}""", "ipv4",
                          dest RLIKE """.*:[0-9a-f]{1,4}:.*""", "ipv6",
                          dest LIKE "%.%", "fqdn",
                          "alias")
 // Sanctioned destinations and the devbox platform, as command-line scoped exclusions.
-| WHERE NOT (dest LIKE "*.asx.com.au" OR dest LIKE "*.asx.local" OR cmd LIKE "%devbox%")
+| WHERE NOT (dest LIKE "*.corp.example" OR dest LIKE "*.ad.example" OR cmd LIKE "%devbox%")
 // Private and special ranges, IPv4 only. 100.64.0.0/10 is CGNAT - Tailscale lives there, and a devbox on a
 // tailnet otherwise reads as an external destination.
   AND NOT CASE(dest_class == "ipv4",
