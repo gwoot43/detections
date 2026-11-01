@@ -22,20 +22,20 @@ FROM logs-yourorg-crowdstrike-data-default*
        payload = CONCAT(COALESCE(TO_STRING(data.TaskExecCommand), ""), " ", COALESCE(TO_STRING(data.TaskExecArguments), ""))
 | EVAL payload = TO_LOWER(payload)
 // Where a vendor would not put an action: user-writable directories.
-| EVAL user_writable = payload LIKE "%\\appdata\\%" OR payload LIKE "%\\temp\\%" OR payload LIKE "%\\users\\public\\%"
-                       OR payload LIKE "%\\downloads\\%" OR payload LIKE "%\\programdata\\%",
+| EVAL user_writable = payload LIKE """*\\appdata\\*""" OR payload LIKE """*\\temp\\*""" OR payload LIKE """*\\users\\public\\*"""
+                       OR payload LIKE """*\\downloads\\*""" OR payload LIKE """*\\programdata\\*""",
 // What a vendor would not do with it: encode it, fetch it, or hide the executing host.
-       scripted = payload LIKE "%powershell%" OR payload LIKE "%pwsh%" OR payload LIKE "%wscript%"
-                  OR payload LIKE "%cscript%" OR payload LIKE "%mshta%" OR payload LIKE "%rundll32%"
-                  OR payload LIKE "%regsvr32%" OR payload LIKE "%certutil%" OR payload LIKE "%bitsadmin%"
-                  OR payload LIKE "%curl%",
-       encoded = payload LIKE "% -enc%" OR payload LIKE "%frombase64%" OR payload LIKE "% -e %",
+       scripted = payload LIKE "*powershell*" OR payload LIKE "*pwsh*" OR payload LIKE "*wscript*"
+                  OR payload LIKE "*cscript*" OR payload LIKE "*mshta*" OR payload LIKE "*rundll32*"
+                  OR payload LIKE "*regsvr32*" OR payload LIKE "*certutil*" OR payload LIKE "*bitsadmin*"
+                  OR payload LIKE "*curl*",
+       encoded = payload LIKE "* -enc*" OR payload LIKE "*frombase64*" OR payload LIKE "* -e *",
 // Impersonation: a monitoring- or Windows-sounding name that is not in the vendor's namespace.
-       masquerade = (task LIKE "%sysmon%" OR task LIKE "%windows update%" OR task LIKE "%defender%"
-                     OR task LIKE "%microsoft%" OR task LIKE "%onedrive%")
-                    AND NOT task LIKE "\\microsoft\\windows\\%",
+       masquerade = (task LIKE "*sysmon*" OR task LIKE "*windows update*" OR task LIKE "*defender*"
+                     OR task LIKE "*microsoft*" OR task LIKE "*onedrive*")
+                    AND NOT task LIKE """\\microsoft\\windows\\*""",
 // SYSTEM in a task created by a user is privilege escalation, not a vendor updater.
-       system_principal = principal LIKE "%system%" OR principal LIKE "%s-1-5-18%"
+       system_principal = principal LIKE "*system*" OR principal LIKE "*s-1-5-18*"
 | STATS registrations = COUNT(*),
         hosts = COUNT_DISTINCT(host.id, 10000),
         risky = COUNT(*) WHERE user_writable OR encoded OR masquerade,

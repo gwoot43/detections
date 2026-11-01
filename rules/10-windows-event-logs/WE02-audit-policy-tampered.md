@@ -27,6 +27,7 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
        subject = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, ""))
 // %%8448 = success removed, %%8450 = failure removed
 | WHERE event.code == "4912"
+// literal % on purpose: Windows renders the change-reason codes as %%8448 / %%8450 in the event text
    OR ((changes LIKE "*%%8448*" OR changes LIKE "*%%8450*")
        AND subcat IN ("logon", "special logon", "process creation", "user account management",
                       "security group management", "computer account management", "directory service access",

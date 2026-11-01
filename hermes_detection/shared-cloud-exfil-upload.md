@@ -13,7 +13,7 @@ FROM logs-zscaler_zia.web-*
   AND zscaler_zia.web.request.size >= 1000000
 // Parents that accept writes and are free to register under. Regex in the gate on purpose: there is no
 // cheaper filter for "any subdomain of these", and the volume test above has already cut the set.
-  AND url.domain RLIKE ".*\\.(blob\\.core\\.windows\\.net|dfs\\.core\\.windows\\.net|file\\.core\\.windows\\.net|storage\\.googleapis\\.com|firebasestorage\\.googleapis\\.com|amazonaws\\.com|cloudfront\\.net|azurewebsites\\.net|azurecontainerapps\\.io|workers\\.dev|run\\.app|supabase\\.co)$"
+  AND url.domain RLIKE ".*\\.(blob\\.core\\.windows\\.net|dfs\\.core\\.windows\\.net|file\\.core\\.windows\\.net|storage\\.googleapis\\.com|firebasestorage\\.googleapis\\.com|amazonaws\\.com|cloudfront\\.net|azurewebsites\\.net|azurecontainerapps\\.io|workers\\.dev|run\\.app|supabase\\.co)"
 // The sample string is built before the STATS, so the aggregate is VALUES(uri) over a plain column -
 // the same shape file 2 and detection 09 use, and one less thing for the parser to disagree about.
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), url.domain = TO_LOWER(url.domain),
@@ -59,7 +59,7 @@ FROM logs-zscaler_zia.web-*
   AND event.action == "allowed" AND http.request.method IN ("POST", "PUT", "PATCH")
   AND zscaler_zia.web.request.size >= 1000000
 // same regex on purpose: this is the baseline for the parents above, not a second detection
-  AND url.domain RLIKE ".*\\.(blob\\.core\\.windows\\.net|storage\\.googleapis\\.com|amazonaws\\.com|cloudfront\\.net|azurewebsites\\.net|workers\\.dev)$"
+  AND url.domain RLIKE ".*\\.(blob\\.core\\.windows\\.net|storage\\.googleapis\\.com|amazonaws\\.com|cloudfront\\.net|azurewebsites\\.net|workers\\.dev)"
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), url.domain = TO_LOWER(url.domain)
 | STATS bytes_out = SUM(zscaler_zia.web.request.size), uploads = COUNT(),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp) BY user.name, url.domain
