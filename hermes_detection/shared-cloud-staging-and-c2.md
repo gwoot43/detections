@@ -11,7 +11,7 @@ FROM logs-zscaler_zia.web-*
   AND event.action == "allowed" AND url.domain IS NOT NULL AND url.path IS NOT NULL
 // Parents anyone can register under, taken from the LOTS list. Regex in the gate on purpose: no cheaper
 // filter selects "any subdomain of these".
-  AND url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|azurestaticapps\\.net|cloudapp\\.azure\\.com|blob\\.core\\.windows\\.net|cloudfront\\.net|amazonaws\\.com|appspot\\.com|web\\.app|firebaseapp\\.com|github\\.io|githubusercontent\\.com|pages\\.dev|netlify\\.app|vercel\\.app|workers\\.dev|run\\.app|supabase\\.co|fastly\\.net)$"
+  AND url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|azurestaticapps\\.net|cloudapp\\.azure\\.com|blob\\.core\\.windows\\.net|cloudfront\\.net|amazonaws\\.com|appspot\\.com|web\\.app|firebaseapp\\.com|github\\.io|githubusercontent\\.com|pages\\.dev|netlify\\.app|vercel\\.app|workers\\.dev|run\\.app|supabase\\.co|fastly\\.net)"
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), url.domain = TO_LOWER(url.domain),
        uri = CONCAT(COALESCE(http.request.method, "?"), "-",
                     COALESCE(TO_STRING(zscaler_zia.web.response.code), "?"), " ", url.path),
@@ -34,7 +34,7 @@ FROM logs-zscaler_zia.web-*
 // The payload branch is limited to parents that serve static content. S3 and CloudFront are not: a toolchain
 // download to one admin, one user agent, no referrer, tens of megabytes is the AWS CLI doing its job - the
 // worst false positive this rule would otherwise have, and the reason the parent list splits at this point.
-| EVAL static_host = url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|azurestaticapps\\.net|cloudapp\\.azure\\.com|pages\\.dev|web\\.app|firebaseapp\\.com|github\\.io|netlify\\.app|vercel\\.app|workers\\.dev)$"
+| EVAL static_host = url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|azurestaticapps\\.net|cloudapp\\.azure\\.com|pages\\.dev|web\\.app|firebaseapp\\.com|github\\.io|netlify\\.app|vercel\\.app|workers\\.dev)"
 // Two shapes, because staging and C2 look different from the client side:
 //   1. a heartbeat - one or two fixed URIs, one user agent, no referrer, for days;
 //   2. a single payload pull - a few requests, megabytes back, by something that never browsed the site
@@ -66,7 +66,7 @@ FROM logs-zscaler_zia.web-*
 | WHERE @timestamp >= NOW() - 30 days
   AND event.action == "allowed" AND url.domain IS NOT NULL
 // same regex on purpose: this is the baseline for the parents above, not a second detection
-  AND url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|cloudfront\\.net|blob\\.core\\.windows\\.net|amazonaws\\.com|github\\.io|pages\\.dev|workers\\.dev|netlify\\.app|web\\.app)$"
+  AND url.domain RLIKE ".*\\.(azurewebsites\\.net|azureedge\\.net|azurefd\\.net|cloudfront\\.net|blob\\.core\\.windows\\.net|amazonaws\\.com|github\\.io|pages\\.dev|workers\\.dev|netlify\\.app|web\\.app)"
 | EVAL user.name = TO_LOWER(COALESCE(user.name, "unknown-user")), url.domain = TO_LOWER(url.domain)
 | STATS users = COUNT_DISTINCT(user.name), requests = COUNT(),
         bytes_in = SUM(zscaler_zia.web.response.size), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)

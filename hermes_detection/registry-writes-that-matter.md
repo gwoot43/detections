@@ -4,7 +4,7 @@ Almost every registry modification is normal: installers, updaters, per-user app
 
 This rule keeps the native event and adds the two things that make it precise:
 
-**The key has to be somewhere worth writing.** A fixed set of families where a value *is* the persistence: `Run`/`RunOnce`, `Winlogon`, IFEO `Debugger`, `AppInit_DLLs`, COM `InprocServer32`/`LocalServer32`/`ScriptletURL`, `Services` keys, LSA packages, `WDigest`, shell open commands. This is a list of *targets*, not of tools - the kind of list that ages slowly.
+**The key has to be somewhere worth writing.** A fixed set of families where a value *is* the persistence: `Run`/`RunOnce`, `Winlogon`, IFEO (`Debugger`, `GlobalFlag`) and its newer `SilentProcessExit` sibling (`MonitorProcess`, `ReportingMode`), `AppInit_DLLs`, COM `InprocServer32`/`LocalServer32`/`ScriptletURL`, `Services` keys, LSA packages, `WDigest`, shell open commands. This is a list of *targets*, not of tools - the kind of list that ages slowly.
 
 **The writer has to be unusual.** Two ways to be unusual, and either one is enough: the value it wrote points at a user-writable path, a script host, an encoded blob or a URL (content); or this process has written this key family on at most two hosts in the estate (rarity). An app that legitimately writes a `Run` key does so on every host it is installed on; a loader does it once.
 
@@ -23,24 +23,26 @@ FROM logs-yourorg-crowdstrike-data-default*
 // The families where a value is the persistence. Everything else falls out here, which is why this is not a
 // registry change-log.
 | EVAL fam = CASE(
-        k LIKE "%\\currentversion\\run%" OR k LIKE "%\\currentversion\\runonce%", "run",
-        k LIKE "%\\winlogon%", "winlogon",
-        k LIKE "%\\image file execution options%", "ifeo",
-        k LIKE "%\\appinit_dlls%", "appinit",
-        k LIKE "%\\inprocserver32%" OR k LIKE "%\\localserver32%" OR k LIKE "%\\scriptleturl%", "com",
-        k LIKE "%\\services\\%", "service",
-        k LIKE "%\\control\\lsa%", "lsa",
-        k LIKE "%\\wdigest%", "wdigest",
-        k LIKE "%\\currentversion\\policies\\explorer%", "policy",
-        k LIKE "%\\shell\\open\\command%", "shellexec",
+        k LIKE """*\\currentversion\\run*""" OR k LIKE """*\\currentversion\\runonce*""", "run",
+        k LIKE """*\\winlogon*""", "winlogon",
+// Both halves of T1546.012: the classic Debugger/GlobalFlag values under IFEO, and the newer
+// SilentProcessExit MonitorProcess/ReportingMode pair that IFEO-only rules miss.
+        k LIKE """*\\image file execution options*""" OR k LIKE """*\\silentprocessexit*""", "ifeo",
+        k LIKE """*\\appinit_dlls*""", "appinit",
+        k LIKE """*\\inprocserver32*""" OR k LIKE """*\\localserver32*""" OR k LIKE """*\\scriptleturl*""", "com",
+        k LIKE """*\\services\\*""", "service",
+        k LIKE """*\\control\\lsa*""", "lsa",
+        k LIKE """*\\wdigest*""", "wdigest",
+        k LIKE """*\\currentversion\\policies\\explorer*""", "policy",
+        k LIKE """*\\shell\\open\\command*""", "shellexec",
         "")
 | WHERE fam != ""
 // Content test: the value points somewhere a signed vendor would not install to, or asks a script host to run it.
-| EVAL payload_bad = v LIKE "%\\temp\\%" OR v LIKE "%\\appdata\\%" OR v LIKE "%\\users\\public\\%"
-                    OR v LIKE "%\\downloads\\%" OR v LIKE "%\\programdata\\%"
-                    OR v LIKE "%powershell%" OR v LIKE "%pwsh%" OR v LIKE "%mshta%" OR v LIKE "%wscript%"
-                    OR v LIKE "%rundll32%" OR v LIKE "%regsvr32%" OR v LIKE "%certutil%" OR v LIKE "%bitsadmin%"
-                    OR v LIKE "% -enc%" OR v LIKE "%frombase64%" OR v LIKE "%http%",
+| EVAL payload_bad = v LIKE """*\\temp\\*""" OR v LIKE """*\\appdata\\*""" OR v LIKE """*\\users\\public\\*"""
+                    OR v LIKE """*\\downloads\\*""" OR v LIKE """*\\programdata\\*"""
+                    OR v LIKE "*powershell*" OR v LIKE "*pwsh*" OR v LIKE "*mshta*" OR v LIKE "*wscript*"
+                    OR v LIKE "*rundll32*" OR v LIKE "*regsvr32*" OR v LIKE "*certutil*" OR v LIKE "*bitsadmin*"
+                    OR v LIKE "* -enc*" OR v LIKE "*frombase64*" OR v LIKE "*http*",
 // Generic administrative and scripting writers: they need the content test, because one host running reg.exe
 // against a Run key is maintenance, and rarity would flag it every time.
        generic_writer = writer IN ("reg.exe", "regedt32.exe", "regedit.exe", "powershell.exe", "pwsh.exe", "cmd.exe", "wmic.exe")
@@ -90,8 +92,8 @@ FROM logs-yourorg-crowdstrike-data-default*
   AND host.os.type == "windows"
 | EVAL k = TO_LOWER(TO_STRING(COALESCE(registry.path, registry.key))),
        writer = TO_LOWER(COALESCE(process.name, "unknown"))
-| WHERE k LIKE "%\\currentversion\\run%" OR k LIKE "%\\winlogon%" OR k LIKE "%\\image file execution options%"
-     OR k LIKE "%\\inprocserver32%" OR k LIKE "%\\control\\lsa%"
+| WHERE k LIKE """*\\currentversion\\run*""" OR k LIKE """*\\winlogon*""" OR k LIKE """*\\image file execution options*"""
+     OR k LIKE """*\\inprocserver32*""" OR k LIKE """*\\control\\lsa*"""
 | STATS writes = COUNT(*), hosts = COUNT_DISTINCT(host.id) BY writer
 | SORT hosts DESC
 | LIMIT 40

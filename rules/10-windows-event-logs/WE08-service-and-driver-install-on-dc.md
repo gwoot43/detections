@@ -25,7 +25,7 @@ FROM logs-system.system-*, logs-system.security*, logs-windows.forwarded* METADA
        host_key = TO_LOWER(MV_FIRST(SPLIT(winlog.computer_name, ".")))              // with event forwarding, host.name is the collector
 | WHERE
      img LIKE """*\\temp\\*""" OR img LIKE """*\\users\\*""" OR img LIKE """*\\programdata\\*""" OR img LIKE """*\\appdata\\*""" OR img LIKE """*\\perflogs\\*"""
-  OR img LIKE "*powershell*" OR img LIKE "*cmd.exe*/c*" OR img LIKE "*cmd /c*" OR img LIKE "*%comspec%*" OR img LIKE "*-enc*"
+  OR img LIKE "*powershell*" OR img LIKE "*cmd.exe*/c*" OR img LIKE "*cmd /c*" OR img LIKE "*comspec*" OR img LIKE "*-enc*"
   OR img LIKE "*rundll32*" OR img LIKE "*mshta*" OR img LIKE """*\\admin$\\*"""
   OR host_key LIKE "dc*" OR host_key LIKE "*-dc*"   // your DC naming: any new service on a DC is worth review
 | KEEP @timestamp, host_key, winlog.computer_name, event.code, svc, img, stype, winlog.event_data.SubjectUserName, winlog.event_data.AccountName, _id, _version, _index

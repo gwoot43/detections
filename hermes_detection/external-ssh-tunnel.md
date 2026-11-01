@@ -4,7 +4,10 @@ The original rule watched Falcon process events for `ssh`/`plink` carrying `-R` 
 
 ## Before
 
-```esql
+Kept as it was written, including the `%` wildcards - ES|QL reads `%` as a literal percent sign, so every
+one of those patterns matched nothing. That is defect one in the list below; the rest of the file is the fix.
+
+```text
 FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 | WHERE event.action == "processrollup2"
   AND process.command_line IS NOT NULL
@@ -14,17 +17,17 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 // -R or -D, incl. combined flags (-NfR, -fND1080); case-sensitive: -r/-d mean something else
   AND <flag test - not legible in the source screenshot>
 // Developer devbox instances: sanctioned and used fleet-wide
-  AND NOT cmd LIKE "*devbox*"
+  AND NOT cmd LIKE "%devbox%"
 // Destination: prefer user@host, else first dotted hostname/IP token after a space.
 // Explicit char classes, not (?<HOSTNAME>): it stops at ... user@remote server.com "remote
 | GROK process.command_line "%{USERNAME:ssh_user}@(?<dest_at>[A-Za-z0-9.-]+)"
-| GROK process.command_line "(?<dest_dotted>(?:[A-Za-z0-9_-]+(?:\.[A-Za-z0-9-]+)+)(?:\s|$))"
+| GROK process.command_line "(?<dest_dotted>(?:[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9-]+)+)(?:\\s|$))"
 | EVAL dest = TO_LOWER(COALESCE(dest_at, dest_dotted))
 // External only: drop unparsed, dotless short names / ssh-config aliases, corporate DNS suffixes, private IPs
 | WHERE dest LIKE "%.%"   // also drops null (unparsed) destinations
-  AND NOT dest LIKE "*.corp.example"
-  AND NOT dest LIKE "*.ad.example"
-| EVAL is_ip = dest RLIKE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
+  AND NOT dest LIKE "%.corp.example"
+  AND NOT dest LIKE "%.ad.example"
+| EVAL is_ip = dest RLIKE "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}"
 | EVAL is_private = CASE(is_ip, CIDR_MATCH(dest, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
                                            "127.0.0.0/8", "169.254.0.0/16"), false)
 | WHERE NOT is_private
@@ -37,9 +40,13 @@ FROM logs-yourorg-crowdstrike-data-default* METADATA _id, _index, _version
 
 ### What was wrong
 
+**`%` instead of `*`.** Every `LIKE` in the rule used SQL wildcards. ES|QL's wildcards are `*` and `?`; `%` is a
+literal percent sign, so `dest LIKE "%.%"` matched only a destination containing a percent character. The rule
+parsed, linted and returned nothing - which is indistinguishable from a rule that is working and quiet.
+
 **The case-sensitivity contradiction.** `cmd` is `TO_LOWER(process.command_line)`, and the comment above the flag test says the match is case-sensitive because `-r`/`-d` mean something else. Both cannot be true: after lowercasing, `-D` and `-d` are the same string. Whatever the flag test was doing, it was doing it on a value that had already thrown the distinction away.
 
-**Flags that never appear on the command line.** `DynamicForward 1080` or `RemoteForward 8080 localhost:22` written into `~/.ssh/config` produce `ssh host` with no flags at all. The flag test cannot see that, and then `WHERE dest LIKE "%.%"` drops the dotless alias on top of it - two filters pointing the same way, so the quiet case is invisible twice over.
+**Flags that never appear on the command line.** `DynamicForward 1080` or `RemoteForward 8080 localhost:22` written into `~/.ssh/config` produce `ssh host` with no flags at all. The flag test cannot see that, and then `WHERE dest LIKE "*.*"` drops the dotless alias on top of it - two filters pointing the same way, so the quiet case is invisible twice over.
 
 **The dotless drop removes the wrong population.** `ssh tunnel` is exactly what a config-alias backdoor looks like. Dropping unparsed destinations silently is a filter, not a decision.
 
@@ -64,17 +71,19 @@ FROM logs-yourorg-crowdstrike-data-default*
 // The destination is conventionally the last token, which is also how a config alias arrives: `ssh tunnel`.
        last_token = MV_LAST(SPLIT(TO_LOWER(process.command_line), " ")),
 // -R or -D, combined flags included (-NfR, -fND1080), matched on the RAW command line and uppercase only.
+// RLIKE is Lucene syntax: no ^ or $ anchors (they are literal), and the whole string is matched implicitly,
+// so the flag token is found by requiring a space before it and a space or "=" after it.
 // This is the test that has to stay off the lowercased copy: -D and ssh's debug -d, -R and plink's -r, are
 // different flags that lowercase into the same string. Computed once here so the gate stays cheap.
-       flag = raw RLIKE """.*(^|\s)-[A-Za-z]*(R|D)[A-Za-z]*(\s|=|$).*""",
-       tunnel = CASE(raw RLIKE """.*(^|\s)-[A-Za-z]*D[A-Za-z]*(\s|=|$).*""", "socks_dynamic",
-                     raw RLIKE """.*(^|\s)-[A-Za-z]*R[A-Za-z]*(\s|=|$).*""", "reverse",
+       flag = raw RLIKE """.*\s-[A-Za-z]*(R|D)[A-Za-z]*(\s|=).*""",
+       tunnel = CASE(raw RLIKE """.*\s-[A-Za-z]*D[A-Za-z]*(\s|=).*""", "socks_dynamic",
+                     raw RLIKE """.*\s-[A-Za-z]*R[A-Za-z]*(\s|=).*""", "reverse",
                      "unknown"),
 // A key outside the key store is the loader shape, not an administrator habit.
-       key_outside_store = cmd LIKE "%-i %" AND NOT cmd LIKE "%/.ssh/%" AND NOT cmd LIKE "%\\.ssh\\%",
+       key_outside_store = cmd LIKE "*-i *" AND NOT cmd LIKE "*/.ssh/*" AND NOT cmd LIKE """*\\.ssh\\*""",
 // -N (no command), -f (background) and autossh all mean "keep this open", which a session does not.
-       quiet = cmd LIKE "%-n %" OR cmd LIKE "%-f %" OR cmd LIKE "%autossh%",
-       proxy_cmd = cmd LIKE "%proxycommand%"
+       quiet = cmd LIKE "*-n *" OR cmd LIKE "*-f *" OR cmd LIKE "*autossh*",
+       proxy_cmd = cmd LIKE "*proxycommand*"
 // Path-suffix test, so a bundled or renamed copy under an application folder still matches.
 | WHERE (exe LIKE "*/ssh.exe" OR exe LIKE "*/plink.exe" OR exe LIKE "*/ssh" OR exe LIKE "*/plink")
   AND flag
@@ -83,10 +92,10 @@ FROM logs-yourorg-crowdstrike-data-default*
 | EVAL dest = TO_LOWER(COALESCE(dest_at, last_token)),
        dest_class = CASE(dest RLIKE """[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}""", "ipv4",
                          dest RLIKE """.*:[0-9a-f]{1,4}:.*""", "ipv6",
-                         dest LIKE "%.%", "fqdn",
+                         dest LIKE "*.*", "fqdn",
                          "alias")
 // Sanctioned destinations and the devbox platform, as command-line scoped exclusions.
-| WHERE NOT (dest LIKE "*.corp.example" OR dest LIKE "*.ad.example" OR cmd LIKE "%devbox%")
+| WHERE NOT (dest LIKE "*.corp.example" OR dest LIKE "*.ad.example" OR cmd LIKE "*devbox*")
 // Private and special ranges, IPv4 only. 100.64.0.0/10 is CGNAT - Tailscale lives there, and a devbox on a
 // tailnet otherwise reads as an external destination.
   AND NOT CASE(dest_class == "ipv4",
@@ -140,7 +149,7 @@ FROM logs-yourorg-crowdstrike-data-default*
   AND (process.executable LIKE "*/ssh" OR process.executable LIKE "*/ssh.exe"
        OR process.executable LIKE "*/plink" OR process.executable LIKE "*/plink.exe")
 | EVAL cmd = TO_LOWER(process.command_line), raw = process.command_line,
-       flag = raw RLIKE """.*(^|\s)-[A-Za-z]*(R|D)[A-Za-z]*(\s|=|$).*"""
+       flag = raw RLIKE """.*\s-[A-Za-z]*(R|D)[A-Za-z]*(\s|=).*"""
 | WHERE flag
 | GROK process.command_line "%{USERNAME:ssh_user}@(?<dest_at>[A-Za-z0-9.-]+)"
 | EVAL dest = TO_LOWER(COALESCE(dest_at, MV_LAST(SPLIT(cmd, " "))))

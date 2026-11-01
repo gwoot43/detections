@@ -26,6 +26,9 @@ CHECKS = {
     "E-THRESHOLD": "a threshold with no recorded source (no 'baseline' or 'source' comment)",
     "E-METADATA": "METADATA on an aggregating rule",
     "E-EXCLUSION": "an exclusion removes an entire host, user or address",
+    "E-LIKE-PERCENT": "SQL wildcard '%' in a LIKE pattern; ES|QL uses '*' and '?', so '%' is a literal and the test can never match (justify with a '// literal %' comment if it really is one)",
+    "E-LIKE-ESCAPE": "a single backslash in a quoted LIKE pattern; the literal unescapes before LIKE sees it, so use a triple-quoted string",
+    "E-RLIKE-ANCHOR": "'^' or '$' in an RLIKE pattern; ES|QL RLIKE is Lucene, where they are literal characters, not anchors",
     # CQL / LogScale
     "C-TAG": "the query doesn't start with a tag field",
     "C-SHAPE-FIRST": "an assignment runs before the gate filters",
@@ -45,6 +48,16 @@ ESQL_FUNCS = re.compile(r"\b(TO_LOWER|TO_UPPER|COALESCE|CONCAT|TO_STRING|TO_INTE
 ESQL_HC = r"process\.command_line|process\.executable|process\.entity_id|destination\.ip|source\.ip|file\.path|file\.name|dns\.question\.name|url\.original|url\.full|url\.path|user_agent\.original|registry\.path|registry\.data\.strings"
 CQL_HC = re.compile(r"\b(CommandLine|ImageFileName|TargetFileName|RemoteAddressIP4|RemoteAddressIP6|RemoteAddress|DomainName|FirstIP4Record|LocalAddressIP4)\b")
 THRESHOLD_SOURCE = re.compile(r"(?i)//.*\b(baseline|source:|p9[59]|percentile)")
+# LIKE/RLIKE operands: a triple-quoted string, or a plain one with escapes
+_ESQL_LITERAL = r'("""(?:[^"]|"(?!""))*"""|"(?:[^"\\]|\\.)*")'
+LIKE_LIT = re.compile(r"\bLIKE\s+" + _ESQL_LITERAL)
+RLIKE_LIT = re.compile(r"\bRLIKE\s+" + _ESQL_LITERAL)
+
+
+def _literal_body(lit):
+    """The pattern text inside the quotes, triple-quoted or not."""
+    return lit[3:-3] if lit.startswith('"""') else lit[1:-1]
+
 # a case {} used as a filter (no * branch on purpose) says so in a comment just above it
 FILTER_CASE = re.compile(r"(?i)//.*(deliberately no|no \* branch|no default branch)")
 
@@ -120,6 +133,23 @@ def lint_esql(block):
             found.append("E-METADATA")
     if re.search(r"NOT\s+(host\.id|host\.name|user\.name|user\.id)\s+IN\s*\(|\b(host\.id|host\.name|user\.name|user\.id)\s+NOT\s+IN\s*\(|NOT\s+CIDR_MATCH\(\s*source\.ip", code):
         found.append("E-EXCLUSION")
+    # wildcard semantics: a rule can parse, lint and match nothing, which looks exactly like a quiet rule
+    literal_pct = re.search(r"(?i)//.*\bliteral %", block)
+    if not literal_pct:
+        for m in LIKE_LIT.finditer(code):
+            if "%" in _literal_body(m.group(1)):
+                found.append("E-LIKE-PERCENT"); break
+    for m in LIKE_LIT.finditer(code):
+        lit = m.group(1)
+        if lit.startswith('"""'):
+            continue
+        if re.search(r"(?<!\\)\\", _literal_body(lit).replace("\\\\", "")):
+            found.append("E-LIKE-ESCAPE"); break
+    for m in RLIKE_LIT.finditer(code):
+        # [^...] is a negated character class, not an anchor
+        body = _literal_body(m.group(1)).replace("[^", "")
+        if "^" in body or "$" in body:
+            found.append("E-RLIKE-ANCHOR"); break
     return found
 
 

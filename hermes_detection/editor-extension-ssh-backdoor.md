@@ -20,17 +20,17 @@ FROM logs-yourorg-crowdstrike-data-default*
        origin = TO_LOWER(COALESCE(process.parent.executable, ""))
 // -R is the reverse forward; -N is "run no command", which is what makes it a tunnel rather than a session.
 // autossh exists only to keep a tunnel alive, so it counts as -N even when the flag is spelled differently.
-| EVAL reverse_tunnel = (proc IN ("ssh", "ssh.exe", "autossh", "autossh.exe") OR cl LIKE "%autossh%")
-                       AND (cl LIKE "%-r %" OR cl LIKE "%-r=%")
-                       AND (cl LIKE "%-n %" OR cl LIKE "%autossh%")
+| EVAL reverse_tunnel = (proc IN ("ssh", "ssh.exe", "autossh", "autossh.exe") OR cl LIKE "*autossh*")
+                       AND (cl LIKE "*-r *" OR cl LIKE "*-r=*")
+                       AND (cl LIKE "*-n *" OR cl LIKE "*autossh*")
 // The flags a loader needs: no known_hosts, no prompt, no host-key verification, keepalives on.
-| EVAL blind = cl LIKE "%stricthostkeychecking=no%" OR cl LIKE "%userknownhostsfile=/dev/null%"
-              OR cl LIKE "%userknownhostsfile=nul%" OR cl LIKE "%batchmode=yes%"
-              OR cl LIKE "%serveraliveinterval%",
+| EVAL blind = cl LIKE "*stricthostkeychecking=no*" OR cl LIKE "*userknownhostsfile=/dev/null*"
+              OR cl LIKE "*userknownhostsfile=nul*" OR cl LIKE "*batchmode=yes*"
+              OR cl LIKE "*serveraliveinterval*",
 // The parent is the other half: an editor's extension host, or a shell loop the loader started.
        from_editor = parent IN ("node", "node.exe", "code", "code.exe", "cursor", "cursor.exe",
                                 "electron", "electron.exe", "code helper (plugin)", "extensionhost")
-                     OR origin LIKE "%cursor%" OR origin LIKE "%visual studio code%"
+                     OR origin LIKE "*cursor*" OR origin LIKE "*visual studio code*"
 | WHERE reverse_tunnel AND (blind OR from_editor)
 | STATS launches = COUNT(*),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
@@ -63,9 +63,9 @@ Plain indicators, no detection logic - useful while the incident is fresh, and u
 FROM logs-yourorg-crowdstrike-data-default*
 | WHERE @timestamp >= NOW() - 30 days
 | EVAL cl = TO_LOWER(COALESCE(process.command_line, ""))
-| WHERE cl LIKE "%svc-telemetry%" OR cl LIKE "%.stk_%" OR cl LIKE "%/.config/.smt%"
-     OR cl LIKE "%\\.config\\smt.cmd%" OR cl LIKE "%\\.config\\smtk%"
-     OR cl LIKE "%startup\\sysmon.cmd%"
+| WHERE cl LIKE "*svc-telemetry*" OR cl LIKE "*.stk_*" OR cl LIKE "*/.config/.smt*"
+     OR cl LIKE """*\\.config\\smt.cmd*""" OR cl LIKE """*\\.config\\smtk*"""
+     OR cl LIKE """*startup\\sysmon.cmd*"""
 | STATS hits = COUNT(*), first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
         cmd = MV_SLICE(VALUES(process.command_line), 0, 3)
     BY host.id, host.name
