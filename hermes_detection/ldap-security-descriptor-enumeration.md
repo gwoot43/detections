@@ -1,13 +1,22 @@
 # AD ACL / security-descriptor enumeration (4662)
 
+> **Not deployable in this estate.** The `0x10` (read property) and `0x100` (control access) masks are not
+> being written - a probe returns only replication and write masks - so this rule matches nothing however it
+> is tuned. **The deployed rule is [`ldap-directory-reach.md`](ldap-directory-reach.md)**, which works from
+> the network side. This file is kept as the reference for the day the SACL is widened: it is the better
+> detection of the two, because it observes the read itself and needs no topology assumptions.
+
 BloodHound-class collection ends by asking the directory for the **security descriptor** of many objects, because the DACL is the attack graph: every ACE is a possible `GenericAll`, `WriteDACL`, `WriteOwner`, `ForceChangePassword` or RBCD edge. Clients request it with the `LDAP_SERVER_SD_FLAGS_OID` control (OWNER 0x1, GROUP 0x2, DACL 0x4, SACL 0x8) and skip the SACL - **SharpHound asks 0x4/0x5, SoaPy and SOAPHound ask 0x7** - so the family is "owner/group/DACL without SACL", which is what Schwartz's BloodHound-family rule keys on. The precise server-side signal is Directory Service **1644** with `SDFlags:`, but **we do not collect 1644**: it only fires when NTDS diagnostics are raised to Level 5, and that is 10-50k EPS on a busy DC. What we do collect is **4662** (I01, AD04 and AD09 already depend on it), so the rule below works from that: one account touching **many distinct directory objects** through read-property or control-access. Caveat first - 4662 only records this if the object's SACL audits that access, so run the probe before trusting it, and if SD reads never appear, the LDAP half of collection is visible only on the network side (**24**). The threshold is a starting value; suppress by the subject account for 6h.
 
 ```esql
 FROM logs-yourorg-microsoft-windows*
+// 15-minute window stated in the query - the rule settings are not enough, an analyst who reopens this in
+// Discover over a week is running a different rule.
+| WHERE @timestamp >= NOW() - 15 minutes
 // 4662 = an operation on a SACL-audited AD object. 0x10 = read property, 0x100 = control access - the
 // rights that cover reading an object's security descriptor. (winlog.event_data.* if you run the
 // Elastic integration rather than this pipeline.)
-| WHERE event.code == "4662"
+  AND event.code == "4662"
   AND winevt.event_data.access_mask IN ("0x10", "0x100")
 // The replication rights are DCSync - that is I01's rule. Leaving them in makes this fire on every DCSync.
 // Leading wildcard on purpose: the GUID sits inside a brace list in the properties field, not at the start.
@@ -39,6 +48,20 @@ FROM logs-yourorg-microsoft-windows*
 | LIMIT 25
 ```
 If `0x10` / `nTSecurityDescriptor` never appears there while you know a tool read ACLs, that SACL is not set: no DC-side rule will see the read, and 24 (FDR fan-out across DCs) is the only view left.
+
+## The probe that established this
+
+Run before deploying, and again if the SACL is ever widened - it is the difference between a rule that works and one that matches nothing:
+
+```esql
+FROM logs-yourorg-microsoft-windows*
+| WHERE @timestamp >= NOW() - 24 hours
+  AND event.code == "4662"
+| STATS events = COUNT(*), last = MAX(@timestamp) BY winevt.event_data.access_mask
+| SORT events DESC
+| LIMIT 25
+```
+`0x10` (read property) and `0x100` (control access) absent = SD reads are not audited, and the `access_mask IN ("0x10", "0x100")` gate above returns nothing. On this estate that is exactly what it returns: only the write-side masks appear, which is why the deployed rule is `ldap-directory-reach.md`.
 
 ## References
 
