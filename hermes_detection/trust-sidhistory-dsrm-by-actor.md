@@ -7,13 +7,13 @@
 **The rows carry no actor.** WE03 keeps `message` - the rendered event text, which is the largest column in the index - and the analyst reads the answer out of a sentence. Grouping by `kind` and `actor` makes the finding the grouping, so "who created a trust" is the first column instead of a paragraph.
 
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 // One hour, stated in the query: these are rare events and a short window keeps the counts readable.
 | WHERE @timestamp >= NOW() - 1 hour
   AND event.code IN ("4706", "4716", "4765", "4766", "4794")
-| EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name, "")),
-       target = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),
-       trust = TO_LOWER(COALESCE(winlog.event_data.TargetDomainName, "")),
+| EVAL actor = TO_LOWER(COALESCE(winevt.event_data.subject_user_name, user.name, "")),
+       target = TO_LOWER(COALESCE(winevt.event_data.target_user_name, "")),
+       trust = TO_LOWER(COALESCE(winevt.event_data.target_domain_name, "")),
        kind = CASE(event.code == "4706", "trust_created",
                    event.code == "4716", "trust_modified",
                    event.code IN ("4765", "4766"), "sid_history",
@@ -25,7 +25,7 @@ FROM logs-system.security*, logs-windows.forwarded*
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
         targets = MV_SLICE(VALUES(target), 0, 4),
         trusts = MV_SLICE(VALUES(trust), 0, 4),
-        dcs = COUNT_DISTINCT(winlog.computer_name)
+        dcs = COUNT_DISTINCT(host.name)
     BY kind, actor
 | SORT events DESC
 | LIMIT 100
@@ -53,10 +53,10 @@ Deploy every 15 minutes over the last hour. Suppress by `kind` + `actor` for 24h
 
 ## Baseline
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 90 days
   AND event.code IN ("4706", "4716", "4765", "4766", "4794")
-| EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name, "")),
+| EVAL actor = TO_LOWER(COALESCE(winevt.event_data.subject_user_name, user.name, "")),
        kind = CASE(event.code == "4706", "trust_created", event.code == "4716", "trust_modified",
                    event.code IN ("4765", "4766"), "sid_history", "dsrm_password")
 | STATS events = COUNT(*), last = MAX(@timestamp) BY kind, actor
@@ -64,6 +64,12 @@ FROM logs-system.security*, logs-windows.forwarded*
 | LIMIT 40
 ```
 Every actor on this list is a sanctioned one until proven otherwise - the point is to have the list before the first alert, so the first unusual actor stands out rather than being lost in a novelty discussion.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
 
 ## References
 - `rules/10-windows-event-logs/WE03-directory-defense-changes.md` - the rule this refines; same five events, actor-grouped, with the 4716 rotation noise removed
