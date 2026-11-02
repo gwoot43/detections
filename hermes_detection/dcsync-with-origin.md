@@ -5,12 +5,12 @@
 Why the third GUID matters: `1131f6aa` (plain Get-Changes) is excluded from I01 on purpose, because DirSync-based audit products use it constantly and it releases no secrets. Kept as its own column here instead of as a filter, so a run that requests only base replication is still visible without turning the rule into a DirSync alert.
 
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 // 15 minutes in the query: one DCSync run emits many 4662 rows, and the enrichment below needs a window.
 | WHERE @timestamp >= NOW() - 15 minutes
   AND event.code IN ("4662", "4624")
-| EVAL subject = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name, "")),
-       props = TO_LOWER(TO_STRING(winlog.event_data.Properties)),
+| EVAL subject = TO_LOWER(COALESCE(winevt.event_data.subject_user_name, user.name, "")),
+       props = TO_LOWER(TO_STRING(winevt.event_data.properties)),
 // The three replication rights. Get-Changes alone is routine directory sync and releases nothing; the pair
 // with Get-Changes-All is what dumps hashes. Counted separately rather than filtered, so a base-replication
 // only run still produces a row.
@@ -19,15 +19,15 @@ FROM logs-system.security*, logs-windows.forwarded*
        base_changes = props LIKE "*1131f6aa-9c07-11d1-f79f-00c04fc2dcd2*",
        repl = event.code == "4662" AND (all_changes OR filtered OR base_changes),
 // 4624 type 3 = a network logon, which is where the requesting account's address is recorded. 4662 never has one.
-       net_logon = event.code == "4624" AND TO_STRING(winlog.event_data.LogonType) == "3"
+       net_logon = event.code == "4624" AND TO_STRING(winevt.event_data.logon_type) == "3"
 // Machine accounts replicate by design: every DC, and gMSAs such as Entra Cloud Sync's.
 | WHERE NOT subject LIKE "*$"
 | STATS replications = COUNT(*) WHERE repl,
         secret_reads = COUNT(*) WHERE all_changes OR filtered,
-        objects = COUNT_DISTINCT(winlog.event_data.ObjectName, 4000) WHERE repl,
-        dcs = COUNT_DISTINCT(winlog.computer_name),
-        masks = MV_SLICE(VALUES(winlog.event_data.AccessMask), 0, 3),
-        logon_ips = MV_SLICE(VALUES(CASE(net_logon, winlog.event_data.IpAddress, NULL)), 0, 6),
+        objects = COUNT_DISTINCT(winevt.event_data.object_name, 4000) WHERE repl,
+        dcs = COUNT_DISTINCT(host.name),
+        masks = MV_SLICE(VALUES(winevt.event_data.access_mask), 0, 3),
+        logon_ips = MV_SLICE(VALUES(CASE(net_logon, winevt.event_data.ip_address, NULL)), 0, 6),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY subject
 // Any replication by a user account is the event - the floor of 1 is deliberate, not a tuned number. secret_reads
@@ -60,14 +60,20 @@ Deploy every 5 minutes over the last 15. Suppress by `subject` for 1h.
 ## Probe before trusting it
 I01 carries the same prerequisite and this one inherits it: the 4662 replication rows must actually be written.
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 30 days AND event.code == "4662"
 | STATS events = COUNT(*), last = MAX(@timestamp)
-    BY winlog.event_data.SubjectUserName, winlog.event_data.AccessMask
+    BY winevt.event_data.subject_user_name, winevt.event_data.access_mask
 | SORT events DESC
 | LIMIT 30
 ```
 If the top rows are machine accounts and a sync account carrying a mask, the audit is live. If no row carries a replication GUID, DCSync is unobservable from this log and the detection has to move to the network side.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
 
 ## References
 - `rules/05-identity/I01-dcsync.md` - the canonical rule this extends; same anchor, plus origin and the third GUID

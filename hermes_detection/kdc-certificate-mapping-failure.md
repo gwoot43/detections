@@ -9,22 +9,22 @@ Since the 2022 certificate-mapping changes (KB5014754), the KDC checks that a lo
 `rules/14-ad-attack/AD17` has the three events and the provider filter. This version drops the rendered `message` from the payload (the largest column in the index), extracts the **account** so the alert names who was refused, and says plainly which of the three is noise in a mixed-enforcement estate.
 
 ```esql
-FROM logs-system.system*
+FROM logs-yourorg-microsoft-windows*
 // One hour in the query: these are rare, and a refused logon arrives in bursts when an attacker retries.
 | WHERE @timestamp >= NOW() - 1 hour
   AND event.code IN ("39", "40", "41")
 // 39-41 are reused by other providers in the System log; the KDC is the only one that means this.
-  AND winlog.provider_name IN ("Microsoft-Windows-Kerberos-Key-Distribution-Center", "Kdcsvc")
+  AND winevt.provider_name IN ("Microsoft-Windows-Kerberos-Key-Distribution-Center", "Kdcsvc")
 | EVAL reason = CASE(event.code == "41", "certificate_sid_is_another_account",
                      event.code == "40", "certificate_older_than_account",
                      "no_strong_mapping"),
-       account = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, winlog.event_data.AccountName, "")),
+       account = TO_LOWER(COALESCE(winevt.event_data.target_user_name, winevt.event_data.account_name, "")),
 // 39 is the legacy-certificate population: in an estate that has not finished enforcement, stack it as its
 // own row so 41 is not buried under it.
        severity = CASE(event.code IN ("40", "41"), "high", "triage") 
 | STATS events = COUNT(*),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
-        dcs = COUNT_DISTINCT(winlog.computer_name)
+        dcs = COUNT_DISTINCT(host.name)
     BY reason, severity, account
 | SORT events DESC
 | LIMIT 100
@@ -50,13 +50,19 @@ Deploy every 15 minutes over the last hour. Suppress by `reason` + `account` for
 
 ## Probe before enabling
 ```esql
-FROM logs-system.system*
+FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 30 days AND event.code IN ("39", "40", "41")
-| STATS events = COUNT(*), last = MAX(@timestamp) BY winlog.provider_name, event.code
+| STATS events = COUNT(*), last = MAX(@timestamp) BY winevt.provider_name, event.code
 | SORT events DESC
 | LIMIT 20
 ```
 The provider list is a filter, not a guess: if the codes appear only under other providers, your DCs are logging this somewhere else — or the KDC auditing is off and the rule is dead.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
 
 ## References
 - `rules/14-ad-attack/AD17-kdc-certificate-mapping-failure.md` - the rule this refines

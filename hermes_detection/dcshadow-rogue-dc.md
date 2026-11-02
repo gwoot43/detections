@@ -5,16 +5,16 @@ A domain controller is three directory facts: a **server object** and an **NTDS 
 `rules/14-ad-attack/AD01` has the right two anchors. This version changes three things: the **target check is an entity list rather than a comment**, the `OperationType` test tolerates both spellings, and the actor is kept as a column so the alert names who registered it.
 
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 // 15 minutes in the query: a rogue registration is a handful of events seconds apart.
 | WHERE @timestamp >= NOW() - 15 minutes
   AND event.code IN ("5137", "5136")
-| EVAL cls = TO_LOWER(TO_STRING(winlog.event_data.ObjectClass)),
-       dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),
-       attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),
-       val = TO_LOWER(TO_STRING(winlog.event_data.AttributeValue)),
-       actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name, "")),
-       optype = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.OperationType), ""))
+| EVAL cls = TO_LOWER(TO_STRING(winevt.event_data.object_class)),
+       dn = TO_LOWER(TO_STRING(winevt.event_data.object_dn)),
+       attr = TO_LOWER(TO_STRING(winevt.event_data.attribute_ldap_display_name)),
+       val = TO_LOWER(TO_STRING(winevt.event_data.attribute_value)),
+       actor = TO_LOWER(COALESCE(winevt.event_data.subject_user_name, user.name, "")),
+       optype = TO_LOWER(COALESCE(TO_STRING(winevt.event_data.operation_type), ""))
 // The two shapes. Object creation is unambiguous; the SPN add is the same fact attached to an existing computer.
 | EVAL dc_object_created = event.code == "5137" AND cls IN ("ntdsdsa", "server")
                           AND dn LIKE "*cn=sites,cn=configuration,*",
@@ -31,7 +31,7 @@ FROM logs-system.security*, logs-windows.forwarded*
         objects = MV_SLICE(VALUES(dn), 0, 5),
         values = MV_SLICE(VALUES(val), 0, 4),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY actor, winlog.computer_name
+    BY actor, host.name
 | SORT events DESC
 | LIMIT 100
 ```
@@ -56,12 +56,18 @@ Deploy every 5 minutes over the last 15. Suppress by `actor` for 24h.
 
 ## Probe before enabling
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 30 days AND event.code IN ("5136", "5137")
-| STATS events = COUNT(*), last = MAX(@timestamp) BY event.code, winlog.channel
+| STATS events = COUNT(*), last = MAX(@timestamp) BY event.code, winevt.channel
 | SORT events DESC
 ```
 5137 requires a SACL on the Sites container auditing object creation, and 5136 the usual directory-object auditing. If 5137 returns nothing at all, only the SPN shape is live — say so in the rule description rather than shipping a branch that cannot fire.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
 
 ## References
 - `rules/14-ad-attack/AD01-dcshadow-rogue-dc-registration.md` - the rule this refines

@@ -14,7 +14,7 @@ FROM logs-yourorg-microsoft-windows*
 // Discover over a week is running a different rule.
 | WHERE @timestamp >= NOW() - 15 minutes
 // 4662 = an operation on a SACL-audited AD object. 0x10 = read property, 0x100 = control access - the
-// rights that cover reading an object's security descriptor. (winlog.event_data.* if you run the
+// rights that cover reading an object's security descriptor. (winevt.event_data.* if you run the
 // Elastic integration rather than this pipeline.)
   AND event.code == "4662"
   AND winevt.event_data.access_mask IN ("0x10", "0x100")

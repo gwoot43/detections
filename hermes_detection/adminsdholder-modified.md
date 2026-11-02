@@ -5,16 +5,16 @@
 `rules/05-identity/I11` has the right object and the right `value added` operation. Two changes here: the **ACL write (`nTSecurityDescriptor`) is separated from other attribute writes** — the ACL is the abuse, and anything else on this object is a different conversation — and the **added ACE is carried as the finding**, with the trustee named, because that is what the analyst has to remove.
 
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 // One hour in the query: SDProp runs hourly, so the window matches the propagation cycle.
 | WHERE @timestamp >= NOW() - 1 hour
   AND event.code == "5136"
-| EVAL dn = TO_LOWER(TO_STRING(winlog.event_data.ObjectDN)),
-       attr = TO_LOWER(TO_STRING(winlog.event_data.AttributeLDAPDisplayName)),
-       actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, user.name, "")),
-       optype = TO_LOWER(COALESCE(TO_STRING(winlog.event_data.OperationType), "")),
-       val = TO_STRING(winlog.event_data.AttributeValue),
-       op_id = TO_STRING(winlog.event_data.OpCorrelationID)
+| EVAL dn = TO_LOWER(TO_STRING(winevt.event_data.object_dn)),
+       attr = TO_LOWER(TO_STRING(winevt.event_data.attribute_ldap_display_name)),
+       actor = TO_LOWER(COALESCE(winevt.event_data.subject_user_name, user.name, "")),
+       optype = TO_LOWER(COALESCE(TO_STRING(winevt.event_data.operation_type), "")),
+       val = TO_STRING(winevt.event_data.attribute_value),
+       op_id = TO_STRING(winevt.event_data.op_correlation_id)
 | WHERE dn LIKE "*cn=adminsdholder,cn=system,*"
 // The paired "value deleted" event repeats the old value; only the addition grants anything.
   AND (optype == "value added" OR optype LIKE "*14674*")
@@ -26,7 +26,7 @@ FROM logs-system.security*, logs-windows.forwarded*
         attributes = MV_SLICE(VALUES(attr), 0, 4),
         ops = MV_SLICE(VALUES(op_id), 0, 3),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY shape, actor, winlog.computer_name
+    BY shape, actor, host.name
 | SORT changes DESC
 | LIMIT 100
 ```
@@ -51,14 +51,20 @@ Deploy every 15 minutes over the last hour. Suppress by `actor` + `shape` for 24
 
 ## Probe before enabling
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 30 days AND event.code == "5136"
-| STATS events = COUNT(*), last = MAX(@timestamp) BY winlog.event_data.ObjectDN
-| WHERE winlog.event_data.ObjectDN LIKE "*cn=system,*"
+| STATS events = COUNT(*), last = MAX(@timestamp) BY winevt.event_data.object_dn
+| WHERE winevt.event_data.object_dn LIKE "*cn=system,*"
 | SORT events DESC
 | LIMIT 10
 ```
 Empty means directory-object auditing is not covering the System container, and this rule is a dead letter regardless of tuning.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
 
 ## References
 - `rules/05-identity/I11-adminsdholder-modified.md` - the rule this refines
