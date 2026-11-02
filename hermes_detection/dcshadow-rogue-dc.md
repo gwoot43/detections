@@ -31,7 +31,7 @@ FROM logs-yourorg-microsoft-windows*
         objects = MV_SLICE(VALUES(dn), 0, 5),
         values = MV_SLICE(VALUES(val), 0, 4),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY actor, host.name
+    BY actor, winlog.computer_name
 | SORT events DESC
 | LIMIT 100
 ```
@@ -64,10 +64,11 @@ FROM logs-yourorg-microsoft-windows*
 5137 requires a SACL on the Sites container auditing object creation, and 5136 the usual directory-object auditing. If 5137 returns nothing at all, only the SPN shape is live — say so in the rule description rather than shipping a branch that cannot fire.
 
 ## Pipeline
-DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
-source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
-confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
-of failing.
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 - `rules/14-ad-attack/AD01-dcshadow-rogue-dc-registration.md` - the rule this refines

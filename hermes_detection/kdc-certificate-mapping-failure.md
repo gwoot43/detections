@@ -24,7 +24,7 @@ FROM logs-yourorg-microsoft-windows*
        severity = CASE(event.code IN ("40", "41"), "high", "triage") 
 | STATS events = COUNT(*),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
-        dcs = COUNT_DISTINCT(host.name)
+        dcs = COUNT_DISTINCT(winlog.computer_name)
     BY reason, severity, account
 | SORT events DESC
 | LIMIT 100
@@ -59,10 +59,11 @@ FROM logs-yourorg-microsoft-windows*
 The provider list is a filter, not a guess: if the codes appear only under other providers, your DCs are logging this somewhere else — or the KDC auditing is off and the rule is dead.
 
 ## Pipeline
-DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
-source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
-confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
-of failing.
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 - `rules/14-ad-attack/AD17-kdc-certificate-mapping-failure.md` - the rule this refines
