@@ -26,8 +26,9 @@ Every rule targets the data stream that Elastic's own integration writes to (`lo
 
 | Source | Integration (data stream) | Pattern used |
 |---|---|---|
-| Windows Security channel | System (`security`); Windows (`forwarded`) for WEF collectors | `logs-system.security*, logs-windows.forwarded*` |
-| Windows System channel | System (`system`) | `logs-system.system-*` |
+| Windows Security channel (portable catalogue) | System (`security`); Windows (`forwarded`) for WEF collectors | `logs-system.security*, logs-windows.forwarded*` |
+| Windows System channel (portable catalogue) | System (`system`) | `logs-system.system-*` |
+| Windows DC/AD events — this estate's deployed rules | Your own Windows pipeline, not the Elastic integration | `logs-yourorg-microsoft-windows*` (replace `yourorg`); fields under `winevt.event_data.*` |
 | Defender AV Operational channel | Windows (`windows_defender`) | `logs-windows.windows_defender-*` |
 | Defender for Endpoint alerts | M365 Defender (`alert`) | `logs-m365_defender.alert-*` |
 | CrowdStrike FDR | Your own FDR pipeline (`crowdstrike.data`), not the Elastic integration | `logs-yourorg-crowdstrike-data-default*` (replace `yourorg`) |
@@ -43,6 +44,12 @@ Every rule targets the data stream that Elastic's own integration writes to (`lo
 - `event.dataset` is `crowdstrike.data`.
 
 Falcon detections (CS04, X01) still read the integration's alert stream, `logs-crowdstrike.alert-*`. LogScale queries run in Falcon itself and keep Falcon's own names (`#event_simpleName=ProcessRollup2`).
+
+**This estate's Windows DC/AD events come from your own pipeline too.** The `rules/` catalogue is portable and targets the Elastic integration streams above (`logs-system.security*`, `logs-windows.forwarded*`, `logs-system.system-*`). The deployed detections in `hermes_detection/` instead read this estate's single Windows log, **`logs-yourorg-microsoft-windows*`** — Security, System and the KDC provider all land in the one index, so it is the only source every DC and AD rule uses. Two things differ from the integration schema, and every `hermes_detection/` DC/AD rule is written for them:
+- Event-data fields are under `winevt.event_data.*` in **snake_case** (`subject_user_name`, `target_sid`, `attribute_ldap_display_name`, `access_mask`, `properties`), not `winlog.event_data.*` in PascalCase.
+- The originating host is `host.name` (not `winlog.computer_name`), and the provider and channel are `winevt.provider_name` / `winevt.channel`.
+
+As with FDR, a field that does not exist on this pipeline returns null rather than erroring, so a mis-mapped key makes the rule match nothing silently — the same failure mode as the `%`-wildcard bug, one layer down. Confirm the snake_case names (`attribute_ldap_display_name`, `operation_type`, `primary_group_id`, and the unverified `winevt.provider_name` / `winevt.channel`) with each rule's probe before trusting it.
 
 There is **no `windows.security` data stream**. Windows Security events land in `logs-system.security-*` when the Elastic Agent System integration collects them locally, or in `logs-windows.forwarded-*` when a collector reads the Forwarded Events channel. Elastic's prebuilt rules query both (`logs-system.security*, logs-windows.forwarded*, winlogbeat-*`). Add `winlogbeat-*` if any of your hosts still ship with Winlogbeat.
 
