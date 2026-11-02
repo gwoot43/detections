@@ -29,7 +29,7 @@ FROM logs-yourorg-microsoft-windows*
 // One row per account: how many different objects it looked at, and which properties it asked for.
 | STATS objects = COUNT_DISTINCT(winevt.event_data.object_name, 4000),
         props = MV_SLICE(VALUES(winevt.event_data.properties), 0, 5),
-        dcs = COUNT_DISTINCT(host.name),
+        dcs = COUNT_DISTINCT(winlog.computer_name),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
     BY user.name
 // 100 distinct objects in 15 minutes is a starting value - an admin checks a handful, a collector walks
@@ -62,6 +62,13 @@ FROM logs-yourorg-microsoft-windows*
 | LIMIT 25
 ```
 `0x10` (read property) and `0x100` (control access) absent = SD reads are not audited, and the `access_mask IN ("0x10", "0x100")` gate above returns nothing. On this estate that is exactly what it returns: only the write-side masks appear, which is why the deployed rule is `ldap-directory-reach.md`.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 

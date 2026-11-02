@@ -39,7 +39,7 @@ FROM logs-yourorg-microsoft-windows*
         members = MV_SLICE(VALUES(member), 0, 5),
         groups = MV_SLICE(VALUES(group_sid), 0, 3),
         objects = MV_SLICE(VALUES(winevt.event_data.object_name), 0, 3),
-        dcs = COUNT_DISTINCT(host.name)
+        dcs = COUNT_DISTINCT(winlog.computer_name)
     BY shape, tier0, actor
 | SORT first_seen ASC
 | LIMIT 100
@@ -64,7 +64,7 @@ Deploy every 5 minutes over the last 15. Suppress by `actor` + `members` for 24h
 - **Nested membership**: adding an account to a group that is *itself* a member of Domain Admins produces one 4728, on the other group's SID. Covering it needs a membership lookup, not a threshold - the honest answer is that a rule on RIDs cannot see it.
 - **SID History injection** of a privileged SID, which is `4765/4766` and belongs with `trust-sidhistory-dsrm-by-actor`.
 - **A direct ACL grant** instead of membership: `GenericAll` on the domain object, DCSync rights (`AD02`), or an ACE on `AdminSDHolder` (`adminsdholder-modified`). Attackers increasingly prefer these precisely because membership rules are common.
-- **`4732` on a DC for the built-in Administrators group** is included, but the same event on a member server is not - scope by `host.name` if you want both.
+- **`4732` on a DC for the built-in Administrators group** is included, but the same event on a member server is not - scope by the event's computer name if you want both.
 - **Audit Account Management being off** on the DCs, which produces no 4728/4732/4756 at all.
 
 ## Probe before enabling
@@ -87,10 +87,11 @@ FROM logs-yourorg-microsoft-windows*
 Lowercase SIDs, or an empty `target_sid` column, are what a 4728-only rule silently dies on. Finally, for the `4662` branch, print what the pipeline actually puts in `properties` on a user object before trusting the `primarygroupid` match.
 
 ## Pipeline
-DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
-source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
-confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
-of failing.
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 - `certipy_detections/11-user-added-to-domain-admins.md` - the earlier 4728-only rule; this covers the group types and the primaryGroupID route it cannot see
