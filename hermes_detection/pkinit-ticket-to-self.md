@@ -28,7 +28,7 @@ FROM logs-yourorg-microsoft-windows*
         issuers = MV_SLICE(VALUES(winevt.event_data.cert_issuer_name), 0, 2),
         serials = MV_SLICE(VALUES(winevt.event_data.cert_serial_number), 0, 2),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY account_sid, account, client, host.name
+    BY account_sid, account, client, winlog.computer_name
 // Both halves in the same window on the same DC from the same address, for the same account: the finding.
 // No threshold to baseline - the conjunction is the detection.
 | WHERE account_sid IS NOT NULL AND cert_logons >= 1 AND self_tickets >= 1
@@ -66,10 +66,11 @@ FROM logs-yourorg-microsoft-windows*
 If no 4768 carries a `PreAuthType` of 15/16/17 despite smartcards being in use, the field is not being populated and the first half of the pair never matches.
 
 ## Pipeline
-DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
-source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
-confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
-of failing.
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 - `rules/14-ad-attack/AD16-pkinit-then-ticket-to-self-unpac-the-hash.md` - the rule this refines

@@ -25,7 +25,7 @@ FROM logs-yourorg-microsoft-windows*
 | STATS replications = COUNT(*) WHERE repl,
         secret_reads = COUNT(*) WHERE all_changes OR filtered,
         objects = COUNT_DISTINCT(winevt.event_data.object_name, 4000) WHERE repl,
-        dcs = COUNT_DISTINCT(host.name),
+        dcs = COUNT_DISTINCT(winlog.computer_name),
         masks = MV_SLICE(VALUES(winevt.event_data.access_mask), 0, 3),
         logon_ips = MV_SLICE(VALUES(CASE(net_logon, winevt.event_data.ip_address, NULL)), 0, 6),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
@@ -70,10 +70,11 @@ FROM logs-yourorg-microsoft-windows*
 If the top rows are machine accounts and a sync account carrying a mask, the audit is live. If no row carries a replication GUID, DCSync is unobservable from this log and the detection has to move to the network side.
 
 ## Pipeline
-DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
-source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
-confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
-of failing.
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 - `rules/05-identity/I01-dcsync.md` - the canonical rule this extends; same anchor, plus origin and the third GUID

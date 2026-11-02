@@ -26,7 +26,7 @@ FROM logs-yourorg-microsoft-windows*
         attributes = MV_SLICE(VALUES(attr), 0, 4),
         ops = MV_SLICE(VALUES(op_id), 0, 3),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY shape, actor, host.name
+    BY shape, actor, winlog.computer_name
 | SORT changes DESC
 | LIMIT 100
 ```
@@ -61,10 +61,11 @@ FROM logs-yourorg-microsoft-windows*
 Empty means directory-object auditing is not covering the System container, and this rule is a dead letter regardless of tuning.
 
 ## Pipeline
-DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
-source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
-confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
-of failing.
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
 
 ## References
 - `rules/05-identity/I11-adminsdholder-modified.md` - the rule this refines
