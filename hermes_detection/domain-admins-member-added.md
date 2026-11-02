@@ -86,6 +86,12 @@ FROM logs-yourorg-microsoft-windows*
 ```
 Lowercase SIDs, or an empty `target_sid` column, are what a 4728-only rule silently dies on. Finally, for the `4662` branch, print what the pipeline actually puts in `properties` on a user object before trusting the `primarygroupid` match.
 
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
+
 ## References
 - `certipy_detections/11-user-added-to-domain-admins.md` - the earlier 4728-only rule; this covers the group types and the primaryGroupID route it cannot see
 - `rules/05-identity/I02-tier0-group-change.md` - the catalogue's Tier-0 group rule

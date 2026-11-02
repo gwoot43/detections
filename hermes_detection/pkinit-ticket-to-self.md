@@ -5,30 +5,30 @@
 `rules/14-ad-attack/AD16` has the pair exactly right, and the SID trick that makes it work is worth restating: 4768 records the authenticating account in **`TargetSid`**, and 4769 records the *service's* account in **`ServiceSid`** — so a ticket to itself lands both events in the same group, with no join and no name matching.
 
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 // 10 minutes in the query: the two events are seconds to a minute apart; a wider window only adds unrelated
 // pairs from the same account.
 | WHERE @timestamp >= NOW() - 10 minutes
   AND event.code IN ("4768", "4769")
 // The two event-data fields are cast once here rather than inside the gate, so the gate stays index-answerable.
-| EVAL preauth = TO_STRING(winlog.event_data.PreAuthType),
-       ticket_options = TO_STRING(winlog.event_data.TicketOptions)
+| EVAL preauth = TO_STRING(winevt.event_data.pre_auth_type),
+       ticket_options = TO_STRING(winevt.event_data.ticket_options)
 // PreAuthType 15/16/17 are the PKINIT variants (certificate pre-authentication). Verify against a real
 // smartcard logon in your estate before trusting the list - the numbers differ by Windows build.
-| WHERE winlog.event_data.Status == "0x0"
+| WHERE winevt.event_data.status == "0x0"
   AND ((event.code == "4768" AND preauth IN ("15", "16", "17"))
        OR (event.code == "4769" AND ticket_options IN ("0x40810008", "0x40810018")))
 // One SID for both halves: TargetSid on the logon, ServiceSid on the ticket.
-| EVAL account_sid = COALESCE(TO_STRING(winlog.event_data.TargetSid), TO_STRING(winlog.event_data.ServiceSid)),
-       account = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),
-       client = winlog.event_data.IpAddress
+| EVAL account_sid = COALESCE(TO_STRING(winevt.event_data.target_sid), TO_STRING(winevt.event_data.service_sid)),
+       account = TO_LOWER(COALESCE(winevt.event_data.target_user_name, "")),
+       client = winevt.event_data.ip_address
 | STATS cert_logons = COUNT(*) WHERE event.code == "4768",
         self_tickets = COUNT(*) WHERE event.code == "4769",
-        services = MV_SLICE(VALUES(winlog.event_data.ServiceName), 0, 4),
-        issuers = MV_SLICE(VALUES(winlog.event_data.CertIssuerName), 0, 2),
-        serials = MV_SLICE(VALUES(winlog.event_data.CertSerialNumber), 0, 2),
+        services = MV_SLICE(VALUES(winevt.event_data.service_name), 0, 4),
+        issuers = MV_SLICE(VALUES(winevt.event_data.cert_issuer_name), 0, 2),
+        serials = MV_SLICE(VALUES(winevt.event_data.cert_serial_number), 0, 2),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
-    BY account_sid, account, client, winlog.computer_name
+    BY account_sid, account, client, host.name
 // Both halves in the same window on the same DC from the same address, for the same account: the finding.
 // No threshold to baseline - the conjunction is the detection.
 | WHERE account_sid IS NOT NULL AND cert_logons >= 1 AND self_tickets >= 1
@@ -57,13 +57,19 @@ Deploy every 5 minutes over the last 10. Suppress by `account_sid` for 1h.
 
 ## Probe before enabling
 ```esql
-FROM logs-system.security*, logs-windows.forwarded*
+FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 7 days AND event.code IN ("4768", "4769")
-| STATS events = COUNT(*), first = MIN(@timestamp) BY event.code, winlog.event_data.PreAuthType
+| STATS events = COUNT(*), first = MIN(@timestamp) BY event.code, winevt.event_data.pre_auth_type
 | SORT events DESC
 | LIMIT 20
 ```
 If no 4768 carries a `PreAuthType` of 15/16/17 despite smartcards being in use, the field is not being populated and the first half of the pair never matches.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` with `winevt.event_data.*` - the only Windows
+source in this estate, for every channel. Keys are snake_case here; the ones this rule depends on are worth
+confirming before it is trusted, because a renamed key returns null and the rule then matches nothing instead
+of failing.
 
 ## References
 - `rules/14-ad-attack/AD16-pkinit-then-ticket-to-self-unpac-the-hash.md` - the rule this refines
