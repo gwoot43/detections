@@ -11,11 +11,11 @@ That shape is visible in Entra sign-in logs, and it is different from what the l
 An agent harvesting OAuth flows and app registrations produces these by construction; a credential spray produces `50126` (invalid credentials) instead, which is why the two rules do not overlap.
 
 ```esql
-FROM logs-azure.signinlogs-*
+FROM logs-yourorg-entra-signins-default*
 // One hour in the query: a probing run is minutes long, and the counts are per source.
 | WHERE @timestamp >= NOW() - 1 hour
-| EVAL app = TO_LOWER(TO_STRING(azure.signinlogs.properties.app_id)),
-       ec = TO_STRING(azure.signinlogs.properties.status.error_code),
+| EVAL app = TO_LOWER(TO_STRING(azure.signinlogs.app_id)),
+       ec = TO_STRING(azure.signinlogs.status_error_code),
        ip = TO_STRING(source.ip)
 // Client-configuration errors, not credential errors.
 | EVAL probe_error = ec IN ("50011", "700016", "65001"),
@@ -23,8 +23,8 @@ FROM logs-azure.signinlogs-*
 | STATS attempts = COUNT(*),
         probe_failures = COUNT(*) WHERE probe_error,
         apps = COUNT_DISTINCT(app),
-        resources = COUNT_DISTINCT(azure.signinlogs.properties.resource_display_name),
-        users = COUNT_DISTINCT(azure.signinlogs.properties.user_principal_name),
+        resources = COUNT_DISTINCT(azure.signinlogs.resource_display_name),
+        users = COUNT_DISTINCT(user.name),
         success = COUNT(*) WHERE succeeded,
         codes = MV_SLICE(VALUES(ec), 0, 6),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp)
@@ -38,6 +38,8 @@ FROM logs-azure.signinlogs-*
 ```
 
 Deploy every 15 minutes over the last hour. Suppress by `ip` for 6h.
+
+**Pipeline.** This estate's Entra sign-in logs are `logs-yourorg-entra-signins-default*` with flattened `azure.signinlogs.*` fields (`app_id`, `status_error_code`, `resource_display_name`) and ECS `user.name` — not the Azure-integration `logs-azure.signinlogs-*` / `azure.signinlogs.properties.status.error_code` schema the portable `rules/09-entra-signin-extended/` catalogue uses. A field that does not exist on this pipeline returns null (the rule then matches nothing silently), so confirm the field names before trusting it.
 
 ## Reading the alert
 - **`apps`** is the discriminator: three or more distinct applications from one address means enumeration, because a misconfigured client sticks to its own registration.
