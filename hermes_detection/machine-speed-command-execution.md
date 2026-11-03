@@ -85,6 +85,8 @@ FROM logs-zscaler_zia.web-*
      OR ua LIKE "*security-testing*" OR ua LIKE "*recon-audit*" OR ua LIKE "*sqlmap*"
 | STATS requests = COUNT(*), domains = COUNT_DISTINCT(url.domain)
     BY ua, host.name
+// 20 requests from one user agent in a quarter hour: this is a hunt, so the number only trims browser noise
+// rather than separating a scanner from its benign twin - the baseline for it is the estate's own UA spread
 | WHERE requests >= 20
 | SORT requests DESC
 | LIMIT 50
