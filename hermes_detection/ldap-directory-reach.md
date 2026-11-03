@@ -2,15 +2,13 @@
 
 The only surviving view of LDAP collection in this estate. Windows logs it twice and neither is available: **4662** with the read-property/control-access masks would show *what* was read, but `0x10`/`0x100` are not being logged (probing returns only replication and write masks), and **1644** would show the search filter and `SDFlags`, but the Directory Service only emits it at NTDS diagnostics Level 5, which is not collected. That leaves network telemetry, which sees the one thing neither log could give: **which host and which process reached the directory, and how many servers it reached**.
 
-The anchor is **novelty, not a maintained exception list**: a process that has never reached a directory server in the trailing 30 days, suddenly fanning out, is the signal. A renamed or unknown collector (SOAPHound, a one-off `code.exe`) is new by construction - which is the case a denylist of agent names can never cover - while a sanctioned client, even a freshly patched one, is already in the baseline and never fires. The 30-day history is **not** scanned on every run (that would be the expensive part); it lives in a lookup index refreshed once a night by the builder below, so the live rule is a short-window read plus a join.
+Directory fan-out is the signal: one process reaching many domain controllers over LDAP in a short window is either a management tool (a known, excludable set) or a collector. The rule excludes the estate's heavy hitters by identity and alerts on the rest crossing a breadth threshold. Below: a **deployable** ES|QL variant (run with a 2-hour lookback), a **bucketed** ES|QL variant (one row per 2-hour window, for replaying against live data), and a **LogScale/CQL** version of the bucket. `9389` (ADWS) is split into `adws-directory-access.md`.
 
+### Deployable (ES|QL, 2-hour lookback)
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-// 15-minute window: the hot path reads only this. The 30-day baseline it joins against is precomputed, so
-// the run never pays for the lookback.
-| WHERE @timestamp >= NOW() - 15 minutes
-// Outbound connections to directory services: LDAP, LDAPS, Global Catalog. ADWS (9389) is its own rule,
-// adws-directory-access.md, because its legitimate client set and its attribution hole are both different.
+// Deploy with the rule's lookback set to 2 hours: the window is the schedule, there is no bucket.
+| WHERE @timestamp >= NOW() - 2 hours
   AND event.action IN ("networkconnectip4", "networkconnectip6")
   AND data.ConnectionDirection == "0"
   AND data.event_platform == "Win"                 // Linux sssd/winbind fail over across DCs by design
@@ -19,73 +17,86 @@ FROM logs-yourorg-crowdstrike-data-default*
 // add your global IPv6 prefix if the DCs hold one.
 | EVAL internal_dest = CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
 | WHERE internal_dest
-// Key on the base file name, falling back to the kernel-attributed name, so a renamed or kernel-issued
-// collector is not lost. lsass is the Netlogon DC locator (and SSPI-issued LDAP) - it reaches every DC by
-// design and is a deliberate blind spot, so it is the one name kept inline rather than in the baseline.
+// Base file name, falling back to the kernel-attributed name, so a renamed or kernel-issued collector is kept.
 | EVAL proc = TO_LOWER(COALESCE(process.name, data.ContextBaseFileName, "unknown"))
-| WHERE proc != "lsass.exe" AND proc != "unknown"
+// Estate-wide heavy hitters, excluded by identity (not by muting a technique). lsass = Netlogon DC locator
+// (normal discovery); the rest are the management tools that legitimately sweep DCs. Host-scoped exceptions
+// belong in the central exception list.
+| WHERE proc NOT IN ("lsass.exe", "microsoft.tri.sensor.exe", "shdelegator.exe",
+                     "microsoft.identity.health.agentv15.service.exe",
+                     "microsoft.identity.health.adds.insightsservice.exe",
+                     "microsoft.exchange.directory.topologyservice.exe",
+                     "citrix.configurationlogging.exe")
+  AND proc != "unknown"
 | STATS directory_servers = COUNT_DISTINCT(destination.ip),
         connections = COUNT(*),
-        hosts = COUNT_DISTINCT(host.id),
-        servers_seen = MV_SLICE(VALUES(destination.ip), 0, 10),
-        host_names = MV_SLICE(VALUES(host.name), 0, 5),
+        destination.port = VALUES(destination.port),
+        servers_seen = MV_SLICE(VALUES(destination.ip), 0, 19),
+        host.name = VALUES(host.name),
         event.start = MIN(@timestamp), event.end = MAX(@timestamp)
-    BY proc
-// Novelty: keep only processes NOT in the 30-day baseline - never seen reaching a DC in the estate. This is
-// the exception list, self-maintaining: a version-stamped agent name never has to be added, and the tool the
-// list has not heard of is caught because it is new, not because it is named.
-| LOOKUP JOIN directory_client_baseline ON proc
-| WHERE baseline_first_seen IS NULL
-// Fleet rarity is the partner: a genuine new rollout is novel too, but lands on many hosts at once, so
-// hosts <= 2 drops it while a collector on one box fires. directory_servers >= 12 keeps it a fan-out.
-// source: 30-day replay, benign max 15 DCs (repadmin / SCCM / Citrix broker, all in the baseline); an
-// internal pentest sweep reached 62.
-  AND directory_servers >= 12 AND hosts <= 2
+    BY host.id, process.name = proc
+// source: 30-day replay - benign maximum 15 DCs (repadmin / SCCM / Citrix broker, excepted); an internal
+// pentest sweep reached 62. 12 sits between them. Baseline below.
+| WHERE directory_servers >= 12
 | SORT directory_servers DESC
 | LIMIT 100
 ```
+Deploy every 2 hours over the last 2 hours. Suppress by `host.id` + `process.name` for 24h.
 
-## Baseline — build the lookup nightly, not per run
-This is the only place the 30-day window is read. Run it once a night and write the result to the `directory_client_baseline` lookup index, or (cheaper) maintain that index with an Elastic **transform**, which updates incrementally and never full-scans. Either way the live rule above only ever does a short read plus the join.
+### Bucketed (ES|QL, 2-hour windows — for live testing)
+Same logic, but a `DATE_TRUNC` bucket instead of a lookback, so you can run it across a long range and read each 2-hour window on its own. The time picker bounds the scan.
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
-| WHERE @timestamp >= NOW() - 30 days
-  AND event.action IN ("networkconnectip4", "networkconnectip6")
+| WHERE event.action IN ("networkconnectip4", "networkconnectip6")
   AND data.ConnectionDirection == "0"
   AND data.event_platform == "Win"
   AND destination.port IN (389, 636, 3268, 3269)
-| EVAL internal_dest = CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
+| EVAL internal_dest = CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"),
+       time_bucket = DATE_TRUNC(2 hours, @timestamp)
 | WHERE internal_dest
 | EVAL proc = TO_LOWER(COALESCE(process.name, data.ContextBaseFileName, "unknown"))
-// one row per process: the estate's known directory clients, keyed on proc for the LOOKUP JOIN above
-| STATS baseline_first_seen = MIN(@timestamp), baseline_last_seen = MAX(@timestamp),
-        baseline_hosts = COUNT_DISTINCT(host.id), baseline_servers = COUNT_DISTINCT(destination.ip)
-    BY proc
-```
-Read the top of this (sort by `baseline_servers`) before trusting the live rule: the heavy-hitters are the estate's own management tools, and they are exactly the population the old maintained exception list was trying - and failing - to keep current.
-
-## If you have no lookup index yet
-Interim, no baseline required, so it loses the novelty discriminator and leans on breadth plus fleet rarity, with `lsass` kept inline. Noisier - run it as a hunt, with a higher floor, until the baseline exists:
-```esql
-FROM logs-yourorg-crowdstrike-data-default*
-| WHERE @timestamp >= NOW() - 4 hours
-  AND event.action IN ("networkconnectip4", "networkconnectip6")
-  AND data.ConnectionDirection == "0"
-  AND data.event_platform == "Win"
-  AND destination.port IN (389, 636, 3268, 3269)
-| EVAL internal_dest = CIDR_MATCH(destination.ip, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
-| WHERE internal_dest
-| EVAL proc = TO_LOWER(COALESCE(process.name, data.ContextBaseFileName, "unknown"))
-| WHERE proc != "lsass.exe" AND proc != "unknown"
-| STATS directory_servers = COUNT_DISTINCT(destination.ip), connections = COUNT(*),
-        hosts = COUNT_DISTINCT(host.id), servers_seen = MV_SLICE(VALUES(destination.ip), 0, 10),
-        host_names = MV_SLICE(VALUES(host.name), 0, 5), event.start = MIN(@timestamp), event.end = MAX(@timestamp)
-    BY proc
-// Higher floor than the novelty rule, because without the baseline breadth is the only discriminator left.
-// source: 30-day replay benign max 15 DCs; the pentest sweep reached 62.
-| WHERE directory_servers >= 16 AND hosts <= 2
-| SORT directory_servers DESC
+| WHERE proc NOT IN ("lsass.exe", "microsoft.tri.sensor.exe", "shdelegator.exe",
+                     "microsoft.identity.health.agentv15.service.exe",
+                     "microsoft.identity.health.adds.insightsservice.exe",
+                     "microsoft.exchange.directory.topologyservice.exe",
+                     "citrix.configurationlogging.exe")
+  AND proc != "unknown"
+| STATS directory_servers = COUNT_DISTINCT(destination.ip),
+        connections = COUNT(*),
+        destination.port = VALUES(destination.port),
+        servers_seen = MV_SLICE(VALUES(destination.ip), 0, 19),
+        host.name = VALUES(host.name),
+        event.start = MIN(@timestamp), event.end = MAX(@timestamp)
+    BY time_bucket, host.id, process.name = proc
+// source: as above - 30-day replay, benign max 15 DCs, pentest reached 62.
+| WHERE directory_servers >= 12
+| SORT time_bucket DESC
 | LIMIT 100
+```
+
+### LogScale (CQL, bucketed)
+NetworkConnect events carry no image name, so attach it from ProcessRollup2 on the same host and process id (`defineTable` + `match`, the LogScale idiom for correlating two event types). 2-hour buckets. Confirm the field names (`RemotePort`, `ConnectionDirection`, `RemoteAddressIP4`, `ContextProcessId`, `TargetProcessId`, `event_platform`) against your LogScale repo before trusting it.
+```logscale
+#event_simpleName=/^NetworkConnect(IP4|IP6)$/
+| ConnectionDirection="0"
+| event_platform="Win"
+| in(RemotePort, values=["389", "636", "3268", "3269"])
+| cidr(RemoteAddressIP4, subnet=["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"])
+// attach the image name from ProcessRollup2 by aid + process id
+| defineTable(name="procs", include=[aid, TargetProcessId, ImageFileName],
+    query={#event_simpleName=/ProcessRollup2$/})
+| match(table="procs", field=[aid, ContextProcessId], column=[aid, TargetProcessId], include=[ImageFileName], strict=true)
+| proc := lower(ImageFileName)
+| !in(proc, values=["*\\lsass.exe", "*\\microsoft.tri.sensor.exe", "*\\shdelegator.exe",
+    "*\\microsoft.identity.health.agentv15.service.exe", "*\\microsoft.identity.health.adds.insightsservice.exe",
+    "*\\microsoft.exchange.directory.topologyservice.exe", "*\\citrix.configurationlogging.exe"])
+| bucket(span=2h, field=@timestamp)
+| groupBy([_bucket, aid, proc],
+    function=[count(RemoteAddressIP4, distinct=true, as=directory_servers), count(as=connections),
+              collect([ComputerName])], limit=max)
+// source: 30-day replay - benign max 15 DCs; an internal pentest sweep reached 62
+| directory_servers >= 12
+| sort(directory_servers, order=desc, limit=100)
 ```
 
 ## Why this rule, and not the Windows one
@@ -147,7 +158,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 | SORT n DESC
 ```
 If `data.ConnectionDirection` ingests numeric, the `"0"` comparison returns nothing and the rule is silently dead - that is the first thing to check.
-- The process baseline is now the **nightly builder** above (`directory_client_baseline`); read its top rows (sort by `baseline_servers`) to see which processes legitimately reach several DCs - management tools, Entra Connect, monitoring - before trusting the live rule.
+- Baseline which processes legitimately reach several DCs before trusting the threshold - run the deployable query above over 30 days with the `directory_servers >= 12` line removed and `BY process.name = proc` only, and read the top of the list: those are the estate's management tools (the excluded set), and the gap between them and a collector is where the floor sits.
 
 ## References
 - `ldap-security-descriptor-enumeration.md` - the 4662 rule this replaces, blocked on unlogged access masks
