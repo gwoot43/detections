@@ -12,8 +12,16 @@ FROM logs-yourorg-crowdstrike-data-default*
 | EVAL name = TO_LOWER(TO_STRING(dns.question.name)),
        parent = TO_LOWER(TO_STRING(dns.question.registered_domain)),
        qtype = TO_UPPER(TO_STRING(dns.question.type))
+// Blind spot, stated in the query: DoH/DoT never reach this event. An encrypted-DNS request is a TCP/443
+// (or :853) connection to the resolver, so it is a network-rule problem, not a dnsrequest. This rule only
+// sees cleartext DNS the sensor resolves on the host - a tunnel over DoH is invisible here by construction.
 // Reverse lookups are the resolver talking to itself and carry no payload.
 | WHERE name IS NOT NULL AND parent IS NOT NULL AND parent != "" AND NOT name LIKE "*.arpa"
+// DNS blocklists / RBLs reverse IP octets into the leftmost label, so they are tunnel-shaped by design and
+// fleet rarity will NOT drop them (they run on one or two mail gateways). Excluded by target domain here -
+// a list of targets ages slowly, unlike a list of tools. Folded into the gate rather than left as prose.
+  AND NOT parent IN ("spamhaus.org", "spamcop.net", "surbl.org", "uribl.com", "barracudacentral.org",
+                     "spamhaus.net", "sophosxl.net", "senderbase.org", "spamrl.com")
 | EVAL label1 = MV_FIRST(SPLIT(name, ".")),
        label_len = LENGTH(label1),
 // TXT and NULL are the data channels; a tunnel on A/AAAA is just the same thing with smaller payloads.
@@ -21,37 +29,40 @@ FROM logs-yourorg-crowdstrike-data-default*
 | STATS queries = COUNT(*),
         names = COUNT_DISTINCT(name, 40000),
         long_names = COUNT(*) WHERE label_len >= 30,
+        avg_label = ROUND(AVG(label_len), 1),
         odd_queries = COUNT(*) WHERE odd_type,
         max_label = MAX(label_len),
         sample = MV_SLICE(VALUES(name), 0, 6),
         pids = MV_SLICE(VALUES(process.entity_id), 0, 5)
     BY host.id, host.name, parent
 // Every name distinct is the tunnel: new data in every label. 0.9 rather than 1.0 because a retried query
-// and a keepalive repeat occasionally.
-| EVAL unique_ratio = ROUND(names::double / queries, 2)
+// and a keepalive repeat occasionally. long_ratio is the fidelity lever - the fraction of queries carrying a
+// long label, not an absolute count, so most of the traffic has to be encoder output, not five names in a flood.
+| EVAL unique_ratio = ROUND(names::double / queries, 2),
+       long_ratio = ROUND(long_names::double / queries, 2)
 // Fleet rarity: a domain only this host resolves. Vendor, CDN and AV-cloud domains are resolved estate-wide,
 // which removes them without a list to maintain.
 | INLINE STATS parent_hosts = COUNT_DISTINCT(host.id) BY parent
-// 20 queries over an hour is a slow tunnel - the old 100 was a fast-tunnel test. 5 long labels and a 0.9
-// uniqueness ratio identify the encoder. Every number is a starting value; the baseline below tunes them.
-| WHERE queries >= 20 AND long_names >= 5 AND unique_ratio >= 0.9
-  AND max_label >= 30 AND parent_hosts <= 3
+// 20 queries over an hour is a slow tunnel - the old 100 was a fast-tunnel test. The tighteners that raise
+// fidelity: long_ratio >= 0.5 means most lookups are long-labelled (a sustained encoder, not a benign domain
+// with five long names among hundreds), and avg_label >= 20 backs it with the central tendency, not one spike.
+// Every number is a starting value; the baseline below tunes them.
+| WHERE queries >= 20 AND unique_ratio >= 0.9 AND long_ratio >= 0.5
+  AND avg_label >= 20 AND max_label >= 30 AND parent_hosts <= 3
 | SORT queries DESC
 | LIMIT 100
 ```
 
 ## Reading the alert
 - **`unique_ratio`** at or near 1.0 is the tunnel. Between 0.9 and 1.0 with a handful of long labels is a slow encoder; 1.0 with short labels is usually a hash-lookup service.
+- **`long_ratio` and `avg_label`** are the fidelity pair. `long_ratio` near 1.0 with `avg_label` in the 30s-60s is a sustained encoder - every lookup carries payload. A low `long_ratio` with a high `max_label` is a service that emitted one long name and should not fire; that is the case the old absolute `long_names >= 5` count let through.
 - **`odd_queries`** shows whether the channel uses TXT/NULL (bulk data) or plain A/AAAA (beacon and small exfil).
 - **`max_label`** at 50-63 is a tunnel filling the label limit (63 bytes). Anything consistently at 63 is deliberate.
 - **`sample`** should look like base32/base64 - case-insensitive alphanumerics, no words, no hyphens forming a hostname prefix.
 - **`pids`** is the only attribution available: DNS events carry no process name. Resolve the `process.entity_id` against `processrollup2`; browser = probably a CDN, `powershell.exe`/`rundll32.exe`/unsigned binary = tunnelling.
 
 ## Nearest benign twins
-- **DNS blocklist lookups** (spamhaus, surbl, barracudacentral) reverse the octets into the label and are tunnel-shaped by design. They run on mail gateways, so `parent_hosts <= 3` does not remove them; the small exact-name exclusion below is what does. It is a list of *targets*, not of tools, which is the one kind of list that ages slowly:
-```esql
-| WHERE NOT parent IN ("spamhaus.org", "spamcop.net", "surbl.org", "uribl.com", "barracudacentral.org", "spamhaus.net")
-```
+- **DNS blocklist lookups** (spamhaus, surbl, barracudacentral) reverse the octets into the label and are tunnel-shaped by design. They run on mail gateways, so `parent_hosts <= 3` does not remove them - the exact-name exclusion **now folded into the gate** (`NOT parent IN (...)`) is what does. It is a list of *targets*, not of tools, which is the one kind of list that ages slowly; add to that clause in the query as you find more RBL/reputation domains in your estate.
 - **Security products resolving hashes or encoded identifiers under their own cloud domain** from one or two hosts. Confirm once and exclude that parent by name.
 - **Printer, IoT and patch-management lookups** with long serial-number labels. One host, repeated names - the uniqueness ratio drops them.
 - **A newly deployed SaaS client** in its first hours, which resolves one vendor domain from a handful of hosts. `queries >= 20` and the uniqueness test usually hold it off; if it persists, it is an entity pair.
@@ -72,12 +83,17 @@ FROM logs-yourorg-crowdstrike-data-default*
        parent = TO_LOWER(TO_STRING(dns.question.registered_domain)),
        label_len = LENGTH(MV_FIRST(SPLIT(name, ".")))
 | WHERE parent != "" AND NOT name LIKE "*.arpa"
-| STATS queries = COUNT(*), names = COUNT_DISTINCT(name, 40000), long_names = COUNT(*) WHERE label_len >= 30
+| STATS queries = COUNT(*), names = COUNT_DISTINCT(name, 40000), long_names = COUNT(*) WHERE label_len >= 30,
+        avg_label = ROUND(AVG(label_len), 1)
     BY host.id, parent
-| EVAL unique_ratio = ROUND(names::double / queries, 2)
+| EVAL unique_ratio = ROUND(names::double / queries, 2),
+       long_ratio = ROUND(long_names::double / queries, 2)
 // Second STATS on purpose: the first one is per host and parent, this one rolls up per host so the estate's
-// noisiest resolvers sort to the top. This is the baseline - the source for every threshold in the rule.
-| STATS pairs = COUNT(*), p99_queries = PERCENTILE(queries, 99), max_queries = MAX(queries), p99_unique = PERCENTILE(unique_ratio, 99)
+// noisiest resolvers sort to the top. This is the baseline - the source for every threshold in the rule,
+// long_ratio and avg_label included.
+| STATS pairs = COUNT(*), p99_queries = PERCENTILE(queries, 99), max_queries = MAX(queries),
+        p99_unique = PERCENTILE(unique_ratio, 99), p99_long_ratio = PERCENTILE(long_ratio, 99),
+        p99_avg_label = PERCENTILE(avg_label, 99)
     BY host.id
 | SORT max_queries DESC
 | LIMIT 30
