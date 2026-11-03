@@ -1,9 +1,9 @@
 # DCSync with its origin — replication GUID plus the logon address
 
-> **Not deployable in this estate.** Event **4662 is not collected at all**, so there is no directory-access
-> record to key on: this rule, `I01`, `AD02`, `AD04` and `AD09` all return zero rows regardless of tuning.
-> The fix is upstream, not in the query - enable **Audit Directory Service Access** with the default domain-NC
-> SACL on the DCs. Kept as the reference rule for that day; see `docs/VISIBILITY-GAPS.md`.
+> **Not deployable in this estate.** Event 4662 is collected, but **`access_mask` 0x100 (control access)
+> is not** - the mask the replication rights are granted under - so the rows DCSync produces never arrive.
+> `I01`, `AD02`, `AD04` and `AD09` are dead for the same reason. The fix is upstream: widen the domain-NC
+> SACL to audit control access. See `docs/VISIBILITY-GAPS.md`.
 
 
 `rules/05-identity/I01` already owns the anchor: **4662 whose `Properties` names a replication right**. That is the only thing DCSync cannot avoid, because `DS-Replication-Get-Changes-All` is the right that releases password hashes. This is the same detection with the two things I01 leaves to the analyst — the **third GUID**, and the **host the account authenticated from**, so triage does not start with a bare username.

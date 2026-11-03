@@ -1,42 +1,35 @@
 # Visibility gaps
 
-What this estate cannot see, what each gap costs, and the probe that confirms it. Compiled from the coverage
-work on this repo; every row is either confirmed by a probe in this environment or explicitly marked unverified.
-Re-run the probes before designing on any of it — a gap that closed is as costly to carry as one that opened.
+Event codes and field names only, with the detections that cannot be made because of each. Confirmed unless
+marked **unverified**.
 
-## Absent: no amount of tuning fixes these
+## Event codes
 
-| Missing | Consequence | Rules that cannot fire | Probe |
-|---|---|---|---|
-| **4662 (Directory Service Access)** | No audit of directory object operations at all. This is the biggest hole in the AD story: it is the only DC-side record of *what* was read or written on an object. | `I01` DCSync, `AD02` replication rights, `AD04` DPAPI backup key, `AD09` gMSA read, `ldap-security-descriptor-enumeration`, `dcsync-with-origin`, and the ACL half of `bloodhound-smb-enumeration` | `event.code == "4662"` over 30 days — expect nothing |
-| **5145 (Detailed File Share)** | No named-pipe record. Removes the *method* test from SMB collection: psexec/atexec/`\pipe\cert`/srvsvc all look alike. `relative_target_name` was **never populated**, so the field-level fallback does not exist either. | `WE14`, `certipy 03`, and the pipe-name version of BloodHound detection | `event.code == "5145"` — no rows for ~8 months |
-| **1644 (Directory Service diagnostics)** | No LDAP search filter, no `SDFlags`. The most precise directory-collection signal there is, off because NTDS diagnostics Level 5 costs 10-50k EPS on a busy DC. | Any `SDFlags 0x4/0x5/0x7` rule | `event.code == "1644"` per DC — expect empty |
-| **FDR named-pipe events** | Falcon in this feed has no pipe connect event, so the collector's own sensor cannot name the pipe either. | The BloodHound/coercion pipe rules | `event.action LIKE "*pipe*"` |
-| **FDR share names** | `smbclientshareopenedetw` / `smbservershareopenedetw` exist but carry no `ShareName`, so FDR cannot separate an IPC$ sweep from data-share hunting. | Any FDR share-name rule | `registry`-style field probe on the share events |
-| **5156 (Windows Filtering Platform)** | No per-connection attribution on the DC. ADWS queries reach LDAP through the DC's own web service and are logged as `::1`, and 5156 is the only thing that recovers the real client. | ADWS attribution in `ldap-directory-reach` (the `directory_sweep_adws` label exists to warn about exactly this) | `event.code == "5156"` |
-| **Linux file and audit telemetry** | Process events only. No `authorized_keys` writes, no crontab edits, no systemd unit drops — so the Linux half of the October 2026 Cursor extension incident (its `@reboot` persistence) is invisible. | `editor-extension-ssh-backdoor` covers the process shape, not the persistence | write to `/tmp` on a lab host, look for a file event |
-| **DHCPv6, LLMNR, NBT-NS** | No direct record of the poisoning vectors. Detection is only the victims' behaviour afterwards. | `poisoning-sink`, `ipv6-poisoning` are behavioural inferences, never proof | no source to probe |
-| **DNS response size** | FDR `dnsrequest` has no response volume, so a tunnel's *direction* and payload cannot be measured — only its question names. | `dns-tunnelling` measures the query side only | field probe on `dnsrequest` |
-| **Unmanaged hosts** | No sensor, no telemetry — and the VAPOR PANDA reporting says the framework explicitly inventories hosts without a Falcon agent before acting. Every endpoint rule in this library stops at the managed boundary. | all endpoint rules | compare Falcon host count to DNS/DHCP lease count |
+| Code | Detections that cannot be made |
+|---|---|
+| `5145` | Named-pipe detections: `psexec`/`atexec` method, `\pipe\cert` CA abuse, BloodHound's per-interface RPC (`srvsvc`, `samr`, `wkssvc`, `winreg`). The method test is lost, leaving only share-open breadth. |
+| `1644` | LDAP search detections: `SDFlags` security-descriptor collection, base-scope vs full-directory walk, the search filter itself. |
+| `5156` | Per-connection attribution on the DC: ADWS-sourced directory access cannot be traced to a client address, because ADWS arrives as `::1`. |
+| `4663` | File-access detections on the DC: `ntds.dit` read, SAM/SECURITY hive read, shadow-copy copy-out, NTDS theft by file rather than by command. |
+| `5136` | Directory-modify detections: DCShadow's DRS SPN add, AdminSDHolder ACL write, SYSVOL/GPO attribute tampering. |
+| `5137` | Directory object-creation detections: rogue NTDS Settings / server object under `CN=Sites,CN=Configuration` (the object half of DCShadow). |
+| `4768` | Kerberos AS-REQ detections: PKINIT certificate logon, pre-auth type downgrade, AS-REP roast targeting. |
+| `4769` | Service-ticket detections: ticket-to-self (UnPAC-the-hash), kerberoasting volume, RC4 downgrade. |
+| `39` / `40` / `41` (KDC) | Certificate-mapping detections: logon with another account's SID, no strong mapping, certificate older than the account. |
+| `4728` / `4732` / `4756` | Collected - tier-0 membership detections are possible. The Domain Admins rule matched nothing, so the fault is the field or its casing, not the event. |
+| `4662` | Collected, but see `access_mask` below - the masks decide which directory-access detections are possible. |
 
-## Unverified: probe before trusting anything built on them
+## Fields and field values
 
-| Needed | Rules that depend on it | Probe |
-|---|---|---|
-| **5136 / 5137** (DS Change auditing) | `dcshadow-rogue-dc`, `adminsdholder-modified` | `STATS n = COUNT(*) BY event.code` for both over 30 days |
-| **4768 / 4769** (Kerberos on the DCs) | `pkinit-ticket-to-self` | same, plus `BY winlog.event_data.pre_auth_type` |
-| **KDC 39 / 40 / 41** (System channel) | `kdc-certificate-mapping-failure` | `BY winevt.provider_name, event.code` |
-| **4728 / 4732 / 4756** (group membership) | `domain-admins-member-added` | the Domain Admins rule caught nothing — check `event.code` presence first, then SID casing, then the field name |
-| **4663** (object access) | the file-read half of NTDS theft | `event.code == "4663"` per DC |
-| **Sysmon** | every `rules/` entry targeting `XmlWinEventLog` | `event.dataset`/`winlog.channel` probe — if absent, those rules are dead letters rather than coverage |
-
-## What the gaps mean in combination
-
-- **DCSync is not detectable here.** It needs 4662 and nothing else in this estate records the read. The compensating move is not a query: it is enabling Audit Directory Service Access with the default domain-NC SACL, which is cheap compared with 1644 and restores `I01`, `AD02`, `AD04`, `AD09` and the ACL half of the BloodHound rule at once. Until then, `dcsync-with-origin` should be treated as a reference rule, not a deployed one.
-- **Directory collection is only visible from the network side.** With 4662, 5145 and 1644 all absent, `ldap-directory-reach` and the IPC$-only BloodHound rule are the entire coverage — they see *reach*, never *what was read*.
-- **The FDR share and pipe losses push every SMB rule onto 5140**, which sees the share open and nothing about the pipe. That is why the share-hunting and BloodHound rules rely on absence conditions (no data-share opens, IPC$ only) rather than on names.
-- **Unmanaged hosts are the strategy gap, not a rule gap.** Everything in this library assumes a sensor on the endpoint; the reported ARTEX-family tradecraft is web-facing and never touches an endpoint, which is a different telemetry problem entirely (WAF, API gateway, IdP).
-
-## Rules kept as reference, not deleted
-
-Per the library's own convention: a rule whose only source is missing stays in the tree, **marked at the top**, with the probe that proves the gap and a link to whatever replaced it. That is why `ldap-security-descriptor-enumeration` and `WE09`'s 4663 half are still present. Deleting them means re-deriving the research when the audit policy is fixed; shipping them unmarked means someone deploys a rule that returns zero rows and concludes the estate is clean.
+| Field | Detections that cannot be made |
+|---|---|
+| `winevt.event_data.access_mask` = `0x10`, `0x100` | DCSync and directory-replication detections: the replication-rights rows DCSync produces are control access (`0x100`), which never arrives. Same for replication-rights grants, DPAPI backup-key reads, gMSA password reads and ACL/security-descriptor enumeration. `0x1` arrives, so write-side detections are possible. |
+| `winevt.event_data.relative_target_name` | Pipe-name detections, even if `5145` returns - the field was never populated. |
+| `ShareName` on `smbclientshareopenedetw` / `smbservershareopenedetw` | FDR-side separation of an IPC$ sweep from data-share hunting. Both rules must run on `5140` instead. |
+| FDR named-pipe event (`event.action LIKE "*pipe*"`) | Coercion pipe-call detection from the sensor side, and the BloodHound method test on the collector's own telemetry. |
+| ADWS client address on the DC | Attribution of ADWS-sourced directory collection; `5156` would be needed. |
+| `dns.question` response size | Tunnel direction and payload detections - only the query side is measurable. |
+| Linux file events | Linux persistence detections: `authorized_keys` writes, crontab `@reboot`, systemd unit drops. Process-shape detections still work. |
+| DHCPv6, LLMNR, NBT-NS | Direct poisoning detections. Only victim-behaviour inference is possible. |
+| `winlog.computer_name` | Not a gap but a trap: it and `host.name` hold different values, so a rule grouping on `host.name` attributes events to the wrong machine. |
+| Sysmon (`XmlWinEventLog`) | **unverified** - if absent, no Sysmon-channel detections (image loads, file creates, registry sets, pipe connects) exist at all. |
