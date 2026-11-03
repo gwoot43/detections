@@ -47,7 +47,7 @@ Falcon detections (CS04, X01) still read the integration's alert stream, `logs-c
 
 **This estate's Windows DC/AD events come from your own pipeline too.** The `rules/` catalogue is portable and targets the Elastic integration streams above (`logs-system.security*`, `logs-windows.forwarded*`, `logs-system.system-*`). The deployed detections in `hermes_detection/` instead read this estate's single Windows log, **`logs-yourorg-microsoft-windows*`** — Security, System and the KDC provider all land in the one index, so it is the only source every DC and AD rule uses. Two things differ from the integration schema, and every `hermes_detection/` DC/AD rule is written for them:
 - Event-data fields are under `winevt.event_data.*` in **snake_case** (`subject_user_name`, `target_sid`, `attribute_ldap_display_name`, `access_mask`, `properties`), not `winlog.event_data.*` in PascalCase.
-- The originating host is `host.name` (not `winlog.computer_name`), and the provider and channel are `winevt.provider_name` / `winevt.channel`.
+- The event's own Computer field is `winlog.computer_name` — **not** `host.name`, which on this pipeline holds the Elastic agent's host and is a different value — and the provider and channel are `winevt.provider_name` / `winevt.channel`.
 
 As with FDR, a field that does not exist on this pipeline returns null rather than erroring, so a mis-mapped key makes the rule match nothing silently — the same failure mode as the `%`-wildcard bug, one layer down. Confirm the snake_case names (`attribute_ldap_display_name`, `operation_type`, `primary_group_id`, and the unverified `winevt.provider_name` / `winevt.channel`) with each rule's probe before trusting it.
 
