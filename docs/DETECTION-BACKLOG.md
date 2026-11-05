@@ -15,7 +15,8 @@ external `ssh -R`. `CS13` covers a VS Code tunnel. `CS03` covers DNS by uniquene
 those four cannot: a **renamed or self-hosted** tunnel, which is what a tester or an operator running their own
 ingress looks like.
 
-### 1.1 Reverse-tunnel fan-in — the pivot's shape
+### 1.1 Reverse-tunnel fan-in — the pivot's shape  
+**Shipped:** `CS30`. chisel by its own grammar is `CS29`.
 
 **Anchor:** one host accepts inbound connections on a single port from **many internal sources** while itself
 holding **exactly one external peer**. Many-in, one-out is a SOCKS proxy behind a tunnel.
@@ -41,7 +42,8 @@ per-user baseline is what makes it quiet, not a port list.
 
 **Cost:** low. One event, one rarity join.
 
-### 1.3 DNS tunnelling seen from the resolver
+### 1.3 DNS tunnelling seen from the resolver  
+**Shipped:** `CS28`.
 
 **Anchor:** the internal DNS server's own recursive queries: high unique-name ratio outbound to one external
 resolver.
@@ -54,7 +56,8 @@ ratio (the same names recur). The ratio, not the volume, separates them.
 
 **Cost:** medium. Only works if the resolver is a Falcon-managed host or you log its queries.
 
-### 1.4 DNS straight to an external resolver
+### 1.4 DNS straight to an external resolver  
+**Shipped:** `CS27`.
 
 **Anchor:** `networkconnectip4` to port 53 where the destination is not your resolver.
 
@@ -216,3 +219,23 @@ These were considered and not listed, so they are not silently dropped: unconstr
 creation (`4738`, `0x80000`), `4672` immediately after an inbound network logon, and tombstone reanimation. The
 first two are sound but need a tier-0 reference list that does not exist yet; the third depends on `5136`, which is
 unverified on this pipeline.
+
+---
+
+## 5. Shipped since this list was written
+
+| Rule | Idea | Where it came from |
+|---|---|---|
+| `CS27` | DNS straight to an external resolver | 1.4 above |
+| `CS28` | DNS tunnelling seen from the resolver | 1.3 above |
+| `CS29` | chisel by verb, `R:socks` spec and tunnel flags | the reverse-tunnelling gap |
+| `CS30` | internal fan-in bridged to one external peer | 1.1 above |
+| `AD20` | S4U2Proxy abuse | 3.1 above |
+| `S25` | permanent Entra role assignment outside PIM | 4.1 above |
+| `S26` | Conditional Access weakened (cloud twin of `WE02`) | 4.4 above |
+| `S27` | Attacker in the Middle (`attackerinTheMiddle`, `attemptedPrtAccess`) | Entra ID Protection risk detections |
+| `S28` | Token issuer anomaly (`tokenIssuerAnomaly`) with the federation change beside it | Golden SAML |
+| `S29` | ROADrecon behaviourally - a token for the retired AAD Graph audience | `S21` needs activity logs; this does not |
+
+Still open from the list: listener-port rarity (1.2), workstation-to-workstation SMB (3.2), credential-added-then-used
+(4.2), illicit consent grant (4.3), self-service MFA added then used (4.5).
