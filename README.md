@@ -32,6 +32,7 @@ docs/
   ESQL-CONVENTIONS.md            index patterns, METADATA, LOOKUP JOIN vs ENRICH, suppression, escaping, rule checklist
   SYSMON-TO-CROWDSTRIKE.md       maps Sysmon event IDs to the Falcon FDR event.action / #event_simpleName we collect, and the Sysmon capabilities FDR has no equivalent for
   VISIBILITY-GAPS.md             DC/AD (and other-source) telemetry gaps, each with an ES|QL query that proves it
+  PENTEST-READINESS.md           what to verify or build before an engagement, and the gaps to declare up front
 tools/
   lint_detections.py             checks every rule against the standards' reject criteria
   mitre_coverage.py              regenerates the ATT&CK coverage map
