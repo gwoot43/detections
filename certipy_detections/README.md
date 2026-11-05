@@ -43,7 +43,6 @@ The AD and I rules are in `rules/14-ad-attack/` and `rules/05-identity/`, writte
 | 19 | [Keylogger in script content](19-keylogger-script-content.md) | Falcon script control | A script referencing the keyboard-capture APIs (`GetAsyncKeyState`, low-level keyboard hook, raw input): PowerShell/.NET keyloggers |
 | 20 | [Pivot relay: internet to internal](20-pivot-relay-internet-to-internal.md) | Falcon | One process bridging a public address and 5+ internal hosts: ligolo-ng, chisel, gost, a SOCKS proxy in a beacon - by behaviour, not name |
 | 21 | [VS Code tunnel started](21-vscode-tunnel-started.md) | Falcon | `code tunnel` / Remote Tunnel Access used as C2 (ported from CS13) |
-| 22 | [Isolated Web App abuse](22-isolated-web-app-abuse.md) | Falcon | An IWA installed (`.swbn`, install switches) or a browser opening raw sockets to internal hosts (Direct Sockets scanning/pivoting) |
 | 23 | [Red/purple-team tools by file name](23-red-team-tools-by-name.md) | Falcon | Known tools by the binary they run as - certipy, ADExplorer, smbclient, smbmap, nmap, nxc and more. Name fallback (one alert per start); interpreter-run tools stay with the behaviour rules |
 | 24 | [Directory enumeration sweep](24-directory-enumeration-sweep.md) | Falcon | One process reaching 3+ directory servers over LDAP, Global Catalog or **ADWS (9389)**: SharpHound, ADExplorer, ldapdomaindump, SOAPHound. The one consolidated LDAP rule, covering the 9389 evasion path the LDAP-only rules miss |
 

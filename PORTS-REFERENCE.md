@@ -95,7 +95,7 @@ Platform is where the tool *runs* (where you'd see the process); several run fro
 [18]: certipy_detections/18-smbclient-linux-share-access.md
 [20]: certipy_detections/20-pivot-relay-internet-to-internal.md
 [21]: certipy_detections/21-vscode-tunnel-started.md
-[22]: certipy_detections/22-isolated-web-app-abuse.md
+[22]: hermes_detection/isolated-web-app-abuse.md
 [23]: certipy_detections/23-red-team-tools-by-name.md
 [24]: certipy_detections/24-directory-enumeration-sweep.md
 [CS03]: rules/07-crowdstrike-fdr/CS03-dns-tunnelling.md
