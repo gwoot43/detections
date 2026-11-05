@@ -38,7 +38,7 @@ FROM logs-yourorg-microsoft-windows*
 | WHERE attr == "sidhistory" AND (optype == "value added" OR optype LIKE "*14674*")
 // The RID decides what the account becomes. RLIKE is Lucene: no "$" anchor, the whole string is matched
 // implicitly, and the RID must be followed by a non-digit or the end - so -512 matches and -5121 does not.
-| EVAL privileged = val RLIKE """.*-(500|502|512|516|518|519|520|521|544)(\\D.*)?""",
+| EVAL privileged = val RLIKE """.*-(500|502|512|516|518|519|520|521|544)([^0-9].*)?""",
        finding = CASE(privileged, "privileged_sid_added", "sid_history_added")
 | STATS events = COUNT(*),
         first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
@@ -51,7 +51,7 @@ FROM logs-yourorg-microsoft-windows*
 | LIMIT 100
 ```
 
-Deploy every 15 minutes over the last hour. Suppress by `actor` + `targets` for 24h.
+Deploy every 15 minutes over the last hour. Suppress by `actor` + `objects` for 24h.
 
 ## Reading the alert
 - **`finding = privileged_sid_added`** is domain compromise in progress: the target account now carries
@@ -92,7 +92,7 @@ FROM logs-yourorg-microsoft-windows*
 | WHERE @timestamp >= NOW() - 90 days
   AND event.code == "5136"
 | STATS events = COUNT(*), last = MAX(@timestamp),
-        sidhistory = COUNT(*) WHERE winevt.event_data.attribute_ldap_display_name LIKE "*sIDHistory*"
+        sidhistory = COUNT(*) WHERE TO_LOWER(winevt.event_data.attribute_ldap_display_name) LIKE "*sidhistory*"
     BY winlog.computer_name
 ```
 No rows means DS Change auditing is not covering directory objects at all - which also takes DCShadow,
