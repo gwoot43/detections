@@ -19,7 +19,7 @@ Account lockout storms (4740) are not used. A spray is caught earlier, and with 
 
 ## Query
 ```esql
-FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version
+FROM logs-system.security*, logs-windows.forwarded*
 | WHERE event.code == "4648"
 | EVAL actor = TO_LOWER(COALESCE(winlog.event_data.SubjectUserName, "")),
        target_acct = TO_LOWER(COALESCE(winlog.event_data.TargetUserName, "")),
@@ -32,6 +32,9 @@ FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _versi
         explicit_targets = COUNT_DISTINCT(target_host),
         accounts_used = VALUES(target_acct)
     BY host_key, BUCKET(@timestamp, 15 minutes)
+// 20 events across 5 targets in a quarter hour: a person supplies credentials to a handful of hosts, a runas
+// loop or a tool sweeps them. Starting values - the baseline for them is this estate's own 4648 distribution,
+// which the p99 per host_key sets once you have a week of it.
 | WHERE explicit_cred_events >= 20 AND explicit_targets >= 5
 ```
 

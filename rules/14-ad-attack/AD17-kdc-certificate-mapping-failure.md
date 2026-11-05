@@ -1,50 +1,83 @@
 ---
 id: AD17
-name: Domain controller refused a certificate logon - certificate belongs to another account, has no strong mapping, or predates the account (Kdcsvc 39, 40, 41)
+name: DC refused a certificate logon — wrong account, no strong mapping, or a certificate older than the account
 category: ad-attack
 status: todo
-rank: 17
 language: esql
 index: logs-system.system*
 mitre: [T1649]
 data_source: Domain controller System log, Kerberos KDC events 39, 40 and 41
 suppression:
-  fields: [winlog.computer_name, event.code]
-  duration: 1h
+  fields: [host.id]
+  duration: 24h
   missing_fields: do_not_suppress
 ---
-Since the 2022 certificate-mapping changes (KB5014754), the KDC checks that a logon certificate really belongs to the account it names, and it logs when it can't:
+Since the 2022 certificate-mapping changes (KB5014754), the KDC checks that a logon certificate belongs to the account it names, and logs when it cannot:
 
-- **41: the certificate carries a different account's SID.** A certificate issued to one account being used to log on as another. That's a certificate requested while an account's UPN was swapped (the ESC9/ESC10 trick), ESC1 with the wrong `-sid`, or a forged certificate. Close to certain.
-- **39: no strong mapping.** No SID in the certificate and no explicit mapping. Under full enforcement, the default since 2025, the logon is refused. An attacker's certificate from an ESC1, ESC9 or ESC16 path without a SID lands here; so does a legacy certificate nobody reissued.
-- **40: the certificate is older than the account.** An account deleted and recreated under the same name, then logged on with a certificate from before.
+- **41** — the certificate carries **another account's SID**. A certificate issued to one account being used to log on as another: the ESC9/ESC10 UPN-swap trick, ESC1 with `-sid` pointing elsewhere, or a forgery. Close to certain.
+- **39** — **no strong mapping**: no SID in the certificate and no explicit mapping. Under full enforcement (the default from 2025) the logon is refused.
+- **40** — the certificate is **older than the account**: an account deleted and recreated under the same name, then logged on with the pre-existing certificate.
 
-Failed attempts count: Certipy prints the error and the attacker tries again with `-sid`, by which time this has fired.
+`rules/14-ad-attack/AD17` has the three events and the provider filter. This version drops the rendered `message` from the payload (the largest column in the index), extracts the **account** so the alert names who was refused, and says plainly which of the three is noise in a mixed-enforcement estate.
 
-Run every 5 minutes over the last 10.
 ```esql
-FROM logs-system.system* METADATA _id, _index, _version
-| WHERE event.code IN ("39", "40", "41")
-  AND winlog.provider_name IN ("Microsoft-Windows-Kerberos-Key-Distribution-Center", "Kdcsvc")
-| EVAL reason = CASE(event.code == "41", "CERTIFICATE SID BELONGS TO ANOTHER ACCOUNT",
-                     event.code == "39", "NO STRONG MAPPING",
-                     event.code == "40", "CERTIFICATE OLDER THAN ACCOUNT")
-| KEEP @timestamp, winlog.computer_name, event.code, reason, message, _id, _index, _version
+FROM logs-yourorg-microsoft-windows*
+// One hour in the query: these are rare, and a refused logon arrives in bursts when an attacker retries.
+| WHERE @timestamp >= NOW() - 1 hour
+  AND event.code IN ("39", "40", "41")
+// 39-41 are reused by other providers in the System log; the KDC is the only one that means this.
+  AND winevt.provider_name IN ("Microsoft-Windows-Kerberos-Key-Distribution-Center", "Kdcsvc")
+| EVAL reason = CASE(event.code == "41", "certificate_sid_is_another_account",
+                     event.code == "40", "certificate_older_than_account",
+                     "no_strong_mapping"),
+       account = TO_LOWER(COALESCE(winevt.event_data.target_user_name, winevt.event_data.account_name, "")),
+// 39 is the legacy-certificate population: in an estate that has not finished enforcement, stack it as its
+// own row so 41 is not buried under it.
+       severity = CASE(event.code IN ("40", "41"), "high", "triage") 
+| STATS events = COUNT(*),
+        first_seen = MIN(@timestamp), last_seen = MAX(@timestamp),
+        dcs = COUNT_DISTINCT(winlog.computer_name)
+    BY reason, severity, account
+| SORT events DESC
+| LIMIT 100
 ```
-No LogScale version: the domain controllers' logs are in Elastic. Suppress by DC and event for an hour.
 
-## Before turning it on
-- Check the provider name your DCs log under: event IDs 39 to 41 are reused by other providers in the System log.
-  ```esql
-  FROM logs-system.system*
-  | WHERE event.code IN ("39", "40", "41")
-  | STATS events = COUNT(*), dcs = COUNT_DISTINCT(winlog.computer_name) BY winlog.provider_name, event.code
-  ```
-- Run it over 30 days. Any 41 needs explaining. A 39 that repeats daily for one account is a legacy certificate (an old smartcard, a device with a third-party certificate): have it reissued, or exclude that account for 39 only, never the whole event.
+Deploy every 15 minutes over the last hour. Suppress by `reason` + `account` for 6h.
+
+## Reading the alert
+- **`severity = high`** is 40/41: the certificate named the wrong account, or predates it. Those two are worth a call in minutes — the certificate exists, and whoever holds it has tried to use it.
+- **`reason = no_strong_mapping`** is the noisy one. In an estate mid-enforcement it is dominated by old certificates that were never reissued; in an estate at full enforcement it means the logon was refused and the certificate is attacker-made or unmanaged. The difference is a policy question, not a query one.
+- **`account`** is who was refused. A Tier-0 account here is a much louder signal than a service account that was migrated last year.
+- **`dcs`** above one means the attempt was tried against several DCs, which is what a tool does when the first one says no.
+
+## Nearest benign twins
+- **Legacy certificates issued before the mapping change.** The fix is reissue, not a suppression; track them as a count that should trend to zero.
+- **A user with two accounts** (an admin account and a normal one) who logged on with a certificate issued to the other. It produces 41 legitimately, and it is the same shape as ESC9 — which is why it needs the person, not the tool.
+- **Account recreation** after a deletion (a rehired user, a rebuilt service account) with an old certificate still on a smartcard. 40, benign, and fixed by reissuing.
 
 ## What it misses
-- A certificate that maps strongly: Certipy with the right `-sid`, a golden certificate with the right SID, shadow credentials (key trust). AD15 and AD16 see those logons.
-- Certificate logons over Schannel (LDAPS), which log on the DC's Schannel side, not here.
+- **Successes.** By definition this rule sees refusals. A certificate that maps correctly produces no event and lands in `pkinit-ticket-to-self` if it is being abused for hash extraction.
+- **Enforcement disabled**, where 39 is logged but the logon is allowed anyway — the log then records a refusal that did not happen. Check your `StrongCertificateBindingEnforcement` value before trusting the 39 population.
+- **Certificate issuance**, which is `AD06`/`AD14`; and the CA's own logs, which are a different provider entirely.
 
-## When it fires
-The account in `message` is the target; the certificate's subject and issuer are in it too. Find the request on the CA (AD14, I09) and who asked for it, revoke the certificate, and look for 4768 logons from the same address (AD15, AD16), in case a retry with a SID worked.
+## Probe before enabling
+```esql
+FROM logs-yourorg-microsoft-windows*
+| WHERE @timestamp >= NOW() - 30 days AND event.code IN ("39", "40", "41")
+| STATS events = COUNT(*), last = MAX(@timestamp) BY winevt.provider_name, event.code
+| SORT events DESC
+| LIMIT 20
+```
+The provider list is a filter, not a guess: if the codes appear only under other providers, your DCs are logging this somewhere else — or the KDC auditing is off and the rule is dead.
+
+## Pipeline
+DC and AD events come from `logs-yourorg-microsoft-windows*` - the only Windows source in this estate, for every
+channel. Event data is under `winevt.event_data.*` in snake_case, and the event's own Computer field is
+`winlog.computer_name`, **not** `host.name`: the two hold different values here, and `host.name` is the agent's
+identity rather than the machine that logged the event. A key that does not exist returns null, so a renamed
+field makes the rule match nothing instead of failing.
+
+## References
+- `rules/14-ad-attack/AD17-kdc-certificate-mapping-failure.md` - the rule this refines
+- Microsoft KB5014754 - certificate-based authentication changes, `StrongCertificateBindingEnforcement` and the 39/40/41 semantics
+- MITRE T1649 (steal or forge authentication certificates)

@@ -22,9 +22,7 @@ rules/
   15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
   16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
   17-ai-detections/         AI01-AI12 attacks using or aimed at AI: malware calling models, agentic attack frameworks, hijacked coding agents, Copilot, shadow AI
-detection_ideas/            copies of the C2, tunnelling, post-exploitation and AI detections, kept identical to the originals (tools/sync_detection_ideas.py)
-implement/                  copies of the detections chosen to build next (TruffleHog, AD CS), kept identical the same way
-certipy_detections/         Certipy (AD CS attack tool) detections for the organisation's own schema: DC, CA and Falcon
+archive/                    superseded detections and analyses, kept for the research trail (never deployed)
 PORTS-REFERENCE.md          ports each red/purple-team tool targets, and the detection that watches each (library-wide tuning aid)
 NEW-TTPS-2026.md            running log of recent tradecraft, MITRE v18-v20 changes, AI attacks and detection ideas (add new findings here)
 docs/
@@ -36,7 +34,6 @@ docs/
   VISIBILITY-GAPS.md             DC/AD (and other-source) telemetry gaps, each with an ES|QL query that proves it
 tools/
   lint_detections.py             checks every rule against the standards' reject criteria
-  sync_detection_ideas.py        keeps detection_ideas/ and implement/ identical to the originals
   mitre_coverage.py              regenerates the ATT&CK coverage map
 ```
 
@@ -52,7 +49,7 @@ Each rule file is self-contained: front-matter (id, MITRE, data source, suppress
 7. **Short by default, and every threshold has a source.** Most rules are one event, a precise regex with a named capture, and the fields to triage it (CS19). Rules that have to count or compare filter on what the index answers, reduce once per alert entity, then decide, with thresholds from a measured baseline recorded next to them (B01, CS17). Each rule says what to check before turning it on, what it misses and what to do when it fires. The standards are `docs/DETECTION-STRUCTURE-ESQL.md` and `docs/DETECTION-STRUCTURE-CQL.md`, and `tools/lint_detections.py` checks rules against them.
 
 ## Field-name caveat
-Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names, except two sources that come from your own pipelines (replace `yourorg` in both): **CrowdStrike FDR** — `logs-yourorg-crowdstrike-data-default*`, lowercase `event.action`, raw fields under `data.*`; and this estate's **Windows DC/AD event logs** — `logs-yourorg-microsoft-windows*`, fields under `winevt.event_data.*` in snake_case, computer in `winlog.computer_name`. The portable `rules/` catalogue keeps the Elastic integration streams (`logs-system.security*` and the rest); the deployed `hermes_detection/` DC/AD rules all use the estate's single Windows log. The mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).
+Some sources are not natively ECS (F5, Imperva, Mimecast SIEM logs, some Entra properties nested under `azure.*.properties`). Queries use the closest ECS name and flag where you must confirm the real field in your ingest pipeline. Treat the queries as correct logic to be field-mapped, not copy-paste-final. Index patterns follow the Elastic integration data stream names, except two sources that come from your own pipelines (replace `yourorg` in both): **CrowdStrike FDR** — `logs-yourorg-crowdstrike-data-default*`, lowercase `event.action`, raw fields under `data.*`; and this estate's **Windows DC/AD event logs** — `logs-yourorg-microsoft-windows*`, fields under `winevt.event_data.*` in snake_case, computer in `winlog.computer_name`. The portable `rules/` catalogue keeps the Elastic integration streams (`logs-system.security*` and the rest); the deployed DC/AD rules all use the estate's single Windows log. The mapping is in `docs/ESQL-CONVENTIONS.md` (Index patterns).
 
 ## Ports & tools reference
 [`PORTS-REFERENCE.md`](PORTS-REFERENCE.md) maps every network port used across the library to what it's for, which tools target it (Certipy, Impacket, BloodHound, NetExec, ligolo, coercion, DNS tunnels, ADWS and more) and the detection that watches each. Use it when setting port/CIDR filters or checking where a tool would surface.
