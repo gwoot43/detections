@@ -17,6 +17,8 @@ Attackers switch off the audit subcategories that would record them (`auditpol /
 
 The 4719 subject is usually the machine account even when a person ran `auditpol`, so the rule does not filter on who made the change. It keys on what was removed instead. Adding auditing is ignored.
 
+The same act exists in the cloud: Conditional Access is what enforces MFA and legacy-auth blocking, and disabling it is the Entra version of switching auditing off. `S26` reads that from the audit log, and the two are worth alerting on together because an attacker who blinds both layers is not doing it twice by accident.
+
 ## Query
 ```esql
 FROM logs-system.security*, logs-windows.forwarded* METADATA _id, _index, _version

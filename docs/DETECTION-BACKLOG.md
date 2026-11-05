@@ -117,7 +117,8 @@ exactly what an attacker holding a DC's machine account does next.
 
 ## 3. Lateral movement and privilege escalation
 
-### 3.1 S4U2Proxy abuse — the delegation case `AD08` filters out
+### 3.1 S4U2Proxy abuse — the delegation case `AD08` filters out  
+**Shipped:** `AD20`.
 
 **How it works.** Kerberos delegation has two halves. `S4U2Self` lets a service ask the KDC for a ticket *to
 itself* on behalf of any user — no delegation rights needed. `S4U2Proxy` then lets that service present the user's
@@ -164,7 +165,8 @@ PC has no reason to authenticate to another user's PC.
 The `S` series is almost entirely **sign-in log** detections. Directory changes live in the **audit log**, and that
 is where cloud privilege escalation and persistence happen — the Entra equivalent of `5136`. Five candidates:
 
-### 4.1 Permanent privileged role assignment, outside PIM
+### 4.1 Permanent privileged role assignment, outside PIM  
+**Shipped:** `S25`.
 
 **Anchor:** audit `Add member to role` for a privileged role where the activity is not a PIM activation
 (`Add member to role completed (PIM activation)`), or `Add member to role outside PIM`.
@@ -189,7 +191,8 @@ consenting user is not an admin, and the scope includes mail, files or `offline_
 **Why:** consent phishing gives an attacker a refresh token without a password. `S24` covers app *probing*; nothing
 covers the grant.
 
-### 4.4 Conditional Access policy weakened or disabled
+### 4.4 Conditional Access policy weakened or disabled  
+**Shipped:** `S26` — the cloud twin of `WE02`, and the two now cross-reference each other.
 
 **Anchor:** `Update conditional access policy` where `state` moves to disabled, or an exclusion is added for a
 group or user.
