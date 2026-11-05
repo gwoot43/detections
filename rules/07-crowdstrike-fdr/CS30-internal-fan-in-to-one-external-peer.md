@@ -30,8 +30,8 @@ pivot has precisely one, because it is a single channel.
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 | WHERE @timestamp >= NOW() - 30 minutes
-  AND event.action IN ("networkreceiveacceptip4", "networkconnectip4", "networkconnectip6")
-| EVAL is_inbound = event.action == "networkreceiveacceptip4",
+  AND event.action IN ("networkreceiveacceptip4", "networkreceiveacceptip6", "networkconnectip4", "networkconnectip6")
+| EVAL is_inbound = event.action IN ("networkreceiveacceptip4", "networkreceiveacceptip6"),
        peer = TO_STRING(source.ip),
        dst = TO_STRING(destination.ip),
        internal_peer = CIDR_MATCH(peer, "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"),
@@ -81,7 +81,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 ```esql
 FROM logs-yourorg-crowdstrike-data-default*
 | WHERE @timestamp >= NOW() - 24 hours
-  AND event.action == "networkreceiveacceptip4"
+  AND event.action IN ("networkreceiveacceptip4", "networkreceiveacceptip6")
 | STATS peers = COUNT_DISTINCT(source.ip), conns = COUNT(*) BY host.id, host.name, destination.port
 // baseline: this is the fan-in population of the estate itself - 3 is the rule's starting value, and whatever
 // sits above it here is what the rule would have alerted on before you enabled it

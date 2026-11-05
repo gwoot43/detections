@@ -42,9 +42,8 @@ FROM logs-yourorg-microsoft-windows*
        ip = TO_STRING(winevt.event_data.ip_address)
 // a proxied ticket: the chain is non-empty. "-" is a plain TGS request, which AD08 already covers.
 | WHERE transited != "-" AND transited != "" AND svc != ""
-// a service ticket for the service's own account is S4U2Self, which needs no delegation rights. The proxy step is
-// the ticket to a *different* service, so drop the self-case here.
-  AND NOT transited LIKE "*" || svc || "*"
+// S4U2Self - a ticket for the service's own account - needs no delegation rights, so it is not the abuse. It is a
+// single service, so the `services >= 2` gate below already excludes it; no per-row self-match is needed.
 | STATS tickets = COUNT(*),
         services = COUNT_DISTINCT(svc, 4000),
         users = COUNT_DISTINCT(impersonated, 4000),
@@ -62,8 +61,9 @@ FROM logs-yourorg-microsoft-windows*
 | LIMIT 50
 ```
 
-The `NOT transited LIKE "*" || svc || "*"` clause is the S4U2Self exclusion. It concatenates the target SPN into the
-pattern rather than hard-coding it, so a renamed service account keeps working.
+S4U2Self - a service requesting a ticket to its own account - needs no delegation rights, so it is not the abuse.
+It is a single service, so the `services >= 2` gate already excludes it, and no per-row self-match is required
+(ES|QL `LIKE` takes a constant pattern, so the service name cannot be spliced into one anyway).
 
 ## Reading the alert
 
