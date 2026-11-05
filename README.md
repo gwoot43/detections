@@ -33,6 +33,7 @@ docs/
   SYSMON-TO-CROWDSTRIKE.md       maps Sysmon event IDs to the Falcon FDR event.action / #event_simpleName we collect, and the Sysmon capabilities FDR has no equivalent for
   VISIBILITY-GAPS.md             DC/AD (and other-source) telemetry gaps, each with an ES|QL query that proves it
   PENTEST-READINESS.md           what to verify or build before an engagement, and the gaps to declare up front
+  DETECTION-BACKLOG.md           candidate detections not yet in rules/, with the benign twin for each
 tools/
   lint_detections.py             checks every rule against the standards' reject criteria
   mitre_coverage.py              regenerates the ATT&CK coverage map
