@@ -2,7 +2,7 @@
 
 A library-wide tuning aid for the network-based detections: which ports each red/purple-team tool targets, and which detection watches them. Use it when setting the port and CIDR filters, and to see where a tool would show up.
 
-In the **Detection** column each id links to its rule file: a bare number (01-24) is in `certipy_detections/`, a letter-prefixed id (CS / B / W / AD …) is in `rules/`. "no rule yet" marks a gap worth building.
+In the **Detection** column each id links to its rule file. Every rule now lives under `rules/`, in the category folder that matches its behaviour; the ids keep their original prefixes (CS / B / W / AD / CERTIPY / LATMOV …) so older references still resolve. "no rule yet" marks a gap worth building.
 
 Private ranges throughout are `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `fc00::/7` (internal IPv6).
 
@@ -81,23 +81,23 @@ Platform is where the tool *runs* (where you'd see the process); several run fro
 - **a client hitting `\pipe\efsr`/`spoolss`/`netdfs` on a DC, or a DC making an unexpected *outbound* authentication** - coercion (PetitPotam, PrinterBug), the front of the ESC8 chain [01] catches the back of. No rule yet.
 - **53 to anything but your resolvers** - DNS tunnelling or C2 over DNS ([CS03]).
 
-<!-- detection links: bare numbers -> certipy_detections/, prefixed ids -> rules/ -->
-[01]: certipy_detections/01-ntlm-client-claims-to-be-the-server.md
-[02]: certipy_detections/02-upn-set-without-domain.md
-[03]: certipy_detections/03-cert-pipe-on-ca.md
-[04]: certipy_detections/04-kerberos-from-process-other-than-lsass.md
-[05]: certipy_detections/05-process-proxying-into-ad.md
-[08]: certipy_detections/08-bloodhound-collection-sweep.md
-[14]: certipy_detections/14-smb-from-user-process.md
-[15]: certipy_detections/15-remote-exec-pipes-and-service-installs.md
-[16]: certipy_detections/16-lateral-sweep-admin-protocols.md
-[17]: certipy_detections/17-user-process-speaking-smb.md
-[18]: certipy_detections/18-smbclient-linux-share-access.md
-[20]: certipy_detections/20-pivot-relay-internet-to-internal.md
-[21]: certipy_detections/21-vscode-tunnel-started.md
-[22]: hermes_detection/isolated-web-app-abuse.md
-[23]: certipy_detections/23-red-team-tools-by-name.md
-[24]: certipy_detections/24-directory-enumeration-sweep.md
+<!-- detection links: all ids -> rules/<category>/ -->
+[01]: rules/14-ad-attack/CERTIPY-01-ntlm-client-claims-to-be-the-server.md
+[02]: rules/14-ad-attack/CERTIPY-02-upn-set-without-domain.md
+[03]: rules/14-ad-attack/CERTIPY-03-cert-pipe-on-ca.md
+[04]: rules/14-ad-attack/CERTIPY-04-kerberos-from-process-other-than-lsass.md
+[05]: rules/14-ad-attack/CERTIPY-05-process-proxying-into-ad.md
+[08]: rules/10-windows-event-logs/WE16-bloodhound-smb-enumeration.md
+[14]: rules/03-endpoint-windows/LATMOV-01-smb-from-user-process.md
+[15]: rules/10-windows-event-logs/LATMOV-02-remote-exec-pipes-and-service-installs.md
+[16]: rules/06-network/LATMOV-03-lateral-sweep-admin-protocols.md
+[17]: rules/03-endpoint-windows/LATMOV-04-user-process-speaking-smb.md
+[18]: rules/04-endpoint-linux/LATMOV-05-smbclient-linux-share-access.md
+[20]: rules/06-network/PIVOT-01-pivot-relay-internet-to-internal.md
+[21]: rules/07-crowdstrike-fdr/CS13-vscode-tunnel.md
+[22]: rules/03-endpoint-windows/W16-isolated-web-app-abuse.md
+[23]: rules/03-endpoint-windows/TOOLS-01-red-team-tools-by-name.md
+[24]: rules/07-crowdstrike-fdr/CS21-ldap-directory-reach.md
 [CS03]: rules/07-crowdstrike-fdr/CS03-dns-tunnelling.md
 [CS14]: rules/07-crowdstrike-fdr/CS14-tunnel-service-agent.md
 [CS16]: rules/07-crowdstrike-fdr/CS16-rare-program-reaches-internal-admin-services.md
