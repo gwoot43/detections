@@ -60,7 +60,7 @@ FROM logs-azure.auditlogs-*
         uid = VALUES(azure.auditlogs.properties.initiated_by.user.id),
         upn = VALUES(azure.auditlogs.properties.initiated_by.user.userPrincipalName),
         devices = VALUES(device),
-        ips = VALUES(source.ip),
+        ips = MV_SLICE(VALUES(source.ip), 0, 5),
         details = VALUES(CASE(is_register == 1, detail_values, NULL)),
         first_seen = MIN(@timestamp)
     BY azure.correlation_id
