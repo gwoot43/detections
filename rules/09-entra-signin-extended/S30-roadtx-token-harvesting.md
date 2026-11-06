@@ -99,7 +99,7 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
        device_name = TO_LOWER(COALESCE(`azure.auditlogs.properties.target_resources.0.display_name`, "")),
        // assumed: the audit record's initiator address is not guaranteed on every pipeline - verify against a
        // known "Register device" row in Discover before relying on `ips` in the alert
-       ip = TO_STRING(COALESCE(source.ip, azure.auditlogs.properties.initiated_by.user.ip_address))
+       ip = COALESCE(TO_STRING(source.ip), TO_STRING(azure.auditlogs.properties.initiated_by.user.ip_address))
 | WHERE usr != ""
 | STATS devicecode_at = MIN(CASE(stage == "devicecode", @timestamp, NULL)),
         register_at = MAX(CASE(stage == "register", @timestamp, NULL)),
