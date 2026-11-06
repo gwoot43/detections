@@ -89,11 +89,16 @@ FROM logs-azure.signinlogs-*, logs-azure.auditlogs-*
        proto = TO_LOWER(COALESCE(TO_STRING(azure.signinlogs.properties.authentication_protocol), "")),
        op = COALESCE(TO_STRING(azure.auditlogs.operation_name), ""),
        ev_outcome = TO_LOWER(COALESCE(TO_STRING(event.outcome), ""))
+// "Register device" is the user-initiated record; "Add device" is the service-written twin. Both are accepted
+// because which one appears depends on the registration path - the probe at the end of this rule lists what your
+// tenant actually writes.
 | WHERE (stage == "devicecode" AND outcome == "0" AND proto == "devicecode")
-     OR (stage == "register" AND ev_outcome == "success" AND op == "Register device")
+     OR (stage == "register" AND ev_outcome == "success" AND op IN ("Register device", "Add device"))
 | EVAL usr = TO_LOWER(COALESCE(azure.signinlogs.properties.user_principal_name,
                               azure.auditlogs.properties.initiated_by.user.userPrincipalName, "")),
        device_name = TO_LOWER(COALESCE(`azure.auditlogs.properties.target_resources.0.display_name`, "")),
+       // assumed: the audit record's initiator address is not guaranteed on every pipeline - verify against a
+       // known "Register device" row in Discover before relying on `ips` in the alert
        ip = TO_STRING(COALESCE(source.ip, azure.auditlogs.properties.initiated_by.user.ip_address))
 | WHERE usr != ""
 | STATS devicecode_at = MIN(CASE(stage == "devicecode", @timestamp, NULL)),
@@ -156,3 +161,19 @@ FROM logs-azure.signinlogs-*
 
 This is the baseline and the false-positive check at once: whoever sits at four or more audiences over a week is
 either your alert or your allowlist, and you will know which before you enable it.
+
+Confirm the device-registration operation name your tenant writes - the second query depends on it:
+
+```esql
+FROM logs-azure.auditlogs-*
+| WHERE @timestamp >= NOW() - 90 days
+  // leading wildcard on purpose: the audit category is "Device" or "Device registration" depending on the
+  // record, and the point of this probe is to find out which
+  AND azure.auditlogs.category LIKE "*device*"
+| STATS events = COUNT(*) BY azure.auditlogs.operation_name
+| SORT events DESC
+| LIMIT 20
+```
+
+If this returns nothing at all, device registration is not in the audit log you collect, and the second query
+cannot fire - the first query still works, and `S17` covers the same chain from the sign-in side.
