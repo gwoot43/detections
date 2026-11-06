@@ -14,7 +14,9 @@ suppression:
   missing_fields: do_not_suppress
 ---
 ## Why this is high fidelity
-roadtx registers fake devices in Entra ID so it can obtain a Primary Refresh Token. Unless the operator overrides them, it uses a fixed OS build (`10.0.19041.928`) and a `DESKTOP-` plus random-characters device name. Real Windows devices report their actual, current build. Separately, genuine Entra joins come from the Windows registration client (`Dsreg...` or `DeviceRegistrationClient` user agents) or Android. A join made by any other client is scripted.
+roadtx registers fake devices in Entra ID so it can obtain a Primary Refresh Token. Unless the operator overrides them, it uses a fixed OS build (`10.0.19041.928`) and a `DESKTOP-` plus random-characters device name — a default that is **version-specific** (a newer roadtx build, or a `--os-version` override, changes it), so treat the exact build as a strong-when-it-matches indicator and the non-standard registration client below as the more durable half. Real Windows devices report their actual, current build.
+
+Separately, roadtx performs an Azure AD **join or register**, and a genuine registration comes from a known client — the Windows registration client (`Dsreg…`/`DeviceRegistrationClient`), Android (`Dalvik`), or an MDM enrolment client (Intune Company Portal, Jamf on macOS). A registration from any other client is scripted.
 
 One registration writes several records with the same correlation ID: "Add device" (Core Directory, written by the service, no user), "Register device" (the user, the join type and the client user agent) and the owner records. The rule groups them per registration, so the device properties from one record and the user from another end up in the same alert.
 
@@ -41,15 +43,24 @@ FROM logs-azure.auditlogs-*
        is_register = CASE(azure.auditlogs.operation_name == "Register device", 1, 0)
 | EVAL fingerprint = CASE(props LIKE "*10.0.19041.928*" AND device LIKE "desktop-*", 1, 0),
        odd_client = CASE(is_register == 1
-                         AND detail_values LIKE "*azure ad join*"
+                         // roadtx registers as well as joins, so match both join types - "join" alone misses the
+                         // Azure AD *registered* case, which is the one it uses to get a PRT without a full join
+                         AND (detail_values LIKE "*azure ad join*" OR detail_values LIKE "*azure ad register*"
+                              OR detail_values LIKE "*workplace join*")
                          AND detail_keys LIKE "*user-agent*"
-                         AND NOT (detail_values LIKE "*dsreg*" OR detail_values LIKE "*deviceregistrationclient*" OR detail_values LIKE "*dalvik*"), 1, 0)
+                         // legitimate registration clients: Windows (Dsreg/DeviceRegistrationClient), Android (Dalvik),
+                         // and MDM enrolment (Intune Company Portal, Jamf on macOS). An operator who spoofs one of
+                         // these evades - the default-fingerprint branch is the backstop, and estate-specific brokers
+                         // (e.g. iOS/macOS Authenticator) are added here after the first week's benign alerts.
+                         AND NOT (detail_values LIKE "*dsreg*" OR detail_values LIKE "*deviceregistrationclient*"
+                                  OR detail_values LIKE "*dalvik*" OR detail_values LIKE "*company portal*"
+                                  OR detail_values LIKE "*jamf*"), 1, 0)
 | STATS default_fingerprint = MAX(fingerprint),
         nonstandard_client = MAX(odd_client),
         uid = VALUES(azure.auditlogs.properties.initiated_by.user.id),
         upn = VALUES(azure.auditlogs.properties.initiated_by.user.userPrincipalName),
         devices = VALUES(device),
-        ips = VALUES(source.ip),
+        ips = MV_SLICE(VALUES(source.ip), 0, 5),
         details = VALUES(CASE(is_register == 1, detail_values, NULL)),
         first_seen = MIN(@timestamp)
     BY azure.correlation_id
@@ -64,6 +75,7 @@ Suppress by `azure.correlation_id` for 24h. Alerts missing a key field are not s
 ## Known false positives / exclusions
 - An old, never-updated Windows 10 20H1 image with a default `DESKTOP-` name can match the fingerprint. Real devices of that age are rare on a managed estate; check the device's later sign-ins before closing.
 - Device management or provisioning tools that join devices on behalf of users. Exclude their service accounts by object ID.
+- Genuine iOS/macOS registrations through a broker this estate uses (Authenticator, a third-party MDM) whose user agent is not in the client allowlist — they surface as `nonstandard_registration_client` until that client's user agent is added above. Confirm the device and user are real, then add it as an entity pair rather than muting the finding.
 
 ## Triage
 - Check who registered it and from where (`ips`, `initiated_by.user.ipAddress`), and whether that user had a device-code or risky sign-in just before (C11, I07, X02, S16).
