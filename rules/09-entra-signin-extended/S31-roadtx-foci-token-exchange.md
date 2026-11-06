@@ -1,5 +1,5 @@
 ---
-id: S30
+id: S31
 name: roadtx FOCI token exchange - one principal redeemed across several first-party public clients from a non-browser client
 category: entra-signin-extended
 status: todo
@@ -17,7 +17,7 @@ suppression:
 
 A stolen or phished refresh token is only as useful as the resources it can reach. Microsoft's **Family of Client IDs (FOCI)** is the lever: a refresh token issued to one first-party public client (Azure CLI, Azure PowerShell, Office, Teams, ...) can be redeemed for access tokens against **every other client in the family**. `roadtx` (ROADtools) automates exactly that redemption, so from the defender's side the signature is not any single sign-in but the **spread**: one principal receiving tokens for several of these public clients in a short window, from something that is not a browser.
 
-This is the token-side companion to `S29` (ROADrecon's retired Graph audience). It does not need Entra ID P2 - it reads plain sign-in logs - and it keys on Microsoft's own well-known public client ids, which nothing in the estate should be walking across in bulk.
+This is the token-side companion to `S29` (ROADrecon's retired Graph audience) and the client-id twin of `S30` (roadtx token harvesting): `S30` anchors on the spread of **resource audiences** a session asks for - what the token is spent against - while this rule anchors on the spread of **FOCI client ids** - which first-party client identities one family refresh token is redeemed through. Different fields, the same walk seen from two sides; either can fire without the other. It does not need Entra ID P2 - it reads plain sign-in logs - and it keys on Microsoft's own well-known public client ids, which nothing in the estate should be walking across in bulk.
 
 - **Anchor:** successful sign-ins for **three or more** FOCI public client ids under one principal in the window.
 - **Corroborating property:** none of them came through a browser (`user_agent` not Mozilla-shaped). When the client is spoofed to look like a browser, the breadth of clients still carries it.
@@ -82,7 +82,7 @@ FROM logs-azure.signinlogs-*
 - **MSAL token-cache refresh** in a rich client (Office, Teams) reuses that client's own id and does not fan out across the family, so it stays below the threshold.
 
 ## What it misses
-- **A single-client token request** with no family walk - below the breadth threshold by design. `S29`, the sign-in-risk detections and the conditional-access rules are the neighbours for the one-off case.
+- **A single-client token request** with no family walk - below the breadth threshold by design. `S29`, `S30` (the audience-spread half), the sign-in-risk detections and the conditional-access rules are the neighbours for the one-off case.
 - **A spoofed browser user agent combined with only one or two clients** - the UA exclusion drops the browser-shaped caller, so a low-breadth, browser-spoofed request is invisible here.
 - **PRT-cookie or device-registration abuse** that does not produce multiple FOCI sign-ins - that surfaces in the audit log (a device added, a credential registered) and the risk detections, not in this breadth count.
 - **Redemptions against a different tenant** using a token minted here - this tenant's sign-in logs do not see them.
@@ -122,6 +122,7 @@ Every principal with a high `foci_apps` here is either sanctioned tooling (allow
 
 ## References
 - `rules/09-entra-signin-extended/S29-roadrecon-behavioural-aad-graph-audience.md` - the recon-side ROADtools rule; this is the token-side one
+- `rules/09-entra-signin-extended/S30-roadtx-token-harvesting.md` - the audience-spread half of roadtx token harvesting; this is the client-id half
 - ROADtools / roadtx (dirkjanm) - the token-exchange utility this models the telemetry of
 - Microsoft identity platform - Family of Client IDs (FOCI) and first-party public client ids
 - MITRE T1550.001 (application access token), T1528 (steal application access token)
