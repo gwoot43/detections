@@ -21,15 +21,15 @@ the anchor most published rules use.
 
 What is left is still enough, if the rule is built on **behaviour rather than on the escalation mechanism**:
 
-1. **The recon** - `linpeas`, `pspy`, `linux-exploit-suggester`, `sudo -l`, `find / -perm -4000`, `getcap -r /`. A
-   normal host produces none of these, ever.
+1. **The recon** - `linpeas`, `pspy`, `sudo -l`, `find / -perm -4000`, `getcap -r /`. Handled by **`L17`**, which is
+   the dedicated rule for it; this rule does not duplicate that branch.
 2. **The privilege transition** - a shell whose parent is `sudo`, `su`, `pkexec` or `doas`. Common for admins, so on
    its own it is noise.
 3. **The payload fetch from a root shell** - `curl`/`wget`/`nc` started from that shell. A root shell that
    downloads something is the pair that separates an escalation from routine administration.
 
-Requiring either (1) alone, or (2) **and** (3) together, keeps the rule quiet on admin habits and loud on the actual
-chain.
+Requiring (2) **and** (3) together keeps this rule quiet on admin habits and loud on the actual escalation chain.
+The enumeration that precedes it is `L17` - run the two side by side, and read `L17` first when both fire.
 
 ## Query
 
@@ -44,16 +44,12 @@ FROM logs-yourorg-crowdstrike-data-default*
        cmd = TO_LOWER(COALESCE(process.command_line, "")),
        parent = TO_LOWER(COALESCE(process.parent.name, "")),
        path = TO_LOWER(COALESCE(process.executable, ""))
-| EVAL is_recon = proc LIKE "linpeas*" OR proc LIKE "pspy*" OR proc LIKE "linux-exploit-suggester*"
-                 OR proc LIKE "linuxprivchecker*" OR cmd LIKE "*sudo -l*" OR cmd LIKE "*find / -perm -4000*"
-                 OR cmd LIKE "*getcap -r /*",
-       // a shell started by an escalator, or any process running from a writable path
-       is_root_shell = proc IN ("sh", "bash", "dash", "zsh") AND parent IN ("sudo", "su", "pkexec", "doas"),
+// a shell started by an escalator, or any process running from a writable path
+| EVAL is_root_shell = proc IN ("sh", "bash", "dash", "zsh") AND parent IN ("sudo", "su", "pkexec", "doas"),
        is_fetch = proc IN ("curl", "wget", "nc", "ncat", "socat") OR cmd LIKE "*base64 -d*",
        is_writable_path = path LIKE "/tmp/*" OR path LIKE "/dev/shm/*" OR path LIKE "/var/tmp/*"
                           OR path LIKE "/home/*"
 | STATS events = COUNT(*),
-        recon = COUNT(*) WHERE is_recon,
         root_shells = COUNT(*) WHERE is_root_shell,
         fetches = COUNT(*) WHERE is_fetch,
         writable_path_runs = COUNT(*) WHERE is_writable_path,
@@ -61,10 +57,9 @@ FROM logs-yourorg-crowdstrike-data-default*
         commands = MV_SLICE(VALUES(process.command_line), 0, 5),
         parents = MV_SLICE(VALUES(process.parent.name), 0, 5)
     BY host.id, host.name, user.name
-// recon alone is an alert (nothing legitimate runs linpeas); a root shell alone is not, but a root shell that
-// fetches a payload is. Baseline: recon = 0 in a normal estate, so there is nothing to tune on that branch.
-| WHERE recon >= 1
-     OR (root_shells >= 1 AND fetches >= 1)
+// A root shell alone is not an alert - admins run sudo -i all day. A root shell that fetches a payload, or one that
+// runs something out of a writable path, is. Baseline: measure sudo-spawned shells per host before enabling.
+| WHERE (root_shells >= 1 AND fetches >= 1)
      OR (root_shells >= 1 AND writable_path_runs >= 1)
 | SORT first_seen DESC
 | LIMIT 50
@@ -74,7 +69,8 @@ FROM logs-yourorg-crowdstrike-data-default*
 
 - **`commands`** shows the chain: a recon tool, then `sudo -i`, then `curl`. Read it in time order - `first_seen`
   and `last_seen` bound the whole sequence.
-- **`recon >= 1` with no root shell** is a tester enumerating and not yet succeeding, which is still worth a call.
+- **A named recon tool with no root shell** is `L17`'s alert, not this one - the tester is enumerating and has not
+  succeeded yet.
 - **`parents`** containing `sudo` on a host where that user has never run it is the single strongest signal the
   process data can give you.
 
