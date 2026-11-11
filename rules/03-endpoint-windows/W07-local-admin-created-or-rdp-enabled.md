@@ -62,6 +62,24 @@ Suppress by `host.id`, `user.name` for 1h. Alerts missing a key field are not su
 - Helpdesk enabling RDP for remote support. Ticket-gated.
 - `reg query` of the RDP and hidden-account values is not matched; only writes are.
 
+### Allowlisting by department or actor
+
+Where the estate can enrich the actor with a department, excluding IT is legitimate - but it has one trap that
+silently removes the alerts worth having. `department NOT IN (...)` evaluates to **null** when the department is
+missing, and a null in `WHERE` drops the row. An account created by an attacker, or a service account, usually has
+no department at all, so the exclusion deletes exactly the population the rule exists for.
+
+Write it as "unknown is not IT", and keep the sanctioned names in the same clause so they are visible in one place:
+
+```esql
+| EVAL dept = TO_LOWER(COALESCE(asx.user.department, ""))
+| WHERE (dept == "" OR dept NOT IN ("tech infrastructure", "infrastructure", "technology infrastructure"))
+  AND actor NOT IN ("manager", "cmstaskmanageruser")   // sanctioned local-admin and app service account
+```
+
+The same rule applies to any allowlist keyed on an enriched field: coalesce first, then decide. A `NOT IN` on a
+field that is sometimes absent is not an exclusion, it is a silent filter on "has the field".
+
 ## Triage
 - Confirm the account exists, disable it, check 4624 for its use, check W08 for lateral movement from the host.
 
