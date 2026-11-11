@@ -72,7 +72,7 @@ no department at all, so the exclusion deletes exactly the population the rule e
 Write it as "unknown is not IT", and keep the sanctioned names in the same clause so they are visible in one place:
 
 ```esql
-| EVAL dept = TO_LOWER(COALESCE(asx.user.department, ""))
+| EVAL dept = TO_LOWER(COALESCE(yourorg.user.department, ""))
 | WHERE (dept == "" OR dept NOT IN ("tech infrastructure", "infrastructure", "technology infrastructure"))
   AND actor NOT IN ("manager", "cmstaskmanageruser")   // sanctioned local-admin and app service account
 ```
