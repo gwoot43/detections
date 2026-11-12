@@ -51,7 +51,7 @@ FROM logs-yourorg-crowdstrike-data-default*
 // turning off the protections that make tampering detectable in the first place
        weakens_boot = (pname == "bcdedit.exe" AND (cmd LIKE "*testsigning*" OR cmd LIKE "*nointegritychecks*"
                                                    OR cmd LIKE "*bootmenupolicy legacy*"))
-                      OR (pname == "manage-bde.exe" AND (cmd LIKE "*-off*" OR cmd LIKE "*protectors*disable*"))
+                      OR (pname == "manage-bde.exe" AND (cmd LIKE "*-off*" OR cmd LIKE "*protectors*disable*")),
 // collecting rather than tampering - the report-writing half, still worth seeing
        collects = pname LIKE "kape*" OR pname LIKE "velociraptor*" OR pname LIKE "winpmem*"
                   OR cmd LIKE "*ftk imager*" OR cmd LIKE "*magnet ram*"

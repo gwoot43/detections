@@ -54,7 +54,7 @@ FROM logs-yourorg-crowdstrike-data-default*
        shadow = (pname == "vssadmin.exe" AND cmd LIKE "*create shadow*")
                 OR (pname == "diskshadow.exe" AND (cmd LIKE "*create*" OR cmd LIKE "*expose*"))
                 OR (pname == "wmic.exe" AND cmd LIKE "*shadowcopy*" AND cmd LIKE "*call create*"),
-       copy_out = cmd LIKE "*/harddiskvolumeshadowcopy*",
+       copy_out = cmd LIKE "*harddiskvolumeshadowcopy*",
        lsadump = cmd LIKE "*lsadump::sam*" OR cmd LIKE "*lsadump::secrets*" OR cmd LIKE "*lsadump::lsa*"
                  OR cmd LIKE "*lsadump::cache*"
 | WHERE hive_save OR esent_hive OR shadow OR copy_out OR lsadump
