@@ -22,6 +22,7 @@ rules/
   15-device/                DV01-DV05 USB, keystroke injection, boot integrity, device control
   16-deception/             D01-D04   honey accounts, decoy files and hosts + setup guide
   17-ai-detections/         AI01-AI12 attacks using or aimed at AI: malware calling models, agentic attack frameworks, hijacked coding agents, Copilot, shadow AI
+detection_plus/             the 35 detections most breaches cross, plus log-silence and honeytoken meta-detections: a manifest linking each to its rule in rules/, with ship order and data gaps
 archive/                    superseded detections and analyses, kept for the research trail (never deployed)
 PORTS-REFERENCE.md          ports each red/purple-team tool targets, and the detection that watches each (library-wide tuning aid)
 NEW-TTPS-2026.md            running log of recent tradecraft, MITRE v18-v20 changes, AI attacks and detection ideas (add new findings here)
